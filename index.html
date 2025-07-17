@@ -137,7 +137,6 @@
             <div class="flex space-x-4 px-4">
                 <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
                 <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
-                <!-- НОВОЕ: Вкладка "Роли" -->
                 <button data-tab="roles" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Роли</button>
                 <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
             </div>
@@ -189,7 +188,6 @@
         </div>
     </div>
     
-    <!-- НОВОЕ: Модальное окно для редактирования роли -->
     <div id="edit-role-modal" class="modal-overlay hidden">
         <div class="modal-content !max-w-xl">
             <h3 class="text-xl font-semibold mb-4">Редактировать роль</h3>
@@ -232,9 +230,8 @@
         let db, auth, userId;
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
-        let unsubscribeRoles = () => {}; // НОВОЕ
+        let unsubscribeRoles = () => {};
 
-        // ИЗМЕНЕНО: Добавлено 'roles' в состояние
         let state = {
             activeTab: 'chat',
             activeSessionId: null,
@@ -263,7 +260,6 @@
         const editProviderModal = document.getElementById('edit-provider-modal');
         const editProviderForm = document.getElementById('edit-provider-form');
         const editProviderCancelBtn = document.getElementById('edit-provider-cancel-btn');
-        // НОВОЕ: Элементы модального окна для роли
         const editRoleModal = document.getElementById('edit-role-modal');
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
@@ -279,7 +275,6 @@
 
         function renderSidebar() {
             sidebarList.innerHTML = '';
-            // ИЗМЕНЕНО: Фильтрация теперь не нужна, т.к. роли не отображаются в боковой панели
             const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
 
             if (filteredSessions.length > 0) {
@@ -309,7 +304,7 @@
             } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                  sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${state.activeTab === 'chat' ? 'чатов' : 'заметок'}.</div>`;
             } else {
-                 sidebarList.innerHTML = ''; // Для вкладок "Роли" и "Настройки" сайдбар пуст
+                 sidebarList.innerHTML = ''; 
             }
             lucide.createIcons();
         }
@@ -318,7 +313,6 @@
             mainContent.innerHTML = '';
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
-            // ИЗМЕНЕНО: Добавлена обработка новой вкладки
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
@@ -341,7 +335,7 @@
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
-                case 'roles': // НОВОЕ
+                case 'roles': 
                     mainContent.innerHTML = getRolesViewHTML();
                     renderRoles();
                     setupRolesViewEventListeners();
@@ -366,20 +360,20 @@
         // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         
-        // ИЗМЕНЕНО: Добавлен select для выбора роли
+        // ИЗМЕНЕНИЕ: Исправлена верстка шапки чата
         function getChatViewHTML(activeSession) { 
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
 
             return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата">
-                    <div class="flex items-center gap-2 w-full sm:w-auto">
-                        <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full flex-shrink-0">
+                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
+                    <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                        <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
                            <option value="">Без роли</option>
                            ${roleOptions}
                         </select>
-                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full flex-shrink-0">
+                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
                            ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
                         </select>
                     </div>
@@ -426,7 +420,6 @@
 
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
-        // НОВОЕ: HTML шаблон для вкладки "Роли"
         function getRolesViewHTML() {
             return `<div class="p-6">
                 <h2 class="text-2xl font-bold mb-6">Управление ролями</h2>
@@ -445,7 +438,6 @@
             </div>`;
         }
         
-        // НОВОЕ: Функция для рендеринга списка ролей
         function renderRoles() {
             const list = document.getElementById('roles-list');
             if (!list) return;
@@ -517,13 +509,12 @@
         }
         
         // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
-        // ИЗМЕНЕНО: Добавлен обработчик для селектора ролей
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 
             const titleInput = document.getElementById('chat-title-input'); 
             const providerSelect = document.getElementById('provider-select'); 
-            const roleSelect = document.getElementById('role-select'); // НОВОЕ
+            const roleSelect = document.getElementById('role-select'); 
             const messagesContainer = document.getElementById('chat-messages'); 
             
             form?.addEventListener('submit', handleChatSubmit); 
@@ -532,7 +523,6 @@
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
             providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
             
-            // НОВОЕ: обработчик для селектора ролей
             roleSelect?.addEventListener('change', (e) => {
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { roleId: e.target.value });
@@ -557,14 +547,12 @@
             contentTextarea?.addEventListener('blur', saveNote);
         }
 
-        // НОВОЕ: Обработчик для вкладки "Роли"
         function setupRolesViewEventListeners() {
             document.getElementById('add-role-form')?.addEventListener('submit', handleAddRole);
         }
 
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
         
-        // ИЗМЕНЕНО: Логика отправки чата теперь учитывает выбранную роль
         async function handleChatSubmit(e) { 
             e.preventDefault(); 
             const input = document.getElementById('chat-input'); 
@@ -575,7 +563,6 @@
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId); 
             const provider = state.providers.find(p => p.id === activeSession.providerId); 
             
-            // НОВОЕ: Находим выбранную роль
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
 
             if (!provider) { 
@@ -602,7 +589,6 @@
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
             
-            // ИЗМЕНЕНО: Подготавливаем сообщения для API с учетом роли
             const apiMessagesPayload = [];
             if (selectedRole && selectedRole.content) {
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
@@ -620,7 +606,7 @@
                     const response = await fetch(fullUrl, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentKey}` }, 
-                        body: JSON.stringify({ model: provider.model, messages: apiMessagesPayload }) // Используем новый payload
+                        body: JSON.stringify({ model: provider.model, messages: apiMessagesPayload }) 
                     }); 
 
                     if (!response.ok) { 
@@ -674,7 +660,6 @@
             e.target.reset(); 
         }
 
-        // НОВОЕ: Функция добавления роли
         async function handleAddRole(e) {
             e.preventDefault();
             const name = document.getElementById('role-name').value;
@@ -701,7 +686,6 @@
             editProviderModal.classList.remove('hidden');
         }
 
-        // НОВОЕ: Функция открытия модального окна редактирования роли
         function handleOpenEditRoleModal(roleId) {
             const roleToEdit = state.roles.find(r => r.id === roleId);
             if (!roleToEdit) return;
@@ -740,7 +724,6 @@
             editProviderModal.classList.add('hidden');
         }
 
-        // НОВОЕ: Функция сохранения изменений роли
         async function handleEditRoleSubmit(e) {
             e.preventDefault();
             const roleId = document.getElementById('edit-role-id').value;
@@ -778,7 +761,6 @@
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
-                    // ИЗМЕНЕНО: Не ищем активную сессию для вкладок без списка в сайдбаре
                     if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                         const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                         state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
@@ -824,7 +806,6 @@
             
             window.addEventListener('resize', updateSidebarView);
 
-            // ИЗМЕНЕНО: Добавлены обработчики для кнопок ролей
             document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
@@ -862,7 +843,6 @@
                     handleOpenEditProviderModal(idToEdit);
                 }
                 
-                // НОВОЕ: Обработчики для ролей
                 const deleteRoleBtn = e.target.closest('.delete-role-btn');
                 if (deleteRoleBtn) {
                     const idToDelete = deleteRoleBtn.dataset.id;
@@ -883,7 +863,6 @@
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
             editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
 
-            // НОВОЕ: Обработчики для модального окна роли
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
 
@@ -891,7 +870,6 @@
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
         
-        // ИЗМЕНЕНО: Добавлен listener для ролей
         function attachFirestoreListeners() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
@@ -913,7 +891,6 @@
                 }
             }, error => console.error("Providers listener error: ", error));
 
-            // НОВОЕ: Listener для ролей
             const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
             unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
                 state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
@@ -925,7 +902,6 @@
 
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
-            // ИЗМЕНЕНО: Сброс ролей
             state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';

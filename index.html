@@ -539,43 +539,62 @@
                 const isUser = msg.role === 'user';
                 const safeContent = msg.content || '';
                 const icon = isUser ? 'user' : 'sparkles';
-                let htmlContent; // <-- Сюда будем класть готовый HTML
-                
+                let htmlContent;
+        
+                // --- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ЛОГИКИ ---
+        
                 if (isUser) {
-                    // Код для пользователя остается без изменений
+                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ:
+                    // 1. Экранируем HTML, чтобы избежать инъекций.
                     const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
+                    // 2. Оборачиваем в div с НАШИМ специальным классом, который сохраняет переносы.
+                    // Этот класс уже есть у вас в CSS и он ПРАВИЛЬНЫЙ.
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
                     // ДЛЯ АССИСТЕНТА:
+                    // 1. Сохраняем отступы перед обработкой Markdown.
                     const preprocessedContent = preprocessTextForIndents(safeContent);
+                    // 2. Конвертируем Markdown в HTML.
                     htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
-                        
-                // --- КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---
+        
+                // --- ОСНОВНАЯ СТРУКТУРА СООБЩЕНИЯ (ОСТАЕТСЯ НЕИЗМЕННОЙ) ---
+                // Эти классы отвечают за выравнивание (справа/слева)
                 const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
                 const containerFlexClasses = isUser ? 'flex-row-reverse' : '';
                 
-                // Определяем стили для "пузыря" сообщения.
-                // prose-invert делает текст внутри .prose белым, что полезно для темных тем.
+                // Эти классы отвечают за цвет "пузыря"
                 const bubbleClasses = isUser 
                     ? 'bg-accent-start text-white prose-invert' 
                     : 'bg-bg-element';
         
                 const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
         
+                // Собираем финальный HTML для одного сообщения
                 return `
-                <div class="message-wrapper ...">
-                    <div class="message-container ...">
-                        <!-- ... иконка ... -->
-                        <div class="flex-grow prose ...">
-                            ${htmlContent} <!-- Вставляем наш готовый htmlContent сюда -->
+                <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
+                    <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
+                        
+                        <!-- Иконка (зависит от isUser) -->
+                        <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
+                            <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
                         </div>
-                        <!-- ... кнопка удаления ... -->
+        
+                        <!-- "Пузырь" с текстом (цвет зависит от isUser) -->
+                        <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
+                            ${htmlContent}
+                        </div>
+                        
+                        <!-- Кнопка удаления (позиция зависит от isUser) -->
+                        <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+        
                     </div>
                 </div>`;
             }).join('');
             
-            // Этот блок для добавления кнопок копирования остается без изменений.
+            // Этот код для кнопок копирования и подсветки остается без изменений
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative';
@@ -588,7 +607,6 @@
                 wrapper.appendChild(copyBtn);
             });
         
-            // Переинициализация скриптов для подсветки синтаксиса и иконок
             hljs.highlightAll();
             lucide.createIcons();
         
@@ -960,35 +978,22 @@
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
         function preprocessTextForIndents(text) {
             if (!text) return '';
-        
             const lines = text.split('\n');
-            let inCodeBlock = false; // Флаг, находимся ли мы внутри блока ```
-        
+            let inCodeBlock = false;
             const processedLines = lines.map(line => {
-                // Проверяем, не начинается или не заканчивается ли блок кода на этой строке
                 if (line.trim().startsWith('```')) {
-                    inCodeBlock = !inCodeBlock; // <--- ОПЕЧАТКА ИСПРАВЛЕНА
-                    return line; // Возвращаем строку с ``` как есть
+                    inCodeBlock = !inCodeBlock;
+                    return line;
                 }
-        
-                // Если мы внутри блока кода, ничего не меняем
                 if (inCodeBlock) {
                     return line;
                 }
-        
-                // Заменяем начальные пробелы на  
-                let leadingSpaces = 0;
-                // Используем .search() с регулярным выражением для поиска первого символа, не являющегося пробелом
                 const firstNonSpace = line.search(/\S|$/);
-                
                 if (firstNonSpace > 0) {
-                    // Создаем строку из неразрывных пробелов и добавляем остаток строки
                     return ' '.repeat(firstNonSpace) + line.substring(firstNonSpace);
                 }
-        
-                return line; // Если отступов нет, возвращаем как есть
+                return line;
             });
-        
             return processedLines.join('\n');
         }
         

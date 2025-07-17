@@ -327,9 +327,10 @@
                 case 'chat':
                     if (activeSession) {
                         mainContent.innerHTML = getChatViewHTML(activeSession);
+                        // ИСПРАВЛЕНИЕ ЗДЕСЬ: Устанавливаем ID первого провайдера, если он не задан
                         if (!activeSession.providerId && state.providers.length > 0) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { providerId: state.providers.id });
+                            updateDoc(sessionRef, { providerId: state.providers[0].id });
                         }
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
@@ -439,11 +440,6 @@
                 // Добавляем готовое сообщение в контейнер чата
                 messagesContainer.appendChild(messageWrapper);
             });
-
-            // Так как мы больше не преобразуем Markdown в HTML (<pre><code>),
-            // код для подсветки синтаксиса и добавления кнопок копирования больше не нужен
-            // и не будет работать, что соответствует требованию "вырезать md".
-            // hljs.highlightAll(); 
             
             lucide.createIcons();
 
@@ -843,7 +839,8 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers.id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    // ИСПРАВЛЕНИЕ ЗДЕСЬ: Правильно берем ID первого провайдера
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

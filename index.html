@@ -4,16 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Multi-Tool</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <!-- ИЗМЕНЕНИЕ: Ссылка на Tailwind БЕЗ плагина typography -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <!-- ИЗМЕНЕНИЕ: showdown.js полностью удален -->
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <style>
         :root {
-            --bg-main: #1e1e1e;фф
+            --bg-main: #1e1e1e;
             --bg-sidebar: #252526;
             --bg-element: #333333;
             --bg-input: #3c3c3c;
@@ -53,10 +54,20 @@
         .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-        .prose { color: var(--text-primary); }
+        
+        /* --- КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ В CSS --- */
+        .prose { 
+            color: var(--text-primary); /* Возвращаем основной цвет текста */
+            white-space: pre-wrap;      /* ГЛАВНОЕ: Сохраняем все переносы строк и пробелы */
+            word-wrap: break-word;      /* Дополнительно для переноса длинных слов */
+        }
         .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
         .prose a { color: var(--accent-hover); }
         .prose pre { background-color: #282c34; padding: 1rem; border-radius: 0.5rem; position: relative; margin-top: 1.25em; margin-bottom: 1.25em; }
+        /* Важно: Внутри <pre> нужен другой white-space для правильной работы скролла */
+        .prose pre {
+             white-space: pre;
+        }
         .prose code { background-color: var(--bg-element); padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; }
         .prose pre code { background-color: transparent; padding: 0; border-radius: 0; }
         .prose blockquote { border-left-color: var(--accent); }
@@ -98,8 +109,8 @@
 </head>
 <body class="h-dvh w-full flex">
 
+    <!-- Остальной HTML без изменений -->
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
-
     <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
         <div class="p-4 border-b border-border-color flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
@@ -210,7 +221,7 @@
     </div>
 
 
-        <script type="module">
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -244,7 +255,7 @@
         };
         
         let confirmModalCallback = null;
-        const markdownConverter = new showdown.Converter({ tables: true, strikethrough: true, tasklists: true, simpleLineBreaks: true, openLinksInNewWindow: true, ghCompatibleHeaderId: true });
+        // ИЗМЕНЕНИЕ: Markdown конвертер удален.
         
         const sidebar = document.getElementById('sidebar');
         const sidebarList = document.getElementById('sidebar-list');
@@ -365,7 +376,6 @@
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
     
-            // --- ИЗМЕНЕНИЕ: Удален старый блок #loading-indicator ---
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
                     <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
@@ -384,6 +394,7 @@
             </div>`; 
         }
         
+        // --- ИЗМЕНЕНИЕ: Функция отображает текст "как есть", без Markdown ---
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer || !session || !session.messages) {
@@ -392,19 +403,21 @@
             }
             messagesContainer.innerHTML = session.messages.map((msg, index) => {
                 const safeContent = msg.content || '';
-                const htmlContent = markdownConverter.makeHtml(safeContent);
-                // --- ИЗМЕНЕНИЕ: Иконка "bot" заменена на "sparkles" для лучшего вида ---
+                // Конвертация в HTML УДАЛЕНА. Текст будет вставлен напрямую.
+                // CSS-свойство white-space: pre-wrap позаботится об отступах.
                 const icon = msg.role === 'user' ? 'user' : 'sparkles'; 
                 return `<div class="message-container group relative flex items-start space-x-4 mb-6 pr-8">
                             <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center">
                                 <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
                             </div>
-                            <div class="flex-grow prose max-w-full">${htmlContent}</div>
+                            <div class="flex-grow prose max-w-full">${safeContent}</div>
                             <button class="delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex" data-message-index="${index}">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>`;
             }).join('');
+            
+            // Этот код по-прежнему полезен, если модель вернет HTML с тегами <pre><code>
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative';
@@ -415,10 +428,9 @@
                 wrapper.appendChild(preElement);
                 wrapper.appendChild(copyBtn);
             });
-            hljs.highlightAll();
+            hljs.highlightAll(); // Подсветка синтаксиса для блоков кода
             lucide.createIcons();
 
-            // Если загрузка не идет, прокручиваем в конец
             if(!state.isLoading) {
                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
@@ -506,7 +518,7 @@
             lucide.createIcons(); 
         }
         
-        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
+        // --- Весь остальной JavaScript остается без изменений ---
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 
@@ -582,7 +594,6 @@
             
             state.isLoading = true;
             updateLoadingIndicator();
-            // --- ИЗМЕНЕНИЕ: Добавляем временный индикатор загрузки в чат ---
             showTypingIndicatorInChat();
         
             let assistantMessage = '';
@@ -638,20 +649,15 @@
         
             state.isLoading = false;
             
-            // Обновляем документ в Firestore. onSnapshot автоматически перерисует интерфейс,
-            // убрав индикатор и показав реальное сообщение.
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
-            // Этот вызов просто разблокирует поле ввода
             updateLoadingIndicator();
         }
         
-        // --- ИЗМЕНЕНИЕ: Функция для показа индикатора в списке сообщений ---
         function showTypingIndicatorInChat() {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
 
-            // Удаляем старый индикатор, если он вдруг остался
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) oldIndicator.remove();
 
@@ -670,7 +676,6 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // --- ИЗМЕНЕНИЕ: Упрощенная функция, только для блокировки/разблокировки формы ---
         function updateLoadingIndicator() {
             const form = document.getElementById('chat-form');
             if (form) {
@@ -934,7 +939,6 @@
                     const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                     state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                 }
-                // --- ИЗМЕНЕНИЕ: Не вызываем render() напрямую, если идет загрузка, чтобы не удалить индикатор ---
                 if (!state.isLoading) {
                     render();
                 }
@@ -992,7 +996,7 @@
                         googleBtn.classList.remove('hidden');
                         userProfile.classList.add('hidden');
                         state.isAuthReady = false; 
-                        render(); // Перерисовка для отображения состояния выхода
+                        render();
                     }
                     renderMainNav(); 
                     updateSidebarView();

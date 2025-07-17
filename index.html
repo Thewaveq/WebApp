@@ -165,15 +165,30 @@
             margin-bottom: 1.25em;
             border: 1px solid var(--border-color);
             
-            /* Эти два свойства исправляют форматирование */
-            white-space: pre-wrap; /* Сохраняет пробелы и переносы строк */
-            tab-size: 4;           /* Отображает 1 символ табуляции как 4 пробела */
+            /* КЛЮЧЕВОЕ СВОЙСТВО: Сохраняет все пробелы, отступы и переносы */
+            white-space: pre-wrap; 
             
-            word-break: break-word; /* Помогает переносить очень длинные строки без пробелов */
+            /* Ломает слова, которые не помещаются в блок. Важно для длинных строк без пробелов. */
+            word-wrap: break-word; 
         }
         
-        .prose code {
-          white-space: pre-wrap;
+        .prose pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            
+            /* Сбрасываем лишние стили для кода внутри блока <pre> */
+            white-space: inherit; /* Наследуем white-space от родителя <pre> */
+            word-wrap: inherit;   /* Наследуем word-wrap от родителя <pre> */
+        }
+        
+        /* Это правило для `code` вне блоков `pre` (inline-code) */
+        .prose code { 
+          background-color: var(--bg-element); 
+          padding: 0.2rem 0.4rem; 
+          border-radius: 0.3rem; 
+          font-family: 'Courier New', Courier, monospace;
+          /* Для inline-кода не нужно сохранять переносы, поэтому white-space не указываем */
         }
         
         /* Модальные окна со стеклянным эффектом */

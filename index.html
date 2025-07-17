@@ -181,7 +181,7 @@
                 item.classList.toggle('active', item.dataset.tab === state.activeTab);
             });
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
-            newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad' || !state.activeSessionId);
+            newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
         
         // --- ШАБЛОНЫ HTML (без изменений) ---

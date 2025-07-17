@@ -387,7 +387,7 @@
             tasklists: true,
             openLinksInNewWindow: true,
             ghCompatibleHeaderId: true,
-            simpleLineBreaks: true // <-- ВОТ КЛЮЧЕВАЯ ОПЦИЯ
+            simpleLineBreaks: true
         });
         
         const sidebar = document.getElementById('sidebar');
@@ -539,18 +539,18 @@
                 const isUser = msg.role === 'user';
                 const safeContent = msg.content || '';
                 const icon = isUser ? 'user' : 'sparkles';
-                let htmlContent;
-                
-                const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
+                let htmlContent; // <-- Сюда будем класть готовый HTML
                 
                 if (isUser) {
-                    // Для пользователя все без изменений, только экранирование вынесли выше
+                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ: Оставляем как есть. Экранируем текст и используем CSS для переносов.
+                    // Это безопасно и правильно.
+                    const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
-                    // Для ассистента делаем ТО ЖЕ САМОЕ!
-                    // Просто оборачиваем текст в тег <pre> или div со стилем white-space: pre-wrap
-                    // Это заставит браузер уважать все пробелы и переносы.
-                    htmlContent = `<div style="white-space: pre-wrap; word-wrap: break-word;">${escapedContent}</div>`;
+                    // ДЛЯ АССИСТЕНТА: ПРОСТО ИСПОЛЬЗУЕМ КОНВЕРТЕР!
+                    // Ничего не экранируем. Отдаем ему сырой текст от модели.
+                    // Конвертер сам превратит *жирный* в <b>жирный</b> и \n в <br>.
+                    htmlContent = markdownConverter.makeHtml(safeContent);
                 }
                         
                 // --- КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---

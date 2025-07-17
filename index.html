@@ -566,24 +566,13 @@
                 const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
         
                 return `
-                <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
-                    <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
-                        
-                        <!-- Иконка -->
-                        <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
-                            <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
+                <div class="message-wrapper ...">
+                    <div class="message-container ...">
+                        <!-- ... иконка ... -->
+                        <div class="flex-grow prose ...">
+                            ${htmlContent} <!-- Вставляем наш готовый htmlContent сюда -->
                         </div>
-        
-                        <!-- "Пузырь" с текстом -->
-                        <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
-                            ${htmlContent}
-                        </div>
-                        
-                        <!-- Кнопка удаления -->
-                        <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-        
+                        <!-- ... кнопка удаления ... -->
                     </div>
                 </div>`;
             }).join('');

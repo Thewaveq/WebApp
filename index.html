@@ -25,8 +25,9 @@
             --danger: #e53e3e;
             --danger-hover: #c53030;
         }
+        /* --- ИЗМЕНЕНИЕ 1: Убрали 'overflow: hidden' --- */
         html, body {
-            overflow: hidden; /* Предотвращает прокрутку всей страницы */
+            height: 100%; /* Добавили для согласованности, основное исправление в body */
         }
         body {
             font-family: 'Inter', sans-serif;
@@ -96,7 +97,8 @@
         }
     </style>
 </head>
-<body class="h-screen w-screen flex">
+<!-- --- ИЗМЕНЕНИЕ 2: Заменили 'h-screen w-screen' на 'h-dvh w-full' --- -->
+<body class="h-dvh w-full flex">
 
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
 
@@ -155,6 +157,7 @@
     </div>
 
     <script type="module">
+        // Ваш JavaScript код остается без изменений.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";

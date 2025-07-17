@@ -550,30 +550,31 @@
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
         }
         
+        // Новая, улучшенная функция handleChatSubmit
         async function handleChatSubmit(e) { 
             e.preventDefault(); 
             const input = document.getElementById('chat-input'); 
             const message = input.value.trim(); 
             if (!message || state.isLoading) return; 
-
+        
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId); 
             const provider = state.providers.find(p => p.id === activeSession.providerId); 
             
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-
+        
             if (!provider) { 
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); 
                 return; 
             } 
             
             const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
-
+        
             if (apiKeys.length === 0) {
                  showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
                  return;
             }
-
+        
             const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; 
             await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); 
             
@@ -591,35 +592,53 @@
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
             }
             apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
-
-
+        
+        
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
                 const currentKey = apiKeys[keyIndex];
                 
                 try {
+                    // Убедимся, что URL собирается корректно
+                    if (!provider.baseUrl || !provider.path) {
+                        throw new Error("В настройках провайдера не указан 'Базовый URL' или 'Путь запроса'.");
+                    }
                     const fullUrl = new URL(provider.path, provider.baseUrl).href; 
+        
                     const response = await fetch(fullUrl, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentKey}` }, 
                         body: JSON.stringify({ model: provider.model, messages: apiMessagesPayload }) 
                     }); 
-
-                    if (!response.ok) { 
-                        const errorData = await response.json(); 
-                        throw new Error(`Ошибка API (статус: ${response.status}, ключ: ...${currentKey.slice(-4)}): ${errorData.error?.message || response.statusText}`); 
-                    } 
+                    
+                    // --- УЛУЧШЕННАЯ ПРОВЕРКА ОТВЕТА ---
+                    const contentType = response.headers.get("content-type");
+                    if (!response.ok || !contentType || !contentType.includes("application/json")) {
+                        const errorText = await response.text();
+                        let errorMessage = `Ошибка API (статус: ${response.status}).`;
+                        if (contentType && !contentType.includes("application/json")) {
+                             errorMessage += ` Сервер вернул не JSON, а ${contentType}. Вероятно, неверный URL.`;
+                        }
+                        // Показываем часть ответа, чтобы понять, что это (часто это HTML страница 404)
+                        errorMessage += ` Ответ сервера: ${errorText.substring(0, 300)}...`;
+                        throw new Error(errorMessage); 
+                    }
                     
                     const data = await response.json(); 
+                    
+                    if (data.error) {
+                         throw new Error(`API вернуло ошибку: ${data.error.message}`);
+                    }
+        
                     assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
-
+        
                     const nextKeyIndex = (keyIndex + 1) % apiKeys.length;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
-
-                    break;
+        
+                    break; // Выходим из цикла, так как получили успешный ответ
                 
                 } catch (error) {
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
@@ -630,9 +649,10 @@
             if (isSuccess) {
                  await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
             } else {
-                 await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: ${lastError}` }] });
+                 // Отображаем последнюю, самую информативную ошибку
+                 await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }] });
             }
-
+        
             state.isLoading = false; 
             updateLoadingIndicator(); 
         }

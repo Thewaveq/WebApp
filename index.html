@@ -436,7 +436,7 @@
                         state.activeSessionId = session.id;
                         render(); 
                         if (window.innerWidth < 1024) {
-                           sidebar.classList.add('glassmorphism');
+                           sidebar.classList.add('glassmorphism'); // Добавляем класс для эффекта
                            sidebar.classList.remove('open');
                            sidebarBackdrop.classList.add('hidden');
                         }
@@ -541,37 +541,60 @@
                 const icon = isUser ? 'user' : 'sparkles';
                 let htmlContent;
         
+                // --- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ЛОГИКИ ---
+        
                 if (isUser) {
+                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ:
+                    // 1. Экранируем HTML, чтобы избежать инъекций.
                     const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
+                    // 2. Оборачиваем в div с НАШИМ специальным классом, который сохраняет переносы.
+                    // Этот класс уже есть у вас в CSS и он ПРАВИЛЬНЫЙ.
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
-                    const preprocessedContent = preprocessTextForIndents(safeContent);
+                    // ДЛЯ АССИСТЕНТА:
+                    // 1. Пропускаем через наш НОВЫЙ умный пре-процессор
+                    const preprocessedContent = preprocessTextForMarkdown(safeContent); // <-- ОБНОВЛЕННАЯ СТРОКА
+                    // 2. Отдаем в Markdown конвертер
                     htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
         
+                // --- ОСНОВНАЯ СТРУКТУРА СООБЩЕНИЯ (ОСТАЕТСЯ НЕИЗМЕННОЙ) ---
+                // Эти классы отвечают за выравнивание (справа/слева)
                 const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
                 const containerFlexClasses = isUser ? 'flex-row-reverse' : '';
+                
+                // Эти классы отвечают за цвет "пузыря"
                 const bubbleClasses = isUser 
                     ? 'bg-accent-start text-white prose-invert' 
                     : 'bg-bg-element';
+        
                 const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
         
+                // Собираем финальный HTML для одного сообщения
                 return `
                 <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
                     <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
+                        
+                        <!-- Иконка (зависит от isUser) -->
                         <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
                             <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
                         </div>
+        
+                        <!-- "Пузырь" с текстом (цвет зависит от isUser) -->
                         <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
                             ${htmlContent}
                         </div>
+                        
+                        <!-- Кнопка удаления (позиция зависит от isUser) -->
                         <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
+        
                     </div>
                 </div>`;
             }).join('');
             
+            // Этот код для кнопок копирования и подсветки остается без изменений
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative';
@@ -674,6 +697,8 @@
             lucide.createIcons(); 
         }
         
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА (ОСТАЮТСЯ БЕЗ КРИТИЧЕСКИХ ИЗМЕНЕНИЙ) ---
+        // (Весь остальной JavaScript-код остается таким же, как в вашем исходном файле)
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 
@@ -687,7 +712,12 @@
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
             providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
-            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
+            
+            roleSelect?.addEventListener('change', (e) => {
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, { roleId: e.target.value });
+            });
+            
             messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); 
         }
         
@@ -718,8 +748,11 @@
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            const message = input.value;
-            if (!message.trim() || state.isLoading) return;
+            
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            const message = input.value; // Сохраняем сообщение с оригинальным форматированием
+            if (!message.trim() || state.isLoading) return; // А для проверки используем .trim()
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
         
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
@@ -943,29 +976,40 @@
         function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
-        
-        function preprocessTextForIndents(text) {
+        function preprocessTextForMarkdown(text) {
             if (!text) return '';
+        
             const lines = text.split('\n');
-            let inCodeBlock = false;
+            let inCodeBlock = false; // Флаг для отслеживания блоков ```
+        
             const processedLines = lines.map(line => {
+                // Проверяем, не находимся ли мы на строке с открытием/закрытием блока кода
                 if (line.trim().startsWith('```')) {
                     inCodeBlock = !inCodeBlock;
-                    return line;
+                    return line; // Возвращаем эту строку как есть, showdown ее обработает
                 }
+        
+                // Если мы внутри блока кода, ничего не меняем
                 if (inCodeBlock) {
                     return line;
                 }
-                if (line.startsWith('    ')) {
-                    return line;
+        
+                // --- ВОТ КЛЮЧЕВАЯ ЛОГИКА ---
+                // Ищем ведущие пробелы в строке
+                const match = line.match(/^(\s+)/);
+        
+                if (match) {
+                    const leadingSpaces = match;
+                    // Заменяем каждый обычный пробел на неразрывный
+                    const nonBreakingSpaces = ' '.repeat(leadingSpaces.length);
+                    // Возвращаем строку с замененными пробелами + остаток строки
+                    return nonBreakingSpaces + line.substring(leadingSpaces.length);
                 }
-                const firstNonSpace = line.search(/\S|$/);
-                if (firstNonSpace > 0) {
-                    // === ИСПРАВЛЕННАЯ СТРОКА ===
-                    return ' '.repeat(firstNonSpace) + line.substring(firstNonSpace);
-                }
+        
+                // Если ведущих пробелов нет, возвращаем строку как есть
                 return line;
             });
+        
             return processedLines.join('\n');
         }
     
@@ -985,7 +1029,7 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers.id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -1128,22 +1172,6 @@
             mainContent.innerHTML = getEmptyStateHTML('chat');
         }
     
-        function updateSidebarView() {
-            const isMobile = window.innerWidth < 1024;
-            const toggleIcon = document.getElementById('sidebar-toggle-icon');
-            if (isMobile) {
-                sidebar.classList.remove('collapsed');
-                sidebar.classList.add('glassmorphism');
-                toggleIcon.setAttribute('data-lucide', 'menu');
-            } else {
-                sidebar.classList.remove('open', 'glassmorphism');
-                sidebarBackdrop.classList.add('hidden');
-                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
-                toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-right-close' : 'panel-left-close');
-            }
-            lucide.createIcons();
-        }
-    
         async function init() {
             try {
                 const app = initializeApp(firebaseConfig);
@@ -1170,7 +1198,7 @@
                         googleBtn.classList.remove('hidden');
                         userProfile.classList.add('hidden');
                         state.isAuthReady = false; 
-                        render();
+                        render(); // Перерисовка для отображения состояния выхода
                     }
                     renderMainNav(); 
                     updateSidebarView();

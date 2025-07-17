@@ -377,7 +377,7 @@
             roles: [],
             isLoading: false,
             isAuthReady: false,
-            isSidebarCollapsed: false,
+            isSidebarCollapsed: window.innerWidth < 1024 ? false : true, // Начальное состояние сайдбара
         };
         
         let confirmModalCallback = null;
@@ -408,8 +408,61 @@
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
     
-    
-        // --- ФУНКЦИИ РЕНДЕРИНГА ---
+        // --- [ИСПРАВЛЕНИЕ №1]: ДОБАВЛЕНА НЕДОСТАЮЩАЯ ФУНКЦИЯ ---
+        // Эта функция отсутствовала, что вызывало полный крах скрипта при инициализации.
+        function updateSidebarView() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleIcon = document.getElementById('sidebar-toggle-icon');
+            if (!sidebar || !toggleIcon) return;
+
+            const isMobile = window.innerWidth < 1024;
+
+            if (isMobile) {
+                // На мобильных устройствах логика схлопывания не используется,
+                // поэтому убираем класс, если он был, и ставим иконку меню.
+                sidebar.classList.remove('collapsed');
+                toggleIcon.setAttribute('data-lucide', 'menu');
+            } else {
+                // На десктопе управляем классом 'collapsed' и иконкой
+                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
+                toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-left-open' : 'panel-left-close');
+            }
+            lucide.createIcons();
+        }
+
+        // --- [ИСПРАВЛЕНИЕ №2]: ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ОТСТУПОВ ---
+        // Эта версия корректно заменяет ведущие пробелы на неразрывные,
+        // не трогая блоки кода и не вызывая ошибок.
+        function preprocessTextForIndents(text) {
+            if (!text) return '';
+        
+            const lines = text.split('\n');
+            let inCodeBlock = false;
+        
+            const processedLines = lines.map(line => {
+                if (line.trim().startsWith('```')) {
+                    inCodeBlock = !inCodeBlock;
+                    return line;
+                }
+        
+                if (inCodeBlock) {
+                    return line;
+                }
+        
+                const match = line.match(/^(\s+)/);
+                if (match) {
+                    const leadingSpaces = match; // match содержит всю строку пробелов
+                    const nonBreakingSpaces = ' '.repeat(leadingSpaces.length);
+                    return nonBreakingSpaces + line.substring(leadingSpaces.length);
+                }
+        
+                return line;
+            });
+        
+            return processedLines.join('\n');
+        }
+
+        // --- ФУНКЦИИ РЕНДЕРИНГА (С КОРРЕКТНЫМ ВЫЗОВОМ) ---
         function render() {
             if (!state.isAuthReady) return;
             renderSidebar();
@@ -436,7 +489,6 @@
                         state.activeSessionId = session.id;
                         render(); 
                         if (window.innerWidth < 1024) {
-                           sidebar.classList.add('glassmorphism'); // Добавляем класс для эффекта
                            sidebar.classList.remove('open');
                            sidebarBackdrop.classList.add('hidden');
                         }
@@ -464,7 +516,7 @@
                         mainContent.innerHTML = getChatViewHTML(activeSession);
                         if (!activeSession.providerId && state.providers.length > 0) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { providerId: state.providers[0].id });
+                            updateDoc(sessionRef, { providerId: state.providers.id });
                         }
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
@@ -503,7 +555,6 @@
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
     
-        // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         
         function getChatViewHTML(activeSession) { 
@@ -545,8 +596,8 @@
                     const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
-                    // --- ВЫЗОВ ИСПРАВЛЕННОЙ ФУНКЦИИ ---
-                    const preprocessedContent = preprocessTextForMarkdown(safeContent);
+                    // --- [ИСПРАВЛЕНИЕ №3]: ИСПОЛЬЗУЕМ РАБОЧУЮ ФУНКЦИЮ ---
+                    const preprocessedContent = preprocessTextForIndents(safeContent);
                     htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
         
@@ -555,7 +606,6 @@
                 const bubbleClasses = isUser 
                     ? 'bg-accent-start text-white prose-invert' 
                     : 'bg-bg-element';
-        
                 const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
         
                 return `
@@ -580,7 +630,6 @@
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-code-btn';
                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                
                 preElement.parentNode.insertBefore(wrapper, preElement);
                 wrapper.appendChild(preElement);
                 wrapper.appendChild(copyBtn);
@@ -596,88 +645,29 @@
     
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent-start rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input p-4 resize-none text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
-        function getRolesViewHTML() {
-            return `<div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Управление ролями</h2>
-                    <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent-start hover:bg-accent-end rounded-md transition-colors">
-                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
-                        Добавить роль
-                    </button>
-                </div>
-                <div class="bg-bg-element/50 p-6 rounded-lg glassmorphism">
-                    <div id="roles-list" class="space-y-4"></div>
-                </div>
-            </div>`;
-        }
+        function getRolesViewHTML() { return `<div class="p-6"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">Управление ролями</h2><button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent-start hover:bg-accent-end rounded-md transition-colors"><i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить роль</button></div><div class="bg-bg-element/50 p-6 rounded-lg glassmorphism"><div id="roles-list" class="space-y-4"></div></div></div>`; }
         
         function renderRoles() {
             const list = document.getElementById('roles-list');
             if (!list) return;
-            if (state.roles.length === 0) {
-                list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`;
-                return;
-            }
-            list.innerHTML = state.roles.map(r => `
-                <div class="bg-bg-element p-3 rounded-md">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="font-bold">${r.name}</p>
-                        <div class="flex items-center space-x-2">
-                            <button class="edit-role-btn text-text-secondary hover:text-accent-start transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button>
-                            <button class="delete-role-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
-                        </div>
-                    </div>
-                    <p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p>
-                </div>
-            `).join('');
+            if (state.roles.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`; return; }
+            list.innerHTML = state.roles.map(r => `<div class="bg-bg-element p-3 rounded-md"><div class="flex items-center justify-between mb-2"><p class="font-bold">${r.name}</p><div class="flex items-center space-x-2"><button class="edit-role-btn text-text-secondary hover:text-accent-start transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button><button class="delete-role-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></div><p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p></div>`).join('');
             lucide.createIcons();
         }
         
-        function getSettingsViewHTML() { 
-            return `<div class="p-6">
-                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Настройки</h2>
-                     <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent-start hover:bg-accent-end rounded-md transition-colors">
-                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
-                        Добавить провайдера
-                    </button>
-                </div>
-                <div class="bg-bg-element/50 p-6 rounded-lg glassmorphism">
-                    <h3 class="text-xl font-semibold mb-4">Провайдеры API</h3>
-                    <div id="providers-list" class="space-y-4"></div>
-                </div>
-            </div>`; 
-        }
+        function getSettingsViewHTML() { return `<div class="p-6"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">Настройки</h2><button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent-start hover:bg-accent-end rounded-md transition-colors"><i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить провайдера</button></div><div class="bg-bg-element/50 p-6 rounded-lg glassmorphism"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4"></div></div></div>`; }
     
         function renderProviders() { 
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
-            if (state.providers.length === 0) { 
-                list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров. Нажмите "Добавить провайдера", чтобы создать новый.</p>`; 
-                return; 
-            } 
+            if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } 
             list.innerHTML = state.providers.map(p => {
                 const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0);
-                return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between">
-                    <div>
-                        <p class="font-bold">${p.name}</p>
-                        <p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button class="edit-provider-btn text-text-secondary hover:text-accent-start transition-colors" data-id="${p.id}">
-                            <i data-lucide="edit" class="w-5 h-5"></i>
-                        </button>
-                        <button class="delete-provider-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>`
+                return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p></div><div class="flex items-center space-x-2"><button class="edit-provider-btn text-text-secondary hover:text-accent-start transition-colors" data-id="${p.id}"><i data-lucide="edit" class="w-5 h-5"></i></button><button class="delete-provider-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></div>`
             }).join(''); 
             lucide.createIcons(); 
         }
         
-        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА (ОСТАЮТСЯ БЕЗ КРИТИЧЕСКИХ ИЗМЕНЕНИЙ) ---
-        // (Весь остальной JavaScript-код остается таким же, как в вашем исходном файле)
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 
@@ -691,123 +681,73 @@
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
             providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
-            
-            roleSelect?.addEventListener('change', (e) => {
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, { roleId: e.target.value });
-            });
-            
+            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
             messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); 
         }
         
         function setupNotepadViewEventListeners() {
             const titleInput = document.getElementById('note-title-input');
             const contentTextarea = document.getElementById('note-content-textarea');
-            const saveNote = () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: contentTextarea.value,
-                    updatedAt: serverTimestamp()
-                });
-            };
+            const saveNote = () => { if (!state.activeSessionId) return; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); };
             titleInput?.addEventListener('blur', saveNote);
             contentTextarea?.addEventListener('blur', saveNote);
         }
     
-        function setupRolesViewEventListeners() {
-            document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
-        }
+        function setupRolesViewEventListeners() { document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole); }
     
-        function setupSettingsViewEventListeners() { 
-            document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
-        }
+        function setupSettingsViewEventListeners() { document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider); }
         
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            const message = input.value; // Сохраняем сообщение с оригинальным форматированием
-            if (!message.trim() || state.isLoading) return; // А для проверки используем .trim()
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            const message = input.value;
+            if (!message.trim() || state.isLoading) return;
         
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
         
-            if (!provider) {
-                showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
-                return;
-            }
+            if (!provider) { showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); return; }
             const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
-            if (apiKeys.length === 0) {
-                showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
-                return;
-            }
+            if (apiKeys.length === 0) { showModalAlert("У выбранного провайдера нет API ключей."); return; }
         
             const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }];
             await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
         
-            input.value = '';
-            input.style.height = 'auto';
-            
-            state.isLoading = true;
-            updateLoadingIndicator();
-            showTypingIndicatorInChat();
+            input.value = ''; input.style.height = 'auto';
+            state.isLoading = true; updateLoadingIndicator(); showTypingIndicatorInChat();
         
-            let assistantMessage = '';
-            let isSuccess = false;
-            let lastError = 'Неизвестная ошибка.';
+            let assistantMessage = ''; let isSuccess = false; let lastError = 'Неизвестная ошибка.';
             
             const apiMessagesPayload = [];
-            if (selectedRole && selectedRole.content) {
-                apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
-            }
+            if (selectedRole && selectedRole.content) { apiMessagesPayload.push({ role: 'system', content: selectedRole.content }); }
             apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
         
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
                 const currentKey = apiKeys[keyIndex];
-                
                 try {
                     const fullUrl = new URL(provider.path, provider.baseUrl).href; 
-                    const proxyRequestBody = {
-                        targetUrl: fullUrl,
-                        apiKey: currentKey,
-                        payload: { model: provider.model, messages: apiMessagesPayload }
-                    };
-                    const response = await fetch('/api/proxy', { 
+                    const response = await fetch('https://worker-little-bird-c5c8.veldanax.workers.dev/', { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify(proxyRequestBody) 
+                        body: JSON.stringify({ targetUrl: fullUrl, apiKey: currentKey, payload: { model: provider.model, messages: apiMessagesPayload }}) 
                     }); 
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
-                    }
+                    if (!response.ok) { throw new Error(`Ошибка от прокси-сервера (статус ${response.status}): ${await response.text()}`); }
                     const data = await response.json(); 
-                    if (data.error) {
-                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
-                        throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
-                    }
-                    assistantMessage = data.choices[0].message.content;
+                    if (data.error) { throw new Error(`Ошибка от API: ${data.error?.message || JSON.stringify(data.error)}`); }
+                    assistantMessage = data.choices.message.content;
                     isSuccess = true;
-                    const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
-                    await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
+                    await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id), { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
                     break;
-                } catch (error) {
-                    console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
-                    lastError = error.message;
-                }
+                } catch (error) { console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error); lastError = error.message; }
             }
             
             const finalMessages = isSuccess
                 ? [...newMessages, { role: 'assistant', content: assistantMessage }]
-                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
+                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
         
             state.isLoading = false;
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
@@ -817,20 +757,9 @@
         function showTypingIndicatorInChat() {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
-
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) oldIndicator.remove();
-
-            const indicatorHtml = `
-                <div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-start to-accent-end flex-shrink-0 flex items-center justify-center">
-                        <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <div class="pt-2 typing-indicator">
-                        <span></span><span></span><span></span>
-                    </div>
-                </div>
-            `;
+            const indicatorHtml = `<div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-start to-accent-end flex-shrink-0 flex items-center justify-center"><i data-lucide="sparkles" class="w-6 h-6 text-white"></i></div><div class="pt-2 typing-indicator"><span></span><span></span><span></span></div></div>`;
             messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
             lucide.createIcons();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -847,153 +776,60 @@
         }        
         
         async function handleAddProvider() {
-            if (state.isLoading) return;
-            state.isLoading = true;
+            if (state.isLoading) return; state.isLoading = true;
             try {
-                const newProviderData = {
-                    name: 'Новый провайдер',
-                    baseUrl: 'https://api.openai.com',
-                    path: '/v1/chat/completions',
-                    apiKeys: [],
-                    model: 'gpt-4o',
-                    currentKeyIndex: 0
-                };
-                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), newProviderData);
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name: 'Новый провайдер', baseUrl: 'https://api.openai.com', path: '/v1/chat/completions', apiKeys: [], model: 'gpt-4o', currentKeyIndex: 0 });
                 handleOpenEditProviderModal(docRef.id);
-            } catch (error) {
-                console.error("Ошибка при добавлении провайдера: ", error);
-                showModalAlert("Не удалось создать провайдера.");
-            } finally {
-                state.isLoading = false;
-            }
+            } catch (error) { console.error("Ошибка: ", error); showModalAlert("Не удалось создать провайдера."); } finally { state.isLoading = false; }
         }
         
         async function handleAddRole() {
-            if (state.isLoading) return;
-            state.isLoading = true;
+            if (state.isLoading) return; state.isLoading = true;
             try {
-                const newRoleData = {
-                    name: 'Новая роль',
-                    content: 'Ты — полезный ассистент.',
-                    createdAt: serverTimestamp()
-                };
-                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), newRoleData);
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), { name: 'Новая роль', content: 'Ты — полезный ассистент.', createdAt: serverTimestamp() });
                 handleOpenEditRoleModal(docRef.id);
-            } catch (error) {
-                console.error("Ошибка при добавлении роли: ", error);
-                showModalAlert("Не удалось создать роль.");
-            } finally {
-                state.isLoading = false;
-            }
+            } catch (error) { console.error("Ошибка: ", error); showModalAlert("Не удалось создать роль."); } finally { state.isLoading = false; }
         }
         
         function handleOpenEditProviderModal(providerId) {
-            const providerToEdit = state.providers.find(p => p.id === providerId);
-            if (!providerToEdit) return;
-            const apiKeysArray = providerToEdit.apiKeys || (providerToEdit.apiKey ? [providerToEdit.apiKey] : []);
-            document.getElementById('edit-provider-id').value = providerToEdit.id;
-            document.getElementById('edit-provider-name').value = providerToEdit.name;
-            document.getElementById('edit-provider-url').value = providerToEdit.baseUrl;
-            document.getElementById('edit-provider-path').value = providerToEdit.path;
-            document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n');
-            document.getElementById('edit-provider-model').value = providerToEdit.model;
+            const p = state.providers.find(p => p.id === providerId); if (!p) return;
+            const apiKeysArray = p.apiKeys || (p.apiKey ? [p.apiKey] : []);
+            document.getElementById('edit-provider-id').value = p.id; document.getElementById('edit-provider-name').value = p.name; document.getElementById('edit-provider-url').value = p.baseUrl; document.getElementById('edit-provider-path').value = p.path; document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n'); document.getElementById('edit-provider-model').value = p.model;
             editProviderModal.classList.remove('hidden');
         }
     
         function handleOpenEditRoleModal(roleId) {
-            const roleToEdit = state.roles.find(r => r.id === roleId);
-            if (!roleToEdit) return;
-    
-            document.getElementById('edit-role-id').value = roleToEdit.id;
-            document.getElementById('edit-role-name').value = roleToEdit.name;
-            document.getElementById('edit-role-content').value = roleToEdit.content;
-    
+            const r = state.roles.find(r => r.id === roleId); if (!r) return;
+            document.getElementById('edit-role-id').value = r.id; document.getElementById('edit-role-name').value = r.name; document.getElementById('edit-role-content').value = r.content;
             editRoleModal.classList.remove('hidden');
         }
     
         async function handleEditProviderSubmit(e) {
             e.preventDefault();
-            const providerId = document.getElementById('edit-provider-id').value;
-            if (!providerId) return;
-    
-            const name = document.getElementById('edit-provider-name').value;
-            const baseUrl = document.getElementById('edit-provider-url').value;
-            const path = document.getElementById('edit-provider-path').value;
-            const keysRaw = document.getElementById('edit-provider-keys').value;
-            const model = document.getElementById('edit-provider-model').value;
-    
+            const providerId = document.getElementById('edit-provider-id').value; if (!providerId) return;
+            const name = document.getElementById('edit-provider-name').value, baseUrl = document.getElementById('edit-provider-url').value, path = document.getElementById('edit-provider-path').value, keysRaw = document.getElementById('edit-provider-keys').value, model = document.getElementById('edit-provider-model').value;
             const apiKeys = keysRaw.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
-            if (apiKeys.length === 0) {
-                showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
-                return;
-            }
-    
+            if (apiKeys.length === 0) { showModalAlert("Введите хотя бы один API ключ."); return; }
             const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, providerId);
             const originalProvider = state.providers.find(p => p.id === providerId);
-            const originalKeys = originalProvider.apiKeys || (originalProvider.apiKey ? [originalProvider.apiKey] : []);
-            const keysChanged = JSON.stringify(originalKeys.sort()) !== JSON.stringify(apiKeys.sort());
+            const keysChanged = JSON.stringify((originalProvider.apiKeys || []).sort()) !== JSON.stringify(apiKeys.sort());
             const updatedData = { name, baseUrl, path, apiKeys, model };
             if (keysChanged) { updatedData.currentKeyIndex = 0; }
-            await updateDoc(providerRef, updatedData);
-            editProviderModal.classList.add('hidden');
+            await updateDoc(providerRef, updatedData); editProviderModal.classList.add('hidden');
         }
     
         async function handleEditRoleSubmit(e) {
             e.preventDefault();
-            const roleId = document.getElementById('edit-role-id').value;
-            if (!roleId) return;
-    
-            const name = document.getElementById('edit-role-name').value;
-            const content = document.getElementById('edit-role-content').value;
-    
-            const roleRef = doc(db, `artifacts/${appId}/users/${userId}/roles`, roleId);
-            await updateDoc(roleRef, { name, content });
+            const roleId = document.getElementById('edit-role-id').value; if (!roleId) return;
+            await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, roleId), { name: document.getElementById('edit-role-name').value, content: document.getElementById('edit-role-content').value });
             editRoleModal.classList.add('hidden');
         }
     
-        function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
-        function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
+        function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать: ', err)); }
+        function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
         
-        function preprocessTextForIndents(text) {
-            if (!text) return '';
-        
-            const lines = text.split('\n');
-            let inCodeBlock = false; // Флаг для отслеживания блоков ```
-        
-            const processedLines = lines.map(line => {
-                // Управляем состоянием внутри/вне блока кода
-                if (line.trim().startsWith('```')) {
-                    inCodeBlock = !inCodeBlock;
-                    return line; // Возвращаем строку с ``` как есть
-                }
-        
-                // Если мы внутри блока кода, ничего не трогаем
-                if (inCodeBlock) {
-                    return line;
-                }
-        
-                // --- Ключевая рабочая логика ---
-                // Ищем ведущие пробелы в строке
-                const match = line.match(/^(\s+)/);
-        
-                if (match) {
-                    // match — это и есть строка с пробелами
-                    const leadingSpaces = match;
-                    // Заменяем каждый пробел на неразрывный (` `)
-                    const nonBreakingSpaces = ' '.repeat(leadingSpaces.length);
-                    // Собираем строку заново: наши отступы + остальная часть строки
-                    return nonBreakingSpaces + line.substring(leadingSpaces.length);
-                }
-        
-                // Если ведущих пробелов нет, возвращаем строку без изменений
-                return line;
-            });
-        
-            return processedLines.join('\n');
-        }
-
         function setupGlobalEventListeners() {
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
@@ -1001,26 +837,17 @@
                     if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                         const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                         state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
-                    } else {
-                        state.activeSessionId = null;
-                    }
+                    } else { state.activeSessionId = null; }
                     render();
                 });
             });
     
             const createNewItem = async (type) => {
-                 const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
-                    : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                
+                const newSessionData = type === 'chat' ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers.id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() } : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                 state.activeSessionId = newSessionRef.id;
-                
                 render();
-                if (window.innerWidth < 1024) { 
-                    sidebar.classList.remove('open'); 
-                    sidebarBackdrop.classList.add('hidden'); 
-                }
+                if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
             };
     
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
@@ -1036,17 +863,19 @@
                 }
             });
     
-            sidebarBackdrop.addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                sidebarBackdrop.classList.add('hidden');
-            });
-            
+            sidebarBackdrop.addEventListener('click', () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); });
             window.addEventListener('resize', updateSidebarView);
     
             document.body.addEventListener('click', async (e) => {
-                const deleteSessionBtn = e.target.closest('.delete-session-btn');
-                if (deleteSessionBtn) {
-                    const idToDelete = deleteSessionBtn.dataset.id;
+                const processAction = (selector, idExtractor, message, action) => {
+                    const btn = e.target.closest(selector);
+                    if (btn) {
+                        const id = idExtractor(btn);
+                        showConfirmModal(message, () => action(id));
+                    }
+                };
+                if (e.target.closest('.delete-session-btn')) {
+                    const idToDelete = e.target.closest('.delete-session-btn').dataset.id;
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                         if (state.activeSessionId === idToDelete) { 
@@ -1055,92 +884,62 @@
                         }
                     });
                 }
-                
-                const deleteMessageBtn = e.target.closest('.delete-message-btn');
-                if (deleteMessageBtn) {
-                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                if (e.target.closest('.delete-message-btn')) {
+                    const messageIndex = parseInt(e.target.closest('.delete-message-btn').dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-    
                     if (activeSession && !isNaN(messageIndex)) {
-                        showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
+                        showConfirmModal('Удалить это сообщение?', async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
-                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            await updateDoc(sessionRef, { messages: newMessages });
+                            await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { messages: newMessages });
                         });
                     }
                 }
-    
-                const deleteProviderBtn = e.target.closest('.delete-provider-btn');
-                if (deleteProviderBtn) {
-                    const idToDelete = deleteProviderBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
-                    });
+                const btnActions = {
+                    '.delete-provider-btn': { msg: 'Удалить этого провайдера?', action: id => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, id)) },
+                    '.delete-role-btn': { msg: 'Удалить эту роль?', action: id => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, id)) }
+                };
+                for (const selector in btnActions) {
+                    const btn = e.target.closest(selector);
+                    if (btn) {
+                        showConfirmModal(btnActions[selector].msg, () => btnActions[selector].action(btn.dataset.id));
+                    }
                 }
                 const editProviderBtn = e.target.closest('.edit-provider-btn');
-                if (editProviderBtn) {
-                    const idToEdit = editProviderBtn.dataset.id;
-                    handleOpenEditProviderModal(idToEdit);
-                }
-                
-                const deleteRoleBtn = e.target.closest('.delete-role-btn');
-                if (deleteRoleBtn) {
-                    const idToDelete = deleteRoleBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
-                    });
-                }
+                if (editProviderBtn) { handleOpenEditProviderModal(editProviderBtn.dataset.id); }
                 const editRoleBtn = e.target.closest('.edit-role-btn');
-                if (editRoleBtn) {
-                    const idToEdit = editRoleBtn.dataset.id;
-                    handleOpenEditRoleModal(idToEdit);
-                }
+                if (editRoleBtn) { handleOpenEditRoleModal(editRoleBtn.dataset.id); }
             });
             
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
-            
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
             editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
-    
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
-    
-            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
-            document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Ошибка входа: " + error.message); }});
+            document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); await signOut(auth); });
         }
         
         function attachFirestoreListeners() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             if (!userId) return;
     
-            const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
-            unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
+            unsubscribeSessions = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/sessions`), (snapshot) => {
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
-                if (!activeSessionExists) {
-                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
-                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                if (!state.sessions.some(s => s.id === state.activeSessionId)) {
+                    state.activeSessionId = (state.sessions.find(s => s.type === state.activeTab) || null)?.id;
                 }
-                if (!state.isLoading) {
-                    render();
-                }
+                if (!state.isLoading) render();
             }, error => console.error("Session listener error: ", error));
     
-            const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
-            unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
+            unsubscribeProviders = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/providers`), (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
-                     if (!state.isLoading) render();
-                }
+                if (state.activeTab === 'settings' || state.activeTab === 'chat') { if (!state.isLoading) render(); }
             }, error => console.error("Providers listener error: ", error));
     
-            const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
-            unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
+            unsubscribeRoles = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/roles`), (snapshot) => {
                 state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                if (state.activeTab === 'roles' || state.activeTab === 'chat') {
-                    if (!state.isLoading) render();
-                }
+                if (state.activeTab === 'roles' || state.activeTab === 'chat') { if (!state.isLoading) render(); }
             }, error => console.error("Roles listener error: ", error));
         }
     
@@ -1149,7 +948,7 @@
             userId = null;
             state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');
-            sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
+            sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');
         }
     
@@ -1160,36 +959,33 @@
                 auth = getAuth(app);
                 
                 onAuthStateChanged(auth, (user) => {
-                    const googleBtn = document.getElementById('google-signin-btn');
-                    const userProfile = document.getElementById('user-profile');
                     const authSection = document.getElementById('auth-section');
                     authSection.classList.remove('hidden');
     
                     if (user) {
                         userId = user.uid;
-                        googleBtn.classList.add('hidden');
-                        userProfile.classList.remove('hidden');
-                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
-                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
-                        
+                        document.getElementById('google-signin-btn').classList.add('hidden');
+                        document.getElementById('user-profile').classList.remove('hidden');
+                        document.getElementById('user-name').textContent = user.displayName || 'Аноним';
+                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}`;
                         state.isAuthReady = true;
                         attachFirestoreListeners();
                     } else {
                         resetState();
-                        googleBtn.classList.remove('hidden');
-                        userProfile.classList.add('hidden');
+                        document.getElementById('google-signin-btn').classList.remove('hidden');
+                        document.getElementById('user-profile').classList.add('hidden');
                         state.isAuthReady = false; 
-                        render(); // Перерисовка для отображения состояния выхода
+                        render();
                     }
                     renderMainNav(); 
-                    updateSidebarView();
+                    updateSidebarView(); // Этот вызов больше не будет вызывать ошибку
                 });
                 
                 setupGlobalEventListeners();
     
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
-                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
+                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}. Проверьте консоль.</div>`;
             }
         }
         

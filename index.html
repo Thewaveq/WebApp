@@ -956,42 +956,44 @@
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
         
-        function preprocessTextForMarkdown(text) {
+        function preprocessTextForIndents(text) {
             if (!text) return '';
         
             const lines = text.split('\n');
-            let inCodeBlock = false;
+            let inCodeBlock = false; // Флаг для отслеживания блоков ```
         
             const processedLines = lines.map(line => {
+                // Управляем состоянием внутри/вне блока кода
                 if (line.trim().startsWith('```')) {
-                    inCodeCodeBlock = !inCodeBlock;
-                    return line;
+                    inCodeBlock = !inCodeBlock;
+                    return line; // Возвращаем строку с ``` как есть
                 }
         
+                // Если мы внутри блока кода, ничего не трогаем
                 if (inCodeBlock) {
                     return line;
                 }
         
-                // Ищем совпадение только с ведущими пробелами.
+                // --- Ключевая рабочая логика ---
+                // Ищем ведущие пробелы в строке
                 const match = line.match(/^(\s+)/);
         
-                // --- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
-                // Проверяем, что совпадение найдено
                 if (match) {
-                    // match содержит саму строку с пробелами (например, "    ")
+                    // match — это и есть строка с пробелами
                     const leadingSpaces = match;
-                    // Заменяем каждый пробел на неразрывный
+                    // Заменяем каждый пробел на неразрывный (` `)
                     const nonBreakingSpaces = ' '.repeat(leadingSpaces.length);
-                    // Возвращаем неразрывные пробелы + остаток строки
+                    // Собираем строку заново: наши отступы + остальная часть строки
                     return nonBreakingSpaces + line.substring(leadingSpaces.length);
                 }
         
+                // Если ведущих пробелов нет, возвращаем строку без изменений
                 return line;
             });
         
             return processedLines.join('\n');
         }
-    
+
         function setupGlobalEventListeners() {
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {

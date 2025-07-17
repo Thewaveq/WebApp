@@ -190,6 +190,12 @@
           font-family: 'Courier New', Courier, monospace;
           /* Для inline-кода не нужно сохранять переносы, поэтому white-space не указываем */
         }
+
+        .user-message-content {
+            white-space: pre-wrap; /* Главное свойство: сохраняет все пробелы и переносы */
+            word-wrap: break-word;   /* Переносит длинные строки, которые не помещаются */
+            color: inherit;        /* Наследует цвет текста от родительского "пузыря" */
+        }
         
         /* Модальные окна со стеклянным эффектом */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
@@ -525,10 +531,19 @@
             messagesContainer.innerHTML = session.messages.map((msg, index) => {
                 const isUser = msg.role === 'user';
                 const safeContent = msg.content || '';
-                // Преобразуем Markdown в HTML
-                console.log("RAW CONTENT FROM ASSISTANT:", JSON.stringify(safeContent));
-                const htmlContent = markdownConverter.makeHtml(safeContent);
                 const icon = isUser ? 'user' : 'sparkles';
+                let htmlContent;
+                
+                if (isUser) {
+                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ: Отображаем текст "как есть", сохраняя все переносы и пробелы.
+                    // 1. Экранируем HTML-теги, чтобы пользователь не мог вставить свой HTML.
+                    const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
+                    // 2. Оборачиваем в div с нашим новым классом.
+                    htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
+                } else {
+                    // ДЛЯ АССИСТЕНТА: По-прежнему конвертируем из Markdown в HTML.
+                    htmlContent = markdownConverter.makeHtml(safeContent);
+                }
         
                 // --- КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---
                 const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';

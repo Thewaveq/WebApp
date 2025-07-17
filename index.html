@@ -526,6 +526,7 @@
                 const isUser = msg.role === 'user';
                 const safeContent = msg.content || '';
                 // Преобразуем Markdown в HTML
+                console.log("RAW CONTENT FROM ASSISTANT:", JSON.stringify(safeContent));
                 const htmlContent = markdownConverter.makeHtml(safeContent);
                 const icon = isUser ? 'user' : 'sparkles';
         

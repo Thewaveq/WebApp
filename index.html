@@ -360,7 +360,6 @@
         // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         
-        // ИЗМЕНЕНИЕ: Исправлена верстка шапки чата
         function getChatViewHTML(activeSession) { 
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
@@ -420,20 +419,18 @@
 
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
+        // ИЗМЕНЕНИЕ: Удалена форма добавления роли, оставлена только кнопка.
         function getRolesViewHTML() {
             return `<div class="p-6">
-                <h2 class="text-2xl font-bold mb-6">Управление ролями</h2>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Управление ролями</h2>
+                    <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                        Добавить роль
+                    </button>
+                </div>
                 <div class="bg-bg-sidebar p-6 rounded-lg">
-                    <h3 class="text-xl font-semibold mb-4">Ваши роли</h3>
-                    <div id="roles-list" class="space-y-4 mb-6"></div>
-                    <div class="border-t border-border-color pt-6">
-                        <h4 class="text-lg font-semibold mb-3">Добавить новую роль</h4>
-                        <form id="add-role-form" class="space-y-3">
-                            <input type="text" id="role-name" placeholder="Название роли (например, Помощник программиста)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
-                            <textarea id="role-content" placeholder="Содержимое роли (системный промпт). Например: Ты — дружелюбный ассистент, который помогает писать код на Python." class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="4" required></textarea>
-                            <button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить роль</button>
-                        </form>
-                    </div>
+                    <div id="roles-list" class="space-y-4"></div>
                 </div>
             </div>`;
         }
@@ -442,7 +439,7 @@
             const list = document.getElementById('roles-list');
             if (!list) return;
             if (state.roles.length === 0) {
-                list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей.</p>`;
+                list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`;
                 return;
             }
             list.innerHTML = state.roles.map(r => `
@@ -460,23 +457,19 @@
             lucide.createIcons();
         }
         
+        // ИЗМЕНЕНИЕ: Удалена форма добавления провайдера, оставлена только кнопка.
         function getSettingsViewHTML() { 
             return `<div class="p-6">
-                <h2 class="text-2xl font-bold mb-6">Настройки</h2>
+                 <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Настройки</h2>
+                     <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                        Добавить провайдера
+                    </button>
+                </div>
                 <div class="bg-bg-sidebar p-6 rounded-lg">
                     <h3 class="text-xl font-semibold mb-4">Провайдеры API</h3>
-                    <div id="providers-list" class="space-y-4 mb-6"></div>
-                    <div class="border-t border-border-color pt-6">
-                        <h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4>
-                        <form id="add-provider-form" class="space-y-3">
-                            <input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
-                            <input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
-                            <input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
-                            <textarea id="provider-keys" placeholder="API Ключи (каждый ключ с новой строки)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="3" required></textarea>
-                            <input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
-                            <button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button>
-                        </form>
-                    </div>
+                    <div id="providers-list" class="space-y-4"></div>
                 </div>
             </div>`; 
         }
@@ -485,7 +478,7 @@
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
             if (state.providers.length === 0) { 
-                list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; 
+                list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров. Нажмите "Добавить провайдера", чтобы создать новый.</p>`; 
                 return; 
             } 
             list.innerHTML = state.providers.map(p => {
@@ -547,11 +540,15 @@
             contentTextarea?.addEventListener('blur', saveNote);
         }
 
+        // ИЗМЕНЕНИЕ: Обработчик привязывается к новой кнопке добавления роли.
         function setupRolesViewEventListeners() {
-            document.getElementById('add-role-form')?.addEventListener('submit', handleAddRole);
+            document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
         }
 
-        function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
+        // ИЗМЕНЕНИЕ: Обработчик привязывается к новой кнопке добавления провайдера.
+        function setupSettingsViewEventListeners() { 
+            document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
+        }
         
         async function handleChatSubmit(e) { 
             e.preventDefault(); 
@@ -642,35 +639,47 @@
 
         function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
         
-        async function handleAddProvider(e) { 
-            e.preventDefault(); 
-            const name = document.getElementById('provider-name').value; 
-            const baseUrl = document.getElementById('provider-url').value; 
-            const path = document.getElementById('provider-path').value; 
-            const keysRaw = document.getElementById('provider-keys').value;
-            const model = document.getElementById('provider-model').value; 
-            const apiKeys = keysRaw.split('\n').map(k => k.trim()).filter(k => k !== '');
-            if (apiKeys.length === 0) {
-                showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
-                return;
+        // ИЗМЕНЕНИЕ: Функция теперь создает "пустого" провайдера и открывает модальное окно для его редактирования.
+        async function handleAddProvider() {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            try {
+                const newProviderData = {
+                    name: 'Новый провайдер',
+                    baseUrl: 'https://api.openai.com',
+                    path: '/v1/chat/completions',
+                    apiKeys: [],
+                    model: 'gpt-4o',
+                    currentKeyIndex: 0
+                };
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), newProviderData);
+                handleOpenEditProviderModal(docRef.id);
+            } catch (error) {
+                console.error("Ошибка при добавлении провайдера: ", error);
+                showModalAlert("Не удалось создать провайдера.");
+            } finally {
+                state.isLoading = false;
             }
-            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { 
-                name, baseUrl, path, apiKeys, model, currentKeyIndex: 0
-            }); 
-            e.target.reset(); 
         }
-
-        async function handleAddRole(e) {
-            e.preventDefault();
-            const name = document.getElementById('role-name').value;
-            const content = document.getElementById('role-content').value;
-
-            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), {
-                name,
-                content,
-                createdAt: serverTimestamp()
-            });
-            e.target.reset();
+        
+        // ИЗМЕНЕНИЕ: Функция теперь создает "пустую" роль и открывает модальное окно для ее редактирования.
+        async function handleAddRole() {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            try {
+                const newRoleData = {
+                    name: 'Новая роль',
+                    content: 'Ты — полезный ассистент.',
+                    createdAt: serverTimestamp()
+                };
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), newRoleData);
+                handleOpenEditRoleModal(docRef.id);
+            } catch (error) {
+                console.error("Ошибка при добавлении роли: ", error);
+                showModalAlert("Не удалось создать роль.");
+            } finally {
+                state.isLoading = false;
+            }
         }
         
         function handleOpenEditProviderModal(providerId) {

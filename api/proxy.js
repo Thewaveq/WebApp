@@ -1,49 +1,45 @@
 // Файл: /api/proxy.js
-// Исправленная и улучшенная версия прокси-сервера
+// Это наш новый, умный и динамический прокси-сервер
 
 export default async function handler(req, res) {
+  // Разрешаем запросы только методом POST
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
   try {
+    // Получаем "пакет" данных от нашего фронтенда
     const { targetUrl, apiKey, payload } = req.body;
 
+    // Проверяем, что все необходимые данные пришли
     if (!targetUrl || !apiKey || !payload) {
       return res.status(400).json({ error: 'Missing targetUrl, apiKey, or payload in request body.' });
     }
 
-    // Сохраняем форматирование текста
+    // Делаем реальный запрос к нужному API от имени нашего сервера
     const apiResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload), // Используем данные, которые прислал фронтенд
     });
 
-    // Ключевое исправление - сохраняем исходное форматирование
-    const responseText = await apiResponse.text();
-
-    if (!apiResponse.ok) {
-      console.error(`Error from target API [${apiResponse.status}]:`, responseText);
-      return res.status(502).json({
-        error: `Upstream API returned an error.`,
-        details: {
-          status: apiResponse.status,
-          statusText: apiResponse.statusText,
-          body: responseText,
-        }
-      });
+    // Получаем ответ от API
+    const data = await apiResponse.json();
+    
+    // Если в ответе от API есть ошибка, отправляем ее дальше
+    if (data.error) {
+        return res.status(apiResponse.status).json(data);
     }
 
-    // Парсим ответ как текст, а не JSON
-    return res.status(200).json(JSON.parse(responseText));
+    // Отправляем успешный ответ от API обратно нашему фронтенду
+    res.status(apiResponse.status).json(data);
 
   } catch (error) {
-    console.error('Proxy Internal Error:', error);
-    res.status(500).json({ error: 'An internal error occurred in the proxy.', details: error.message });
+    console.error('Proxy Error:', error);
+    res.status(500).json({ error: 'An internal error occurred in the proxy.' });
   }
 }

@@ -41,6 +41,7 @@
         }
         .sidebar-item.active { background-color: var(--accent); color: white; }
         .sidebar-item:hover { background-color: var(--bg-element); }
+        .main-nav-item.active { border-bottom: 2px solid var(--accent); color: white; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -62,22 +63,15 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
         .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         
-        /* ИЗМЕНЕНИЕ 1: Стили для сворачиваемой боковой панели */
-        .sidebar-transition { transition: width 0.3s ease-in-out, padding 0.3s ease-in-out; }
-        .sidebar-collapsed { width: 4.5rem; padding-left: 0; padding-right: 0; }
-        .sidebar-collapsed .sidebar-label, .sidebar-collapsed #user-profile-details { display: none; }
-        .sidebar-collapsed #auth-section { justify-content: center; }
-        .sidebar-collapsed .sidebar-item { justify-content: center; }
-        .sidebar-collapsed #sidebar-header { justify-content: center; }
-        .main-content-expanded { width: calc(100% - 4.5rem); }
-        .icon-btn {
-            background-color: var(--bg-element);
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
+        /* ИЗМЕНЕНИЕ 1: Стили для корректной работы сворачиваемой панели */
+        .sidebar {
+            transition: width 0.3s ease-in-out;
         }
-        .icon-btn:hover {
-            background-color: var(--bg-input);
+        .sidebar.collapsed {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+            border-right: none;
         }
     </style>
 </head>
@@ -104,9 +98,9 @@
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
 
-        // ИЗМЕНЕНИЕ 2: Обновленная структура состояния
+        // ИЗМЕНЕНИЕ 2: Возвращена state.activeTab для навигации
         let state = {
-            currentView: 'welcome', // 'welcome', 'session', 'settings'
+            activeTab: 'chat',
             activeSessionId: null,
             sessions: [],
             providers: [],
@@ -121,6 +115,9 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarList = document.getElementById('sidebar-list');
         const mainContent = document.getElementById('main-content');
+        const mainNavItems = document.querySelectorAll('.main-nav-item');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const newNoteBtn = document.getElementById('new-note-btn');
         const confirmModal = document.getElementById('confirm-modal');
         const confirmModalText = document.getElementById('confirm-modal-text');
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
@@ -131,32 +128,27 @@
             if (!state.isAuthReady) return;
             renderSidebar();
             renderMainContent();
+            renderMainNav();
         }
 
         function renderSidebar() {
             sidebarList.innerHTML = '';
-            
-            // ИЗМЕНЕНИЕ 3: Применение стилей для свернутой панели
-            sidebar.classList.toggle('sidebar-collapsed', state.isSidebarCollapsed);
-            mainContent.parentElement.classList.toggle('main-content-expanded', state.isSidebarCollapsed);
+            // Фильтруем сессии в зависимости от активной вкладки
+            const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
 
-            if (state.sessions.length > 0) {
-                state.sessions.forEach(session => {
+            if (filteredSessions.length > 0) {
+                filteredSessions.forEach(session => {
                     const item = document.createElement('div');
-                    item.className = `sidebar-item flex items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
-                    // Иконка в зависимости от типа сессии
-                    const icon = session.type === 'chat' ? 'message-square' : 'notebook';
+                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
                     item.innerHTML = `
-                        <i data-lucide="${icon}" class="w-5 h-5 mr-3 flex-shrink-0"></i>
-                        <span class="sidebar-label truncate pr-2">${session.title || 'Без названия'}</span>
-                        <button class="delete-session-btn hidden text-white hover:text-red-400 ml-auto" data-id="${session.id}">
+                        <span class="truncate pr-2">${session.title || 'Без названия'}</span>
+                        <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     `;
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
-                        state.currentView = 'session'; // Переключаемся на вид сессии
                         render();
                     });
                     item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
@@ -165,32 +157,35 @@
                     sidebarList.appendChild(item);
                 });
             } else {
-                sidebarList.innerHTML = `<div class="sidebar-label text-center text-sm text-gray-500 p-4">Нет элементов.</div>`;
+                 sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${state.activeTab === 'chat' ? 'чатов' : 'заметок'}.</div>`;
             }
             lucide.createIcons();
         }
 
         function renderMainContent() {
             mainContent.innerHTML = '';
-            // ИЗМЕНЕНИЕ 4: Логика рендеринга основана на `state.currentView`
-            switch (state.currentView) {
-                case 'session':
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession) {
-                        mainContent.innerHTML = getWelcomeViewHTML();
-                        setupWelcomeViewEventListeners();
-                    } else if (activeSession.type === 'chat') {
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            
+            switch (state.activeTab) {
+                case 'chat':
+                    if (activeSession) {
                         mainContent.innerHTML = getChatViewHTML(activeSession);
-                        // Автоматический выбор провайдера для нового чата
                         if (!activeSession.providerId && state.providers.length > 0) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, { providerId: state.providers[0].id });
                         }
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
-                    } else if (activeSession.type === 'notepad') {
+                    } else {
+                         mainContent.innerHTML = getEmptyStateHTML('chat');
+                    }
+                    break;
+                case 'notepad':
+                     if (activeSession) {
                         mainContent.innerHTML = getNotepadViewHTML(activeSession);
                         setupNotepadViewEventListeners();
+                    } else {
+                        mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
                 case 'settings':
@@ -198,29 +193,25 @@
                     renderProviders();
                     setupSettingsViewEventListeners();
                     break;
-                case 'welcome':
-                default:
-                    mainContent.innerHTML = getWelcomeViewHTML();
-                    setupWelcomeViewEventListeners();
-                    break;
             }
             lucide.createIcons();
         }
         
+        function renderMainNav() {
+            mainNavItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === state.activeTab);
+            });
+            newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
+            newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+        }
+        
         // --- ШАБЛОНЫ HTML ---
-        function getWelcomeViewHTML() {
-            return `<div class="flex flex-col h-full items-center justify-center text-center p-8">
-                        <i data-lucide="sparkles" class="w-24 h-24 mb-6 text-accent"></i>
-                        <h2 class="text-3xl font-bold text-white mb-2">Добро пожаловать в AI Multi-Tool</h2>
-                        <p class="text-lg text-text-secondary mb-8 max-w-md">Выберите чат или заметку на панели слева или создайте что-то новое, чтобы начать.</p>
-                        <div class="flex space-x-4">
-                            <button id="welcome-new-chat-btn" class="flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                                <i data-lucide="message-square-plus" class="w-5 h-5 mr-2"></i>Новый чат
-                            </button>
-                             <button id="welcome-new-note-btn" class="flex items-center justify-center bg-bg-element hover:bg-bg-input text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                                <i data-lucide="notebook-pen" class="w-5 h-5 mr-2"></i>Новая заметка
-                            </button>
-                        </div>
+        function getEmptyStateHTML(type) {
+            const icon = type === 'chat' ? 'message-square' : 'notebook';
+            const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую';
+            return `<div class="flex flex-col h-full items-center justify-center text-gray-500">
+                        <i data-lucide="${icon}" class="w-16 h-16 mb-4"></i>
+                        <h2 class="text-2xl">${text}</h2>
                     </div>`;
         }
         function getChatViewHTML(activeSession) {
@@ -229,7 +220,7 @@
                 <div class="flex flex-col h-full">
                     <div class="flex-shrink-0 p-3 border-b border-border-color flex items-center justify-between">
                         <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата">
-                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent ml-4">
+                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent ml-4 flex-shrink-0">
                             ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
                         </select>
                     </div>
@@ -254,94 +245,77 @@
             messagesContainer.innerHTML = session.messages.map(msg => {
                 const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">");
                 const htmlContent = markdownConverter.makeHtml(safeContent);
-                return `
-                    <div class="flex items-start space-x-4 mb-6">
-                        <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center">
-                            <i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i>
-                        </div>
-                        <div class="flex-grow prose max-w-full">${htmlContent}</div>
-                    </div>`;
+                return `<div class="flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center"><i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full">${htmlContent}</div></div>`;
             }).join('');
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'relative';
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-code-btn';
-                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                preElement.parentNode.insertBefore(wrapper, preElement);
-                wrapper.appendChild(preElement);
-                wrapper.appendChild(copyBtn);
+                const wrapper = document.createElement('div'); wrapper.className = 'relative';
+                const copyBtn = document.createElement('button'); copyBtn.className = 'copy-code-btn'; copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                preElement.parentNode.insertBefore(wrapper, preElement); wrapper.appendChild(preElement); wrapper.appendChild(copyBtn);
             });
-            hljs.highlightAll();
-            lucide.createIcons();
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            hljs.highlightAll(); lucide.createIcons(); messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         function getNotepadViewHTML(activeSession) {
-            return `<div class="flex flex-col h-full p-4">
-                        <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки">
-                        <textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea>
-                    </div>`;
+            return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
         }
-        function getSettingsViewHTML() { /* без изменений */ return `<div class="p-6"><h2 class="text-2xl font-bold mb-6">Настройки</h2><div class="bg-bg-sidebar p-6 rounded-lg"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4 mb-6"></div><div class="border-t border-border-color pt-6"><h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4><form id="add-provider-form" class="space-y-3"><input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="password" id="provider-key" placeholder="API Ключ" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button></form></div></div></div>`; }
-        function renderProviders() { /* без изменений */ const list = document.getElementById('providers-list'); if (!list) return; if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } list.innerHTML = state.providers.map(p => `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path}</p></div><button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div>`).join(''); lucide.createIcons(); }
+        function getSettingsViewHTML() { return `<div class="p-6"><h2 class="text-2xl font-bold mb-6">Настройки</h2><div class="bg-bg-sidebar p-6 rounded-lg"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4 mb-6"></div><div class="border-t border-border-color pt-6"><h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4><form id="add-provider-form" class="space-y-3"><input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="password" id="provider-key" placeholder="API Ключ" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button></form></div></div></div>`; }
+        function renderProviders() { const list = document.getElementById('providers-list'); if (!list) return; if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } list.innerHTML = state.providers.map(p => `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path}</p></div><button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div>`).join(''); lucide.createIcons(); }
         
-        // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
-        function setupWelcomeViewEventListeners() {
-            document.getElementById('welcome-new-chat-btn')?.addEventListener('click', createNewChat);
-            document.getElementById('welcome-new-note-btn')?.addEventListener('click', createNewNote);
-        }
-        function setupChatViewEventListeners() { /* без существенных изменений */
-            const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages');
-            form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; });
-            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
-            providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); });
-            messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } });
-        }
-        function setupNotepadViewEventListeners() { /* без существенных изменений */
-            const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); });
-        }
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ (без существенных изменений в логике, только восстановление) ---
+        function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
+        function setupNotepadViewEventListeners() { const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); }
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
         
-        // --- ЛОГИКА ---
-        async function createNewChat() {
-            const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), {
-                type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null,
-                createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-            });
-            state.activeSessionId = newSessionRef.id;
-            state.currentView = 'session';
-            render();
-        }
-        async function createNewNote() {
-            const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), {
-                type: 'notepad', title: 'Новая заметка', content: '',
-                createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-            });
-            state.activeSessionId = newSessionRef.id;
-            state.currentView = 'session';
-            render();
-        }
-        async function handleChatSubmit(e) { /* без изменений */ e.preventDefault(); const input = document.getElementById('chat-input'); const message = input.value.trim(); if (!message || state.isLoading) return; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); const activeSession = state.sessions.find(s => s.id === state.activeSessionId); const provider = state.providers.find(p => p.id === activeSession.providerId); if (!provider) { showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); return; } const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); input.value = ''; input.style.height = 'auto'; state.isLoading = true; updateLoadingIndicator(); try { const fullUrl = new URL(provider.path, provider.baseUrl).href; const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content })); const response = await fetch(fullUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` }, body: JSON.stringify({ model: provider.model, messages: apiMessages }) }); if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${errorData.error?.message || response.statusText}`); } const data = await response.json(); const assistantMessage = data.choices[0].message.content; await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] }); } catch (error) { console.error("Error calling LLM API:", error); await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** ${error.message}` }] }); } finally { state.isLoading = false; updateLoadingIndicator(); } }
-        function updateLoadingIndicator() { /* без изменений */ const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
-        async function handleAddProvider(e) { /* без изменений */ e.preventDefault(); const name = document.getElementById('provider-name').value; const baseUrl = document.getElementById('provider-url').value; const path = document.getElementById('provider-path').value; const apiKey = document.getElementById('provider-key').value; const model = document.getElementById('provider-model').value; await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name, baseUrl, path, apiKey, model }); e.target.reset(); }
-        function copyToClipboard(text) { /* без изменений */ navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
-        function showConfirmModal(message, onConfirm) { /* без изменений */ confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
-        function hideConfirmModal() { /* без изменений */ confirmModal.classList.add('hidden'); confirmModalCallback = null; }
-        function showModalAlert(message) { /* без изменений */ confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
+        // --- ЛОГИКА (без изменений) ---
+        async function handleChatSubmit(e) { e.preventDefault(); const input = document.getElementById('chat-input'); const message = input.value.trim(); if (!message || state.isLoading) return; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); const activeSession = state.sessions.find(s => s.id === state.activeSessionId); const provider = state.providers.find(p => p.id === activeSession.providerId); if (!provider) { showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); return; } const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); input.value = ''; input.style.height = 'auto'; state.isLoading = true; updateLoadingIndicator(); try { const fullUrl = new URL(provider.path, provider.baseUrl).href; const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content })); const response = await fetch(fullUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` }, body: JSON.stringify({ model: provider.model, messages: apiMessages }) }); if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${errorData.error?.message || response.statusText}`); } const data = await response.json(); const assistantMessage = data.choices[0].message.content; await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] }); } catch (error) { console.error("Error calling LLM API:", error); await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** ${error.message}` }] }); } finally { state.isLoading = false; updateLoadingIndicator(); } }
+        function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
+        async function handleAddProvider(e) { e.preventDefault(); const name = document.getElementById('provider-name').value; const baseUrl = document.getElementById('provider-url').value; const path = document.getElementById('provider-path').value; const apiKey = document.getElementById('provider-key').value; const model = document.getElementById('provider-model').value; await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name, baseUrl, path, apiKey, model }); e.target.reset(); }
+        function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
+        function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
+        function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
+        function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
 
         // --- ГЛАВНЫЕ ОБРАБОТЧИКИ И ИНИЦИАЛИЗАЦИЯ ---
         function setupGlobalEventListeners() {
-            // ИЗМЕНЕНИЕ 5: Новые обработчики для кнопок создания, настроек и сворачивания
-            document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
-                state.isSidebarCollapsed = !state.isSidebarCollapsed;
-                renderSidebar();
+            // ИЗМЕНЕНИЕ 3: Обработчики для вкладок и кнопок
+            mainNavItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    state.activeTab = item.dataset.tab;
+                    // При смене вкладки выбираем первый элемент нового типа или ничего
+                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
+                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                    render();
+                });
             });
-            document.getElementById('new-chat-btn')?.addEventListener('click', createNewChat);
-            document.getElementById('new-note-btn')?.addEventListener('click', createNewNote);
-            document.getElementById('settings-btn')?.addEventListener('click', () => {
-                state.currentView = 'settings';
-                state.activeSessionId = null; // Сбрасываем активную сессию при переходе в настройки
+
+            newChatBtn.addEventListener('click', async () => {
+                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), {
+                    type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null,
+                    createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+                });
+                state.activeSessionId = newSessionRef.id;
                 render();
+            });
+
+            newNoteBtn.addEventListener('click', async () => {
+                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), {
+                    type: 'notepad', title: 'Новая заметка', content: '',
+                    createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+                });
+                state.activeSessionId = newSessionRef.id;
+                render();
+            });
+            
+            // ИЗМЕНЕНИЕ 4: Исправленный обработчик для сворачивания панели
+            document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
+                state.isSidebarCollapsed = !state.isSidebarCollapsed;
+                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
+                const toggleIcon = document.getElementById('sidebar-toggle-icon');
+                if (state.isSidebarCollapsed) {
+                    toggleIcon.setAttribute('data-lucide', 'panel-right-close');
+                } else {
+                    toggleIcon.setAttribute('data-lucide', 'panel-left-close');
+                }
+                lucide.createIcons();
             });
 
             document.body.addEventListener('click', async (e) => {
@@ -350,11 +324,8 @@
                     const idToDelete = deleteSessionBtn.dataset.id;
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
-                        // Если удалили активный элемент, переключаемся на welcome view
-                        if (state.activeSessionId === idToDelete) { 
-                            state.activeSessionId = null; 
-                            state.currentView = 'welcome';
-                        }
+                        if (state.activeSessionId === idToDelete) { state.activeSessionId = null; }
+                        render(); // Перерисовываем, чтобы обновить интерфейс
                     });
                 }
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
@@ -369,30 +340,19 @@
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
             
-            document.getElementById('google-signin-btn')?.addEventListener('click', async () => {
-                try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } 
-                catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }
-            });
-
-            document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => {
-                e.preventDefault();
-                try { await signOut(auth); } 
-                catch (error) { console.error("Sign-out error", error); }
-            });
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
+            document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
         
         function attachFirestoreListeners() {
             unsubscribeSessions(); unsubscribeProviders();
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                                             .sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                
-                // Проверяем, существует ли активная сессия. Если нет - сбрасываем вид
+                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
-                if (!activeSessionExists && state.currentView === 'session') {
-                    state.activeSessionId = null;
-                    state.currentView = 'welcome';
+                if (!activeSessionExists) {
+                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
+                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                 }
                 render();
             }, error => console.error("Session listener error: ", error));
@@ -400,7 +360,7 @@
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (state.currentView === 'settings' || state.currentView === 'session') {
+                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
                     render();
                 }
             }, error => console.error("Providers listener error: ", error));
@@ -408,10 +368,10 @@
 
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders();
-            state = { currentView: 'welcome', activeSessionId: null, sessions: [], providers: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
-            sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите.</div>';
-            mainContent.innerHTML = getWelcomeViewHTML();
-            lucide.createIcons();
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
+            sidebar.classList.remove('collapsed'); // Возвращаем панель в исходное состояние
+            sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
+            mainContent.innerHTML = getEmptyStateHTML('chat');
         }
 
         async function init() {
@@ -429,30 +389,19 @@
                     if (user) {
                         userId = user.uid;
                         state.isAuthReady = true;
-
                         googleBtn.classList.add('hidden');
                         userProfile.classList.remove('hidden');
-
-                        document.getElementById('user-name').textContent = user.displayName || 'Пользователь';
+                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
                         document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
-                        
                         attachFirestoreListeners();
-                        // Устанавливаем начальное состояние после входа
-                        if (!state.activeSessionId && state.sessions.length > 0) {
-                            state.activeSessionId = state.sessions[0].id;
-                            state.currentView = 'session';
-                        } else {
-                            state.currentView = 'welcome';
-                        }
                         render();
                     } else {
                         userId = null;
                         state.isAuthReady = false;
-
                         googleBtn.classList.remove('hidden');
                         userProfile.classList.add('hidden');
-                        
                         resetState();
+                        renderMainNav(); // Чтобы вкладки правильно отобразились
                     }
                 });
                 
@@ -465,51 +414,53 @@
         }
         
         init();
-
     </script>
 
-    <!-- ИЗМЕНЕНИЕ 6: Обновленная структура Sidebar -->
-    <aside id="sidebar" class="w-1/4 max-w-xs bg-bg-sidebar flex flex-col h-full border-r border-border-color sidebar-transition flex-shrink-0">
-        <div id="sidebar-header" class="p-2 border-b border-border-color flex justify-between items-center h-[61px]">
-             <button id="sidebar-toggle-btn" class="icon-btn ml-2">
-                <i data-lucide="panel-left-close" class="w-5 h-5"></i>
-            </button>
-            <div class="sidebar-label flex items-center space-x-2">
-                 <button id="new-chat-btn" title="Новый чат" class="icon-btn">
-                    <i data-lucide="message-square-plus" class="w-5 h-5"></i>
-                </button>
-                 <button id="new-note-btn" title="Новая заметка" class="icon-btn">
-                    <i data-lucide="notebook-pen" class="w-5 h-5"></i>
-                </button>
-            </div>
+    <!-- ИЗМЕНЕНИЕ 5: HTML-структура возвращена к исходной с улучшениями -->
+    <aside id="sidebar" class="w-1/4 max-w-xs bg-bg-sidebar flex flex-col h-full border-r border-border-color sidebar flex-shrink-0">
+        <div class="p-4 border-b border-border-color flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
         </div>
-        
+        <div class="p-2 flex-shrink-0">
+            <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новый чат
+            </button>
+             <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
+            </button>
+        </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
             <!-- Список чатов/заметок -->
         </nav>
         
-        <div id="auth-section" class="p-3 border-t border-border-color flex items-center hidden">
+        <div id="auth-section" class="p-3 border-t border-border-color text-center hidden">
             <button id="google-signin-btn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
                 <svg class="w-4 h-4 mr-2" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-                <span class="sidebar-label">Войти через Google</span>
+                Войти через Google
             </button>
-            
-            <div id="user-profile" class="hidden w-full flex items-center text-left">
-                <img id="user-avatar" class="w-9 h-9 rounded-full mr-2 flex-shrink-0">
-                <div id="user-profile-details" class="text-xs overflow-hidden flex-grow">
+            <div id="user-profile" class="hidden flex items-center text-left">
+                <img id="user-avatar" class="w-8 h-8 rounded-full mr-2 flex-shrink-0">
+                <div class="text-xs overflow-hidden">
                     <p id="user-name" class="font-semibold text-text-primary truncate"></p>
                     <a href="#" id="sign-out-btn" class="text-red-400 hover:text-red-500">Выйти</a>
                 </div>
-                <button id="settings-btn" title="Настройки" class="icon-btn ml-auto">
-                    <i data-lucide="cog" class="w-5 h-5"></i>
-                </button>
             </div>
         </div>
     </aside>
 
-    <!-- ИЗМЕНЕНИЕ 7: Основной блок теперь не имеет фиксированной ширины, а занимает оставшееся место -->
+    <!-- Main Content -->
     <main class="flex-grow flex flex-col h-full">
-         <!-- Навигационная панель убрана -->
+         <!-- ИЗМЕНЕНИЕ 6: Кнопка сворачивания и возвращенная навигация -->
+        <nav class="flex-shrink-0 border-b border-border-color flex items-center">
+            <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
+                <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
+            </button>
+            <div class="flex space-x-4 px-4">
+                <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
+                <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
+                <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
+            </div>
+        </nav>
         <div id="main-content" class="flex-grow overflow-y-auto">
             <!-- Содержимое вкладок -->
         </div>

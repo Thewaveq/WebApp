@@ -381,7 +381,14 @@
         };
         
         let confirmModalCallback = null;
-        const markdownConverter = new showdown.Converter({ tables: true, strikethrough: true, tasklists: true, openLinksInNewWindow: true, ghCompatibleHeaderId: true });
+        const markdownConverter = new showdown.Converter({
+            tables: true,
+            strikethrough: true,
+            tasklists: true,
+            openLinksInNewWindow: true,
+            ghCompatibleHeaderId: true,
+            simpleLineBreaks: true // <-- ВОТ КЛЮЧЕВАЯ ОПЦИЯ
+        });
         
         const sidebar = document.getElementById('sidebar');
         const sidebarList = document.getElementById('sidebar-list');
@@ -534,17 +541,18 @@
                 const icon = isUser ? 'user' : 'sparkles';
                 let htmlContent;
                 
+                const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
+                
                 if (isUser) {
-                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ: Отображаем текст "как есть", сохраняя все переносы и пробелы.
-                    // 1. Экранируем HTML-теги, чтобы пользователь не мог вставить свой HTML.
-                    const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
-                    // 2. Оборачиваем в div с нашим новым классом.
+                    // Для пользователя все без изменений, только экранирование вынесли выше
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
-                    // ДЛЯ АССИСТЕНТА: По-прежнему конвертируем из Markdown в HTML.
-                    htmlContent = markdownConverter.makeHtml(safeContent);
+                    // Для ассистента делаем ТО ЖЕ САМОЕ!
+                    // Просто оборачиваем текст в тег <pre> или div со стилем white-space: pre-wrap
+                    // Это заставит браузер уважать все пробелы и переносы.
+                    htmlContent = `<div style="white-space: pre-wrap; word-wrap: break-word;">${escapedContent}</div>`;
                 }
-        
+                        
                 // --- КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---
                 const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
                 const containerFlexClasses = isUser ? 'flex-row-reverse' : '';

@@ -487,30 +487,62 @@
                 if (messagesContainer) messagesContainer.innerHTML = '';
                 return;
             }
+
             messagesContainer.innerHTML = session.messages.map((msg, index) => {
+                const isUser = msg.role === 'user';
                 const safeContent = msg.content || '';
                 const htmlContent = markdownConverter.makeHtml(safeContent);
-                const icon = msg.role === 'user' ? 'user' : 'sparkles'; 
-                return `<div class="message-container group relative flex items-start space-x-4 mb-6 pr-8">
-                            <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
-                                <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
-                            </div>
-                            <div class="flex-grow prose max-w-full">${htmlContent}</div>
-                            <button class="delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" data-message-index="${index}">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>`;
+                const icon = isUser ? 'user' : 'sparkles';
+
+                // --- НОВЫЕ КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---
+                // Выравнивание всего блока (слева/справа)
+                const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
+                // Порядок элементов внутри блока (иконка справа для пользователя)
+                const containerFlexClasses = isUser ? 'flex-row-reverse' : '';
+                // Стили для самого "пузыря" сообщения
+                const bubbleClasses = isUser 
+                    ? 'bg-accent-start text-white prose-invert' // prose-invert делает текст в .prose белым
+                    : 'bg-bg-element';
+                // Позиция кнопки удаления сбоку от контейнера
+                const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
+                // --- КОНЕЦ НОВЫХ КЛАССОВ ---
+
+                return `
+                <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
+                    <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
+                        
+                        <!-- Иконка -->
+                        <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
+                            <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
+                        </div>
+
+                        <!-- "Пузырь" с текстом -->
+                        <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
+                            ${htmlContent}
+                        </div>
+                        
+                        <!-- Кнопка удаления (теперь позиционируется относительно всего блока) -->
+                        <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+
+                    </div>
+                </div>`;
             }).join('');
+            
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative';
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-code-btn';
                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                
+                // ВАЖНО: Убедимся, что кнопка копирования внутри пузыря
                 preElement.parentNode.insertBefore(wrapper, preElement);
                 wrapper.appendChild(preElement);
                 wrapper.appendChild(copyBtn);
             });
+
             hljs.highlightAll();
             lucide.createIcons();
 

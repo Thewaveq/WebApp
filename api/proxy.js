@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     }
 
     // Парсим ответ как текст, а не JSON
-    return res.status(200).send(responseText);
+    return res.status(200).json(JSON.parse(responseText));
 
   } catch (error) {
     console.error('Proxy Internal Error:', error);

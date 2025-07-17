@@ -549,23 +549,6 @@
         function setupSettingsViewEventListeners() { 
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
         }
-
-        function updateLoadingIndicator() {
-            const indicator = document.getElementById('loading-indicator');
-            const form = document.getElementById('chat-form');
-            if (indicator) {
-                indicator.classList.toggle('hidden', !state.isLoading);
-                // Прокрутка вниз, чтобы увидеть индикатор, если он появился
-                if (state.isLoading) {
-                    indicator.scrollIntoView({ behavior: 'smooth' });
-                }
-            }
-            if (form) {
-                // Блокируем кнопку и поле ввода, пока ИИ "печатает"
-                form.querySelector('button').disabled = state.isLoading;
-                form.querySelector('textarea').disabled = state.isLoading;
-            }
-        }
         
         // Новая, улучшенная функция handleChatSubmit
         async function handleChatSubmit(e) {

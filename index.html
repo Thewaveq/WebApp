@@ -137,6 +137,8 @@
             <div class="flex space-x-4 px-4">
                 <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
                 <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
+                <!-- НОВОЕ: Вкладка "Роли" -->
+                <button data-tab="roles" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Роли</button>
                 <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
             </div>
         </nav>
@@ -186,6 +188,28 @@
             </form>
         </div>
     </div>
+    
+    <!-- НОВОЕ: Модальное окно для редактирования роли -->
+    <div id="edit-role-modal" class="modal-overlay hidden">
+        <div class="modal-content !max-w-xl">
+            <h3 class="text-xl font-semibold mb-4">Редактировать роль</h3>
+            <form id="edit-role-form" class="space-y-3">
+                <input type="hidden" id="edit-role-id">
+                <div>
+                    <label for="edit-role-name" class="text-sm text-text-secondary block mb-1">Название роли</label>
+                    <input type="text" id="edit-role-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div>
+                    <label for="edit-role-content" class="text-sm text-text-secondary block mb-1">Содержимое роли (Системный промпт)</label>
+                    <textarea id="edit-role-content" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="8" required></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="edit-role-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
+                    <button type="submit" class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 
     <script type="module">
@@ -208,12 +232,15 @@
         let db, auth, userId;
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
+        let unsubscribeRoles = () => {}; // НОВОЕ
 
+        // ИЗМЕНЕНО: Добавлено 'roles' в состояние
         let state = {
             activeTab: 'chat',
             activeSessionId: null,
             sessions: [],
             providers: [],
+            roles: [],
             isLoading: false,
             isAuthReady: false,
             isSidebarCollapsed: false,
@@ -236,6 +263,10 @@
         const editProviderModal = document.getElementById('edit-provider-modal');
         const editProviderForm = document.getElementById('edit-provider-form');
         const editProviderCancelBtn = document.getElementById('edit-provider-cancel-btn');
+        // НОВОЕ: Элементы модального окна для роли
+        const editRoleModal = document.getElementById('edit-role-modal');
+        const editRoleForm = document.getElementById('edit-role-form');
+        const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
 
 
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
@@ -248,6 +279,7 @@
 
         function renderSidebar() {
             sidebarList.innerHTML = '';
+            // ИЗМЕНЕНО: Фильтрация теперь не нужна, т.к. роли не отображаются в боковой панели
             const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
 
             if (filteredSessions.length > 0) {
@@ -274,8 +306,10 @@
                     
                     sidebarList.appendChild(item);
                 });
-            } else {
+            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                  sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${state.activeTab === 'chat' ? 'чатов' : 'заметок'}.</div>`;
+            } else {
+                 sidebarList.innerHTML = ''; // Для вкладок "Роли" и "Настройки" сайдбар пуст
             }
             lucide.createIcons();
         }
@@ -284,6 +318,7 @@
             mainContent.innerHTML = '';
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
+            // ИЗМЕНЕНО: Добавлена обработка новой вкладки
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
@@ -306,6 +341,11 @@
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
+                case 'roles': // НОВОЕ
+                    mainContent.innerHTML = getRolesViewHTML();
+                    renderRoles();
+                    setupRolesViewEventListeners();
+                    break;
                 case 'settings':
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
@@ -325,9 +365,31 @@
 
         // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
-        function getChatViewHTML(activeSession) { const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join(''); return `<div class="flex flex-col h-full"><div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"><input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата"><select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-shrink-0">${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}</select></div><div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div><div id="loading-indicator" class="p-4 hidden"><div class="flex items-center space-x-2"><div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div><div class="typing-indicator"><span></span><span></span><span></span></div></div></div><div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div></div>`; }
         
-        // ИЗМЕНЕНИЕ: В рендер сообщения добавлена кнопка удаления
+        // ИЗМЕНЕНО: Добавлен select для выбора роли
+        function getChatViewHTML(activeSession) { 
+            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
+            const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
+
+            return `<div class="flex flex-col h-full">
+                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full flex-shrink-0">
+                           <option value="">Без роли</option>
+                           ${roleOptions}
+                        </select>
+                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full flex-shrink-0">
+                           ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                        </select>
+                    </div>
+                </div>
+                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
+                <div id="loading-indicator" class="p-4 hidden"><div class="flex items-center space-x-2"><div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>
+                <div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div>
+            </div>`; 
+        }
+        
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer || !session || !session.messages) {
@@ -363,6 +425,48 @@
         }
 
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
+        
+        // НОВОЕ: HTML шаблон для вкладки "Роли"
+        function getRolesViewHTML() {
+            return `<div class="p-6">
+                <h2 class="text-2xl font-bold mb-6">Управление ролями</h2>
+                <div class="bg-bg-sidebar p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4">Ваши роли</h3>
+                    <div id="roles-list" class="space-y-4 mb-6"></div>
+                    <div class="border-t border-border-color pt-6">
+                        <h4 class="text-lg font-semibold mb-3">Добавить новую роль</h4>
+                        <form id="add-role-form" class="space-y-3">
+                            <input type="text" id="role-name" placeholder="Название роли (например, Помощник программиста)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                            <textarea id="role-content" placeholder="Содержимое роли (системный промпт). Например: Ты — дружелюбный ассистент, который помогает писать код на Python." class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="4" required></textarea>
+                            <button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить роль</button>
+                        </form>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        // НОВОЕ: Функция для рендеринга списка ролей
+        function renderRoles() {
+            const list = document.getElementById('roles-list');
+            if (!list) return;
+            if (state.roles.length === 0) {
+                list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей.</p>`;
+                return;
+            }
+            list.innerHTML = state.roles.map(r => `
+                <div class="bg-bg-element p-3 rounded-md">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="font-bold">${r.name}</p>
+                        <div class="flex items-center space-x-2">
+                            <button class="edit-role-btn text-text-secondary hover:text-accent transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button>
+                            <button class="delete-role-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
         
         function getSettingsViewHTML() { 
             return `<div class="p-6">
@@ -413,7 +517,29 @@
         }
         
         // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
-        function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
+        // ИЗМЕНЕНО: Добавлен обработчик для селектора ролей
+        function setupChatViewEventListeners() { 
+            const form = document.getElementById('chat-form'); 
+            const input = document.getElementById('chat-input'); 
+            const titleInput = document.getElementById('chat-title-input'); 
+            const providerSelect = document.getElementById('provider-select'); 
+            const roleSelect = document.getElementById('role-select'); // НОВОЕ
+            const messagesContainer = document.getElementById('chat-messages'); 
+            
+            form?.addEventListener('submit', handleChatSubmit); 
+            input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); 
+            input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
+            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
+            providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
+            
+            // НОВОЕ: обработчик для селектора ролей
+            roleSelect?.addEventListener('change', (e) => {
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, { roleId: e.target.value });
+            });
+            
+            messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); 
+        }
         
         function setupNotepadViewEventListeners() {
             const titleInput = document.getElementById('note-title-input');
@@ -431,8 +557,14 @@
             contentTextarea?.addEventListener('blur', saveNote);
         }
 
+        // НОВОЕ: Обработчик для вкладки "Роли"
+        function setupRolesViewEventListeners() {
+            document.getElementById('add-role-form')?.addEventListener('submit', handleAddRole);
+        }
+
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
         
+        // ИЗМЕНЕНО: Логика отправки чата теперь учитывает выбранную роль
         async function handleChatSubmit(e) { 
             e.preventDefault(); 
             const input = document.getElementById('chat-input'); 
@@ -443,6 +575,9 @@
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId); 
             const provider = state.providers.find(p => p.id === activeSession.providerId); 
             
+            // НОВОЕ: Находим выбранную роль
+            const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+
             if (!provider) { 
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); 
                 return; 
@@ -467,6 +602,14 @@
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
             
+            // ИЗМЕНЕНО: Подготавливаем сообщения для API с учетом роли
+            const apiMessagesPayload = [];
+            if (selectedRole && selectedRole.content) {
+                apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
+            }
+            apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
+
+
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
@@ -474,11 +617,10 @@
                 
                 try {
                     const fullUrl = new URL(provider.path, provider.baseUrl).href; 
-                    const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content })); 
                     const response = await fetch(fullUrl, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentKey}` }, 
-                        body: JSON.stringify({ model: provider.model, messages: apiMessages }) 
+                        body: JSON.stringify({ model: provider.model, messages: apiMessagesPayload }) // Используем новый payload
                     }); 
 
                     if (!response.ok) { 
@@ -521,39 +663,54 @@
             const path = document.getElementById('provider-path').value; 
             const keysRaw = document.getElementById('provider-keys').value;
             const model = document.getElementById('provider-model').value; 
-
             const apiKeys = keysRaw.split('\n').map(k => k.trim()).filter(k => k !== '');
-
             if (apiKeys.length === 0) {
                 showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
                 return;
             }
-
             await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { 
-                name, 
-                baseUrl, 
-                path, 
-                apiKeys,
-                model,
-                currentKeyIndex: 0
+                name, baseUrl, path, apiKeys, model, currentKeyIndex: 0
             }); 
             e.target.reset(); 
+        }
+
+        // НОВОЕ: Функция добавления роли
+        async function handleAddRole(e) {
+            e.preventDefault();
+            const name = document.getElementById('role-name').value;
+            const content = document.getElementById('role-content').value;
+
+            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), {
+                name,
+                content,
+                createdAt: serverTimestamp()
+            });
+            e.target.reset();
         }
         
         function handleOpenEditProviderModal(providerId) {
             const providerToEdit = state.providers.find(p => p.id === providerId);
             if (!providerToEdit) return;
-
             const apiKeysArray = providerToEdit.apiKeys || (providerToEdit.apiKey ? [providerToEdit.apiKey] : []);
-
             document.getElementById('edit-provider-id').value = providerToEdit.id;
             document.getElementById('edit-provider-name').value = providerToEdit.name;
             document.getElementById('edit-provider-url').value = providerToEdit.baseUrl;
             document.getElementById('edit-provider-path').value = providerToEdit.path;
             document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n');
             document.getElementById('edit-provider-model').value = providerToEdit.model;
-
             editProviderModal.classList.remove('hidden');
+        }
+
+        // НОВОЕ: Функция открытия модального окна редактирования роли
+        function handleOpenEditRoleModal(roleId) {
+            const roleToEdit = state.roles.find(r => r.id === roleId);
+            if (!roleToEdit) return;
+
+            document.getElementById('edit-role-id').value = roleToEdit.id;
+            document.getElementById('edit-role-name').value = roleToEdit.name;
+            document.getElementById('edit-role-content').value = roleToEdit.content;
+
+            editRoleModal.classList.remove('hidden');
         }
 
         async function handleEditProviderSubmit(e) {
@@ -576,16 +733,25 @@
             const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, providerId);
             const originalProvider = state.providers.find(p => p.id === providerId);
             const originalKeys = originalProvider.apiKeys || (originalProvider.apiKey ? [originalProvider.apiKey] : []);
-            
             const keysChanged = JSON.stringify(originalKeys.sort()) !== JSON.stringify(apiKeys.sort());
-
             const updatedData = { name, baseUrl, path, apiKeys, model };
-            if (keysChanged) {
-                updatedData.currentKeyIndex = 0;
-            }
-
+            if (keysChanged) { updatedData.currentKeyIndex = 0; }
             await updateDoc(providerRef, updatedData);
             editProviderModal.classList.add('hidden');
+        }
+
+        // НОВОЕ: Функция сохранения изменений роли
+        async function handleEditRoleSubmit(e) {
+            e.preventDefault();
+            const roleId = document.getElementById('edit-role-id').value;
+            if (!roleId) return;
+
+            const name = document.getElementById('edit-role-name').value;
+            const content = document.getElementById('edit-role-content').value;
+
+            const roleRef = doc(db, `artifacts/${appId}/users/${userId}/roles`, roleId);
+            await updateDoc(roleRef, { name, content });
+            editRoleModal.classList.add('hidden');
         }
 
         function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
@@ -596,7 +762,6 @@
         function updateSidebarView() {
             const isMobile = window.innerWidth < 1024;
             const toggleIcon = document.getElementById('sidebar-toggle-icon');
-
             if (isMobile) {
                 sidebar.classList.remove('collapsed');
                 toggleIcon.setAttribute('data-lucide', 'menu');
@@ -613,15 +778,20 @@
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
-                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
-                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                    // ИЗМЕНЕНО: Не ищем активную сессию для вкладок без списка в сайдбаре
+                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
+                        const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
+                        state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                    } else {
+                        state.activeSessionId = null;
+                    }
                     render();
                 });
             });
 
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -654,19 +824,17 @@
             
             window.addEventListener('resize', updateSidebarView);
 
+            // ИЗМЕНЕНО: Добавлены обработчики для кнопок ролей
             document.body.addEventListener('click', async (e) => {
-                // Обработчик для удаления сессии
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                         if (state.activeSessionId === idToDelete) { state.activeSessionId = null; }
-                        // Рендер вызовется автоматически через onSnapshot
                     });
                 }
                 
-                // ИЗМЕНЕНИЕ: Добавлен обработчик для удаления сообщения
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
                     const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
@@ -677,7 +845,6 @@
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: newMessages });
-                            // Рендер также вызовется автоматически через onSnapshot
                         });
                     }
                 }
@@ -694,22 +861,39 @@
                     const idToEdit = editProviderBtn.dataset.id;
                     handleOpenEditProviderModal(idToEdit);
                 }
+                
+                // НОВОЕ: Обработчики для ролей
+                const deleteRoleBtn = e.target.closest('.delete-role-btn');
+                if (deleteRoleBtn) {
+                    const idToDelete = deleteRoleBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
+                    });
+                }
+                const editRoleBtn = e.target.closest('.edit-role-btn');
+                if (editRoleBtn) {
+                    const idToEdit = editRoleBtn.dataset.id;
+                    handleOpenEditRoleModal(idToEdit);
+                }
             });
             
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
             
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
-            editProviderCancelBtn?.addEventListener('click', () => {
-                editProviderModal.classList.add('hidden');
-            });
-            
+            editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
+
+            // НОВОЕ: Обработчики для модального окна роли
+            editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
+            editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
+
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
         
+        // ИЗМЕНЕНО: Добавлен listener для ролей
         function attachFirestoreListeners() {
-            unsubscribeSessions(); unsubscribeProviders();
+            unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
@@ -728,11 +912,21 @@
                     render();
                 }
             }, error => console.error("Providers listener error: ", error));
+
+            // НОВОЕ: Listener для ролей
+            const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
+            unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
+                state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+                if (state.activeTab === 'roles' || state.activeTab === 'chat') {
+                    render();
+                }
+            }, error => console.error("Roles listener error: ", error));
         }
 
         function resetState() {
-            unsubscribeSessions(); unsubscribeProviders();
-            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
+            unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
+            // ИЗМЕНЕНО: Сброс ролей
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');

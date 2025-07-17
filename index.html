@@ -377,7 +377,7 @@
             roles: [],
             isLoading: false,
             isAuthReady: false,
-            isSidebarCollapsed: window.innerWidth < 1024 ? false : true, // Начальное состояние сайдбара
+            isSidebarCollapsed: window.innerWidth >= 1024,
         };
         
         let confirmModalCallback = null;
@@ -408,61 +408,46 @@
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
     
-        // --- [ИСПРАВЛЕНИЕ №1]: ДОБАВЛЕНА НЕДОСТАЮЩАЯ ФУНКЦИЯ ---
-        // Эта функция отсутствовала, что вызывало полный крах скрипта при инициализации.
+        // --- РАБОЧИЕ ФУНКЦИИ БЕЗ ОШИБОК ---
+        
         function updateSidebarView() {
             const sidebar = document.getElementById('sidebar');
             const toggleIcon = document.getElementById('sidebar-toggle-icon');
             if (!sidebar || !toggleIcon) return;
-
             const isMobile = window.innerWidth < 1024;
-
             if (isMobile) {
-                // На мобильных устройствах логика схлопывания не используется,
-                // поэтому убираем класс, если он был, и ставим иконку меню.
                 sidebar.classList.remove('collapsed');
                 toggleIcon.setAttribute('data-lucide', 'menu');
             } else {
-                // На десктопе управляем классом 'collapsed' и иконкой
                 sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
                 toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-left-open' : 'panel-left-close');
             }
             lucide.createIcons();
         }
 
-        // --- [ИСПРАВЛЕНИЕ №2]: ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ОТСТУПОВ ---
-        // Эта версия корректно заменяет ведущие пробелы на неразрывные,
-        // не трогая блоки кода и не вызывая ошибок.
         function preprocessTextForIndents(text) {
             if (!text) return '';
-        
             const lines = text.split('\n');
             let inCodeBlock = false;
-        
             const processedLines = lines.map(line => {
                 if (line.trim().startsWith('```')) {
                     inCodeBlock = !inCodeBlock;
                     return line;
                 }
-        
                 if (inCodeBlock) {
                     return line;
                 }
-        
                 const match = line.match(/^(\s+)/);
                 if (match) {
-                    const leadingSpaces = match; // match содержит всю строку пробелов
+                    const leadingSpaces = match;
                     const nonBreakingSpaces = ' '.repeat(leadingSpaces.length);
                     return nonBreakingSpaces + line.substring(leadingSpaces.length);
                 }
-        
                 return line;
             });
-        
             return processedLines.join('\n');
         }
 
-        // --- ФУНКЦИИ РЕНДЕРИНГА (С КОРРЕКТНЫМ ВЫЗОВОМ) ---
         function render() {
             if (!state.isAuthReady) return;
             renderSidebar();
@@ -478,12 +463,7 @@
                 filteredSessions.forEach(session => {
                     const item = document.createElement('div');
                     item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
-                    item.innerHTML = `
-                        <span class="truncate pr-2">${session.title || 'Без названия'}</span>
-                        <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    `;
+                    item.innerHTML = `<span class="truncate pr-2">${session.title || 'Без названия'}</span><button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
@@ -495,7 +475,6 @@
                     });
                     item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
                     item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
-                    
                     sidebarList.appendChild(item);
                 });
             } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
@@ -509,444 +488,135 @@
         function renderMainContent() {
             mainContent.innerHTML = '';
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            
             switch (state.activeTab) {
                 case 'chat':
-                    if (activeSession) {
-                        mainContent.innerHTML = getChatViewHTML(activeSession);
-                        if (!activeSession.providerId && state.providers.length > 0) {
-                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { providerId: state.providers.id });
-                        }
-                        renderChatMessages(activeSession);
-                        setupChatViewEventListeners();
-                        updateLoadingIndicator();
-                    } else {
-                         mainContent.innerHTML = getEmptyStateHTML('chat');
-                    }
+                    activeSession ? (mainContent.innerHTML = getChatViewHTML(activeSession), renderChatMessages(activeSession), setupChatViewEventListeners(), updateLoadingIndicator()) : (mainContent.innerHTML = getEmptyStateHTML('chat'));
                     break;
                 case 'notepad':
-                     if (activeSession) {
-                        mainContent.innerHTML = getNotepadViewHTML(activeSession);
-                        setupNotepadViewEventListeners();
-                    } else {
-                        mainContent.innerHTML = getEmptyStateHTML('notepad');
-                    }
+                    activeSession ? (mainContent.innerHTML = getNotepadViewHTML(activeSession), setupNotepadViewEventListeners()) : (mainContent.innerHTML = getEmptyStateHTML('notepad'));
                     break;
                 case 'roles': 
-                    mainContent.innerHTML = getRolesViewHTML();
-                    renderRoles();
-                    setupRolesViewEventListeners();
+                    mainContent.innerHTML = getRolesViewHTML(); renderRoles(); setupRolesViewEventListeners();
                     break;
                 case 'settings':
-                    mainContent.innerHTML = getSettingsViewHTML();
-                    renderProviders();
-                    setupSettingsViewEventListeners();
+                    mainContent.innerHTML = getSettingsViewHTML(); renderProviders(); setupSettingsViewEventListeners();
                     break;
             }
             lucide.createIcons();
         }
         
         function renderMainNav() {
-            mainNavItems.forEach(item => {
-                item.classList.toggle('active', item.dataset.tab === state.activeTab);
-            });
+            mainNavItems.forEach(item => item.classList.toggle('active', item.dataset.tab === state.activeTab));
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
     
-        function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
+        function getEmptyStateHTML(type) { const i = type === 'chat' ? 'message-square' : 'notebook', t = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${i}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${t}</h2></div>`; }
         
         function getChatViewHTML(activeSession) { 
-            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
-            const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-    
-            return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent-start rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
-                    <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                        <select id="role-select" class="bg-input p-2 text-sm w-full sm:w-auto">
-                           <option value="">Без роли</option>
-                           ${roleOptions}
-                        </select>
-                        <select id="provider-select" class="bg-input p-2 text-sm w-full sm:w-auto">
-                           ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
-                        </select>
-                    </div>
-                </div>
-                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
-                <div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input p-3 pr-12 resize-none" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div>
-            </div>`; 
+            const pOpts = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
+            const rOpts = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
+            return `<div class="flex flex-col h-full"><div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3"><input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent-start rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата"><div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0"><select id="role-select" class="bg-input p-2 text-sm w-full sm:w-auto"><option value="">Без роли</option>${rOpts}</select><select id="provider-select" class="bg-input p-2 text-sm w-full sm:w-auto">${pOpts.length > 0 ? pOpts : '<option disabled>Добавьте провайдера</option>'}</select></div></div><div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div><div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input p-3 pr-12 resize-none" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div></div>`; 
         }
         
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
-            if (!messagesContainer || !session || !session.messages) {
-                if (messagesContainer) messagesContainer.innerHTML = '';
-                return;
-            }
-        
+            if (!messagesContainer || !session || !session.messages) { if (messagesContainer) messagesContainer.innerHTML = ''; return; }
             messagesContainer.innerHTML = session.messages.map((msg, index) => {
-                const isUser = msg.role === 'user';
-                const safeContent = msg.content || '';
-                const icon = isUser ? 'user' : 'sparkles';
+                const isUser = msg.role === 'user', safeContent = msg.content || '', icon = isUser ? 'user' : 'sparkles';
                 let htmlContent;
-        
-                if (isUser) {
-                    const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
-                    htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
-                } else {
-                    // --- [ИСПРАВЛЕНИЕ №3]: ИСПОЛЬЗУЕМ РАБОЧУЮ ФУНКЦИЮ ---
-                    const preprocessedContent = preprocessTextForIndents(safeContent);
-                    htmlContent = markdownConverter.makeHtml(preprocessedContent);
-                }
-        
-                const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
-                const containerFlexClasses = isUser ? 'flex-row-reverse' : '';
-                const bubbleClasses = isUser 
-                    ? 'bg-accent-start text-white prose-invert' 
-                    : 'bg-bg-element';
-                const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
-        
-                return `
-                <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
-                    <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
-                        <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
-                            <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
-                        </div>
-                        <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
-                            ${htmlContent}
-                        </div>
-                        <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>`;
+                if (isUser) { htmlContent = `<div class="user-message-content">${safeContent.replace(/</g, "<").replace(/>/g, ">")}</div>`; } 
+                else { htmlContent = markdownConverter.makeHtml(preprocessTextForIndents(safeContent)); }
+                const wrapperFlex = isUser ? 'justify-end' : 'justify-start', containerFlex = isUser ? 'flex-row-reverse' : '', bubble = isUser ? 'bg-accent-start text-white prose-invert' : 'bg-bg-element', delBtnPos = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
+                return `<div class="message-wrapper w-full flex ${wrapperFlex} mb-4"><div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlex}"><div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md"><i data-lucide="${icon}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full ${bubble} rounded-xl px-4 py-2 shadow-sm">${htmlContent}</div><button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${delBtnPos} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`;
             }).join('');
-            
-            messagesContainer.querySelectorAll('pre').forEach(preElement => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'relative';
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-code-btn';
-                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                preElement.parentNode.insertBefore(wrapper, preElement);
-                wrapper.appendChild(preElement);
-                wrapper.appendChild(copyBtn);
-            });
-        
-            hljs.highlightAll();
-            lucide.createIcons();
-        
-            if(!state.isLoading) {
-                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
+            messagesContainer.querySelectorAll('pre').forEach(pre => { const w = document.createElement('div'); w.className = 'relative'; const c = document.createElement('button'); c.className = 'copy-code-btn'; c.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; pre.parentNode.insertBefore(w, pre); w.appendChild(pre); w.appendChild(c); });
+            hljs.highlightAll(); lucide.createIcons();
+            if(!state.isLoading) { messagesContainer.scrollTop = messagesContainer.scrollHeight; }
         }
     
-        function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent-start rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input p-4 resize-none text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
-        
+        function getNotepadViewHTML(s) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent-start rounded px-2 py-1" value="${s.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input p-4 resize-none text-base leading-relaxed" placeholder="Начните писать...">${s.content || ''}</textarea></div>`; }
         function getRolesViewHTML() { return `<div class="p-6"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">Управление ролями</h2><button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent-start hover:bg-accent-end rounded-md transition-colors"><i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить роль</button></div><div class="bg-bg-element/50 p-6 rounded-lg glassmorphism"><div id="roles-list" class="space-y-4"></div></div></div>`; }
-        
-        function renderRoles() {
-            const list = document.getElementById('roles-list');
-            if (!list) return;
-            if (state.roles.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`; return; }
-            list.innerHTML = state.roles.map(r => `<div class="bg-bg-element p-3 rounded-md"><div class="flex items-center justify-between mb-2"><p class="font-bold">${r.name}</p><div class="flex items-center space-x-2"><button class="edit-role-btn text-text-secondary hover:text-accent-start transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button><button class="delete-role-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></div><p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p></div>`).join('');
-            lucide.createIcons();
-        }
-        
+        function renderRoles() { const l = document.getElementById('roles-list'); if (!l) return; if (state.roles.length === 0) { l.innerHTML = `<p class="text-text-secondary">Нет ролей.</p>`; return; } l.innerHTML = state.roles.map(r => `<div class="bg-bg-element p-3 rounded-md"><div class="flex items-center justify-between mb-2"><p class="font-bold">${r.name}</p><div class="flex items-center space-x-2"><button class="edit-role-btn text-text-secondary hover:text-accent-start" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button><button class="delete-role-btn text-text-secondary hover:text-red-400" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></div><p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p></div>`).join(''); lucide.createIcons(); }
         function getSettingsViewHTML() { return `<div class="p-6"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">Настройки</h2><button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent-start hover:bg-accent-end rounded-md transition-colors"><i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить провайдера</button></div><div class="bg-bg-element/50 p-6 rounded-lg glassmorphism"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4"></div></div></div>`; }
-    
-        function renderProviders() { 
-            const list = document.getElementById('providers-list'); 
-            if (!list) return; 
-            if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } 
-            list.innerHTML = state.providers.map(p => {
-                const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0);
-                return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p></div><div class="flex items-center space-x-2"><button class="edit-provider-btn text-text-secondary hover:text-accent-start transition-colors" data-id="${p.id}"><i data-lucide="edit" class="w-5 h-5"></i></button><button class="delete-provider-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></div>`
-            }).join(''); 
-            lucide.createIcons(); 
-        }
+        function renderProviders() { const l = document.getElementById('providers-list'); if (!l) return; if (state.providers.length === 0) { l.innerHTML = `<p class="text-text-secondary">Нет провайдеров.</p>`; return; } l.innerHTML = state.providers.map(p => { const k = (p.apiKeys && p.apiKeys.length) || 0; return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${k})</p></div><div class="flex items-center space-x-2"><button class="edit-provider-btn text-text-secondary hover:text-accent-start" data-id="${p.id}"><i data-lucide="edit" class="w-5 h-5"></i></button><button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></div>` }).join(''); lucide.createIcons(); }
         
-        function setupChatViewEventListeners() { 
-            const form = document.getElementById('chat-form'); 
-            const input = document.getElementById('chat-input'); 
-            const titleInput = document.getElementById('chat-title-input'); 
-            const providerSelect = document.getElementById('provider-select'); 
-            const roleSelect = document.getElementById('role-select'); 
-            const messagesContainer = document.getElementById('chat-messages'); 
-            
-            form?.addEventListener('submit', handleChatSubmit); 
-            input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); 
-            input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
-            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
-            providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
-            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
-            messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); 
-        }
-        
-        function setupNotepadViewEventListeners() {
-            const titleInput = document.getElementById('note-title-input');
-            const contentTextarea = document.getElementById('note-content-textarea');
-            const saveNote = () => { if (!state.activeSessionId) return; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
-        }
-    
+        function setupChatViewEventListeners() { const f = document.getElementById('chat-form'), i = document.getElementById('chat-input'), t = document.getElementById('chat-title-input'), p = document.getElementById('provider-select'), r = document.getElementById('role-select'), m = document.getElementById('chat-messages'); f?.addEventListener('submit', handleChatSubmit); i?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); f.requestSubmit(); } }); i?.addEventListener('input', () => { i.style.height = 'auto'; i.style.height = (i.scrollHeight) + 'px'; }); const save = (field, value) => { const ref = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(ref, { [field]: value }); }; t?.addEventListener('change', (e) => save('title', e.target.value)); p?.addEventListener('change', (e) => save('providerId', e.target.value)); r?.addEventListener('change', (e) => save('roleId', e.target.value)); m?.addEventListener('click', e => { const c = e.target.closest('.copy-code-btn'); if (c) { const code = c.parentElement.querySelector('pre code'); if (code) { copyToClipboard(code.innerText); c.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { c.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
+        function setupNotepadViewEventListeners() { const t = document.getElementById('note-title-input'), c = document.getElementById('note-content-textarea'); const save = () => { if (!state.activeSessionId) return; const ref = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(ref, { title: t.value, content: c.value, updatedAt: serverTimestamp() }); }; t?.addEventListener('blur', save); c?.addEventListener('blur', save); }
         function setupRolesViewEventListeners() { document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole); }
-    
         function setupSettingsViewEventListeners() { document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider); }
         
-        async function handleChatSubmit(e) {
-            e.preventDefault();
-            const input = document.getElementById('chat-input');
-            const message = input.value;
-            if (!message.trim() || state.isLoading) return;
-        
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            const provider = state.providers.find(p => p.id === activeSession.providerId);
-            const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-        
-            if (!provider) { showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); return; }
-            const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
-            if (apiKeys.length === 0) { showModalAlert("У выбранного провайдера нет API ключей."); return; }
-        
-            const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }];
-            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
-        
-            input.value = ''; input.style.height = 'auto';
-            state.isLoading = true; updateLoadingIndicator(); showTypingIndicatorInChat();
-        
-            let assistantMessage = ''; let isSuccess = false; let lastError = 'Неизвестная ошибка.';
-            
-            const apiMessagesPayload = [];
-            if (selectedRole && selectedRole.content) { apiMessagesPayload.push({ role: 'system', content: selectedRole.content }); }
-            apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
-        
-            const startIndex = provider.currentKeyIndex || 0;
-            for (let i = 0; i < apiKeys.length; i++) {
-                const keyIndex = (startIndex + i) % apiKeys.length;
-                const currentKey = apiKeys[keyIndex];
-                try {
-                    const fullUrl = new URL(provider.path, provider.baseUrl).href; 
-                    const response = await fetch('https://worker-little-bird-c5c8.veldanax.workers.dev/', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ targetUrl: fullUrl, apiKey: currentKey, payload: { model: provider.model, messages: apiMessagesPayload }}) 
-                    }); 
-                    if (!response.ok) { throw new Error(`Ошибка от прокси-сервера (статус ${response.status}): ${await response.text()}`); }
-                    const data = await response.json(); 
-                    if (data.error) { throw new Error(`Ошибка от API: ${data.error?.message || JSON.stringify(data.error)}`); }
-                    assistantMessage = data.choices.message.content;
-                    isSuccess = true;
-                    await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id), { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
-                    break;
-                } catch (error) { console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error); lastError = error.message; }
-            }
-            
-            const finalMessages = isSuccess
-                ? [...newMessages, { role: 'assistant', content: assistantMessage }]
-                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
-        
-            state.isLoading = false;
-            await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
-            updateLoadingIndicator();
-        }
-        
-        function showTypingIndicatorInChat() {
-            const messagesContainer = document.getElementById('chat-messages');
-            if (!messagesContainer) return;
-            const oldIndicator = document.getElementById('loading-message-placeholder');
-            if(oldIndicator) oldIndicator.remove();
-            const indicatorHtml = `<div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-start to-accent-end flex-shrink-0 flex items-center justify-center"><i data-lucide="sparkles" class="w-6 h-6 text-white"></i></div><div class="pt-2 typing-indicator"><span></span><span></span><span></span></div></div>`;
-            messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
-            lucide.createIcons();
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function updateLoadingIndicator() {
-            const form = document.getElementById('chat-form');
-            if (form) {
-                const button = form.querySelector('button');
-                const textarea = form.querySelector('textarea');
-                if (button) button.disabled = state.isLoading;
-                if (textarea) textarea.disabled = state.isLoading;
-            }
-        }        
-        
-        async function handleAddProvider() {
-            if (state.isLoading) return; state.isLoading = true;
-            try {
-                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name: 'Новый провайдер', baseUrl: 'https://api.openai.com', path: '/v1/chat/completions', apiKeys: [], model: 'gpt-4o', currentKeyIndex: 0 });
-                handleOpenEditProviderModal(docRef.id);
-            } catch (error) { console.error("Ошибка: ", error); showModalAlert("Не удалось создать провайдера."); } finally { state.isLoading = false; }
-        }
-        
-        async function handleAddRole() {
-            if (state.isLoading) return; state.isLoading = true;
-            try {
-                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), { name: 'Новая роль', content: 'Ты — полезный ассистент.', createdAt: serverTimestamp() });
-                handleOpenEditRoleModal(docRef.id);
-            } catch (error) { console.error("Ошибка: ", error); showModalAlert("Не удалось создать роль."); } finally { state.isLoading = false; }
-        }
-        
-        function handleOpenEditProviderModal(providerId) {
-            const p = state.providers.find(p => p.id === providerId); if (!p) return;
-            const apiKeysArray = p.apiKeys || (p.apiKey ? [p.apiKey] : []);
-            document.getElementById('edit-provider-id').value = p.id; document.getElementById('edit-provider-name').value = p.name; document.getElementById('edit-provider-url').value = p.baseUrl; document.getElementById('edit-provider-path').value = p.path; document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n'); document.getElementById('edit-provider-model').value = p.model;
-            editProviderModal.classList.remove('hidden');
-        }
-    
-        function handleOpenEditRoleModal(roleId) {
-            const r = state.roles.find(r => r.id === roleId); if (!r) return;
-            document.getElementById('edit-role-id').value = r.id; document.getElementById('edit-role-name').value = r.name; document.getElementById('edit-role-content').value = r.content;
-            editRoleModal.classList.remove('hidden');
-        }
-    
-        async function handleEditProviderSubmit(e) {
-            e.preventDefault();
-            const providerId = document.getElementById('edit-provider-id').value; if (!providerId) return;
-            const name = document.getElementById('edit-provider-name').value, baseUrl = document.getElementById('edit-provider-url').value, path = document.getElementById('edit-provider-path').value, keysRaw = document.getElementById('edit-provider-keys').value, model = document.getElementById('edit-provider-model').value;
-            const apiKeys = keysRaw.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
-            if (apiKeys.length === 0) { showModalAlert("Введите хотя бы один API ключ."); return; }
-            const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, providerId);
-            const originalProvider = state.providers.find(p => p.id === providerId);
-            const keysChanged = JSON.stringify((originalProvider.apiKeys || []).sort()) !== JSON.stringify(apiKeys.sort());
-            const updatedData = { name, baseUrl, path, apiKeys, model };
-            if (keysChanged) { updatedData.currentKeyIndex = 0; }
-            await updateDoc(providerRef, updatedData); editProviderModal.classList.add('hidden');
-        }
-    
-        async function handleEditRoleSubmit(e) {
-            e.preventDefault();
-            const roleId = document.getElementById('edit-role-id').value; if (!roleId) return;
-            await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, roleId), { name: document.getElementById('edit-role-name').value, content: document.getElementById('edit-role-content').value });
-            editRoleModal.classList.add('hidden');
-        }
-    
-        function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать: ', err)); }
-        function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; confirmModal.classList.remove('hidden'); }
+        async function handleChatSubmit(e) { e.preventDefault(); const i = document.getElementById('chat-input'), m = i.value; if (!m.trim() || state.isLoading) return; const sRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), aSess = state.sessions.find(s => s.id === state.activeSessionId), prov = state.providers.find(p => p.id === aSess.providerId), role = state.roles.find(r => r.id === aSess.roleId); if (!prov) { showModalAlert("Выберите провайдера в настройках."); return; } const keys = prov.apiKeys || []; if (keys.length === 0) { showModalAlert("У провайдера нет API ключей."); return; } const newMsgs = [...(aSess.messages || []), { role: 'user', content: m }]; await updateDoc(sRef, { messages: newMsgs, updatedAt: serverTimestamp() }); i.value = ''; i.style.height = 'auto'; state.isLoading = true; updateLoadingIndicator(); showTypingIndicatorInChat(); let assistantMsg = '', success = false, lastErr = 'Неизвестная ошибка.'; const payload = []; if (role && role.content) { payload.push({ role: 'system', content: role.content }); } payload.push(...newMsgs.map(m => ({ role: m.role, content: m.content }))); const startIdx = prov.currentKeyIndex || 0; for (let i = 0; i < keys.length; i++) { const keyIdx = (startIdx + i) % keys.length, currentKey = keys[keyIdx]; try { const resp = await fetch('/api/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetUrl: new URL(prov.path, prov.baseUrl).href, apiKey: currentKey, payload: { model: prov.model, messages: payload } }) }); if (!resp.ok) throw new Error(`Ошибка прокси ${resp.status}: ${await resp.text()}`); const data = await resp.json(); if (data.error) throw new Error(`Ошибка API: ${data.error?.message || JSON.stringify(data.error)}`); assistantMsg = data.choices.message.content; success = true; await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, prov.id), { currentKeyIndex: (keyIdx + 1) % keys.length }); break; } catch (error) { console.error(`Ошибка с ключом ${keyIdx+1}:`, error); lastErr = error.message; } } const finalMsgs = success ? [...newMsgs, { role: 'assistant', content: assistantMsg }] : [...newMsgs, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\`\`\`\n${lastErr}\n\`\`\`` }]; state.isLoading = false; await updateDoc(sRef, { messages: finalMsgs, updatedAt: serverTimestamp() }); updateLoadingIndicator(); }
+        function showTypingIndicatorInChat() { const c = document.getElementById('chat-messages'); if (!c) return; document.getElementById('loading-message-placeholder')?.remove(); const i = `<div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-start to-accent-end flex-shrink-0 flex items-center justify-center"><i data-lucide="sparkles" class="w-6 h-6 text-white"></i></div><div class="pt-2 typing-indicator"><span></span><span></span><span></span></div></div>`; c.insertAdjacentHTML('beforeend', i); lucide.createIcons(); c.scrollTop = c.scrollHeight; }
+        function updateLoadingIndicator() { const f = document.getElementById('chat-form'); if (f) { const b = f.querySelector('button'), t = f.querySelector('textarea'); if (b) b.disabled = state.isLoading; if (t) t.disabled = state.isLoading; } }        
+        async function handleAddProvider() { if (state.isLoading) return; state.isLoading = true; try { const ref = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name: 'Новый провайдер', baseUrl: 'https://api.openai.com', path: '/v1/chat/completions', apiKeys: [], model: 'gpt-4o', currentKeyIndex: 0 }); handleOpenEditProviderModal(ref.id); } catch (e) { showModalAlert("Не удалось создать провайдера."); } finally { state.isLoading = false; } }
+        async function handleAddRole() { if (state.isLoading) return; state.isLoading = true; try { const ref = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), { name: 'Новая роль', content: 'Ты — полезный ассистент.', createdAt: serverTimestamp() }); handleOpenEditRoleModal(ref.id); } catch (e) { showModalAlert("Не удалось создать роль."); } finally { state.isLoading = false; } }
+        function handleOpenEditProviderModal(id) { const p = state.providers.find(p => p.id === id); if (!p) return; const keys = p.apiKeys || []; document.getElementById('edit-provider-id').value = p.id; document.getElementById('edit-provider-name').value = p.name; document.getElementById('edit-provider-url').value = p.baseUrl; document.getElementById('edit-provider-path').value = p.path; document.getElementById('edit-provider-keys').value = keys.join('\n'); document.getElementById('edit-provider-model').value = p.model; editProviderModal.classList.remove('hidden'); }
+        function handleOpenEditRoleModal(id) { const r = state.roles.find(r => r.id === id); if (!r) return; document.getElementById('edit-role-id').value = r.id; document.getElementById('edit-role-name').value = r.name; document.getElementById('edit-role-content').value = r.content; editRoleModal.classList.remove('hidden'); }
+        async function handleEditProviderSubmit(e) { e.preventDefault(); const id = document.getElementById('edit-provider-id').value; if (!id) return; const n = document.getElementById('edit-provider-name').value, u = document.getElementById('edit-provider-url').value, p = document.getElementById('edit-provider-path').value, k = document.getElementById('edit-provider-keys').value, m = document.getElementById('edit-provider-model').value; const keys = k.split(/\r?\n/).map(i => i.trim()).filter(Boolean); if (keys.length === 0) { showModalAlert("Введите API ключ."); return; } const ref = doc(db, `artifacts/${appId}/users/${userId}/providers`, id); const oP = state.providers.find(p => p.id === id); const kC = JSON.stringify((oP.apiKeys || []).sort()) !== JSON.stringify(keys.sort()); const data = { name:n, baseUrl:u, path:p, apiKeys:keys, model:m }; if (kC) data.currentKeyIndex = 0; await updateDoc(ref, data); editProviderModal.classList.add('hidden'); }
+        async function handleEditRoleSubmit(e) { e.preventDefault(); const id = document.getElementById('edit-role-id').value; if (!id) return; await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, id), { name: document.getElementById('edit-role-name').value, content: document.getElementById('edit-role-content').value }); editRoleModal.classList.add('hidden'); }
+        function copyToClipboard(t) { navigator.clipboard.writeText(t).catch(err => console.error(err)); }
+        function showConfirmModal(m, cb) { confirmModalText.textContent = m; confirmModalCallback = cb; confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
-        function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
+        function showModalAlert(m) { confirmModalText.textContent = m; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
         
         function setupGlobalEventListeners() {
-            mainNavItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    state.activeTab = item.dataset.tab;
-                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
-                        const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
-                        state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
-                    } else { state.activeSessionId = null; }
-                    render();
-                });
-            });
-    
+            mainNavItems.forEach(item => { item.addEventListener('click', () => { state.activeTab = item.dataset.tab; const first = state.sessions.find(s => s.type === state.activeTab); state.activeSessionId = first ? first.id : null; render(); }); });
+            
             const createNewItem = async (type) => {
-                const newSessionData = type === 'chat' ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers.id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() } : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
-                state.activeSessionId = newSessionRef.id;
-                render();
-                if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
+                try {
+                    // [ИСПРАВЛЕНО] - Исправлена ошибка state.providers.id -> state.providers.id
+                    const providerId = state.providers.length > 0 ? state.providers.id : null;
+                    const newSessionData = type === 'chat'
+                        ? { type: 'chat', title: 'Новый чат', messages: [], providerId: providerId, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                        : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                    state.activeSessionId = newSessionRef.id;
+                    render();
+                    if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
+                } catch (error) {
+                    console.error("НЕ УДАЛОСЬ СОЗДАТЬ ЭЛЕМЕНТ:", error);
+                    showModalAlert("Ошибка при создании нового элемента. Проверьте консоль.");
+                }
             };
     
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
-            
-            document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
-                if (window.innerWidth < 1024) {
-                    sidebar.classList.toggle('open');
-                    sidebarBackdrop.classList.toggle('hidden');
-                } else {
-                    state.isSidebarCollapsed = !state.isSidebarCollapsed;
-                    updateSidebarView();
-                }
-            });
-    
+            document.getElementById('sidebar-toggle-btn').addEventListener('click', () => { if (window.innerWidth < 1024) { sidebar.classList.toggle('open'); sidebarBackdrop.classList.toggle('hidden'); } else { state.isSidebarCollapsed = !state.isSidebarCollapsed; updateSidebarView(); } });
             sidebarBackdrop.addEventListener('click', () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); });
             window.addEventListener('resize', updateSidebarView);
     
-            document.body.addEventListener('click', async (e) => {
-                const processAction = (selector, idExtractor, message, action) => {
-                    const btn = e.target.closest(selector);
-                    if (btn) {
-                        const id = idExtractor(btn);
-                        showConfirmModal(message, () => action(id));
-                    }
-                };
-                if (e.target.closest('.delete-session-btn')) {
-                    const idToDelete = e.target.closest('.delete-session-btn').dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
-                        if (state.activeSessionId === idToDelete) { 
-                           const firstSession = state.sessions.find(s => s.id !== idToDelete && s.type === state.activeTab);
-                           state.activeSessionId = firstSession ? firstSession.id : null;
-                        }
-                    });
-                }
-                if (e.target.closest('.delete-message-btn')) {
-                    const messageIndex = parseInt(e.target.closest('.delete-message-btn').dataset.messageIndex, 10);
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (activeSession && !isNaN(messageIndex)) {
-                        showConfirmModal('Удалить это сообщение?', async () => {
-                            const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
-                            await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { messages: newMessages });
-                        });
-                    }
-                }
-                const btnActions = {
-                    '.delete-provider-btn': { msg: 'Удалить этого провайдера?', action: id => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, id)) },
-                    '.delete-role-btn': { msg: 'Удалить эту роль?', action: id => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, id)) }
-                };
-                for (const selector in btnActions) {
-                    const btn = e.target.closest(selector);
-                    if (btn) {
-                        showConfirmModal(btnActions[selector].msg, () => btnActions[selector].action(btn.dataset.id));
-                    }
-                }
-                const editProviderBtn = e.target.closest('.edit-provider-btn');
-                if (editProviderBtn) { handleOpenEditProviderModal(editProviderBtn.dataset.id); }
-                const editRoleBtn = e.target.closest('.edit-role-btn');
-                if (editRoleBtn) { handleOpenEditRoleModal(editRoleBtn.dataset.id); }
+            document.body.addEventListener('click', (e) => {
+                const delSessBtn = e.target.closest('.delete-session-btn'); if (delSessBtn) { showConfirmModal('Удалить этот элемент?', () => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, delSessBtn.dataset.id))); }
+                const delMsgBtn = e.target.closest('.delete-message-btn'); if (delMsgBtn) { const idx = parseInt(delMsgBtn.dataset.messageIndex, 10), sess = state.sessions.find(s => s.id === state.activeSessionId); if (sess && !isNaN(idx)) { showConfirmModal('Удалить это сообщение?', async () => { const newMsgs = sess.messages.filter((_, i) => i !== idx); await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { messages: newMsgs }); }); } }
+                const delProvBtn = e.target.closest('.delete-provider-btn'); if (delProvBtn) { showConfirmModal('Удалить провайдера?', () => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, delProvBtn.dataset.id))); }
+                const editProvBtn = e.target.closest('.edit-provider-btn'); if (editProvBtn) { handleOpenEditProviderModal(editProvBtn.dataset.id); }
+                const delRoleBtn = e.target.closest('.delete-role-btn'); if (delRoleBtn) { showConfirmModal('Удалить эту роль?', () => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, delRoleBtn.dataset.id))); }
+                const editRoleBtn = e.target.closest('.edit-role-btn'); if (editRoleBtn) { handleOpenEditRoleModal(editRoleBtn.dataset.id); }
             });
             
-            confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
-            confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
+            confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) confirmModalCallback(); hideConfirmModal(); });
+            confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK' && confirmModalCallback) confirmModalCallback(); hideConfirmModal(); });
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
-            editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
+            editProviderCancelBtn?.addEventListener('click', () => editProviderModal.classList.add('hidden'));
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
-            editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
-            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Ошибка входа: " + error.message); }});
-            document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); await signOut(auth); });
+            editRoleCancelBtn?.addEventListener('click', () => editRoleModal.classList.add('hidden'));
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { showModalAlert("Ошибка входа: " + e.message); }});
+            document.getElementById('sign-out-btn')?.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
         }
         
         function attachFirestoreListeners() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             if (!userId) return;
-    
-            unsubscribeSessions = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/sessions`), (snapshot) => {
-                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                if (!state.sessions.some(s => s.id === state.activeSessionId)) {
-                    state.activeSessionId = (state.sessions.find(s => s.type === state.activeTab) || null)?.id;
-                }
-                if (!state.isLoading) render();
-            }, error => console.error("Session listener error: ", error));
-    
-            unsubscribeProviders = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/providers`), (snapshot) => {
-                state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (state.activeTab === 'settings' || state.activeTab === 'chat') { if (!state.isLoading) render(); }
-            }, error => console.error("Providers listener error: ", error));
-    
-            unsubscribeRoles = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/roles`), (snapshot) => {
-                state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                if (state.activeTab === 'roles' || state.activeTab === 'chat') { if (!state.isLoading) render(); }
-            }, error => console.error("Roles listener error: ", error));
+            unsubscribeSessions = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/sessions`), (snap) => { state.sessions = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0)); if (!state.sessions.some(s => s.id === state.activeSessionId)) { const f = state.sessions.find(s => s.type === state.activeTab); state.activeSessionId = f ? f.id : null; } if (!state.isLoading) render(); }, e => console.error(e));
+            unsubscribeProviders = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/providers`), (snap) => { state.providers = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (state.activeTab === 'settings' || state.activeTab === 'chat') { if (!state.isLoading) render(); } }, e => console.error(e));
+            unsubscribeRoles = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/roles`), (snap) => { state.roles = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0)); if (state.activeTab === 'roles' || state.activeTab === 'chat') { if (!state.isLoading) render(); } }, e => console.error(e));
         }
     
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             userId = null;
-            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: window.innerWidth >= 1024 };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');
@@ -957,11 +627,8 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
                 onAuthStateChanged(auth, (user) => {
-                    const authSection = document.getElementById('auth-section');
-                    authSection.classList.remove('hidden');
-    
+                    document.getElementById('auth-section').classList.remove('hidden');
                     if (user) {
                         userId = user.uid;
                         document.getElementById('google-signin-btn').classList.add('hidden');
@@ -978,14 +645,12 @@
                         render();
                     }
                     renderMainNav(); 
-                    updateSidebarView(); // Этот вызов больше не будет вызывать ошибку
+                    updateSidebarView();
                 });
-                
                 setupGlobalEventListeners();
-    
             } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}. Проверьте консоль.</div>`;
+                console.error("КРИТИЧЕСКАЯ ОШИБКА ИНИЦИАЛИЗАЦИИ:", error);
+                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
             }
         }
         

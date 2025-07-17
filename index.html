@@ -25,6 +25,9 @@
             --danger: #e53e3e;
             --danger-hover: #c53030;
         }
+        html, body {
+            overflow: hidden; /* Предотвращает прокрутку всей страницы */
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-main);
@@ -63,10 +66,11 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
         .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         
-        /* ИЗМЕНЕНИЕ 1: Адаптивные стили для боковой панели */
+        /* ИСПРАВЛЕНИЕ 1: Обновленные стили для боковой панели */
         #sidebar {
             transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
-            width: 280px; /* Фиксированная ширина для удобства */
+            width: 280px;
+            flex-shrink: 0; /* Панель не будет сжиматься */
         }
         
         /* Стили для мобильных устройств (до 1024px) */
@@ -82,35 +86,25 @@
             #sidebar.open {
                 transform: translateX(0);
             }
-            #main-content-wrapper {
-                 width: 100%;
-            }
         }
 
         /* Стили для десктопных устройств (от 1024px) */
         @media (min-width: 1024px) {
             #sidebar.collapsed {
                 width: 0;
-                padding: 0;
+                padding-left: 0;
+                padding-right: 0;
                 overflow: hidden;
-                border-right: none;
-            }
-            #main-content-wrapper {
-                transition: margin-left 0.3s ease-in-out;
-                margin-left: 280px; /* Ширина панели */
-            }
-             #main-content-wrapper.sidebar-collapsed {
-                margin-left: 0;
             }
         }
     </style>
 </head>
-<body class="h-screen w-screen flex overflow-hidden">
-    
-    <!-- ИЗМЕНЕНИЕ 2: Добавлена подложка для мобильного меню -->
+<body class="h-screen w-screen flex">
+
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
 
-    <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color flex-shrink-0">
+    <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
+        <!-- Содержимое боковой панели осталось без изменений -->
         <div class="p-4 border-b border-border-color flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
         </div>
@@ -125,7 +119,6 @@
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
             <!-- Список чатов/заметок -->
         </nav>
-        
         <div id="auth-section" class="p-3 border-t border-border-color text-center hidden">
             <button id="google-signin-btn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
                 <svg class="w-4 h-4 mr-2" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
@@ -141,27 +134,25 @@
         </div>
     </aside>
 
-    <!-- ИЗМЕНЕНИЕ 3: Добавлена обертка для основного контента для управления отступом -->
-    <div id="main-content-wrapper" class="flex-grow flex flex-col h-full w-full">
-        <!-- Main Content -->
-        <main class="flex-grow flex flex-col h-full">
-            <nav class="flex-shrink-0 border-b border-border-color flex items-center">
-                <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
-                    <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
-                </button>
-                <div class="flex space-x-4 px-4">
-                    <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
-                    <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
-                    <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
-                </div>
-            </nav>
-            <div id="main-content" class="flex-grow overflow-y-auto">
-                <!-- Содержимое вкладок -->
+    <!-- ИСПРАВЛЕНИЕ 2: Обертка больше не нужна, основной контент становится прямым flex-элементом -->
+    <main class="flex-grow flex flex-col h-full w-full">
+        <nav class="flex-shrink-0 border-b border-border-color flex items-center">
+            <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
+                <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
+            </button>
+            <div class="flex space-x-4 px-4">
+                <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
+                <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
+                <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
             </div>
-        </main>
-    </div>
+        </nav>
+        <div id="main-content" class="flex-grow overflow-y-auto">
+            <!-- Содержимое вкладок -->
+        </div>
+    </main>
     
     <div id="confirm-modal" class="modal-overlay hidden">
+        <!-- Содержимое модального окна без изменений -->
         <div class="modal-content">
             <p id="confirm-modal-text" class="text-text-primary mb-6 text-center">Вы уверены?</p>
             <div class="flex justify-center space-x-4">
@@ -215,10 +206,7 @@
         const confirmModalText = document.getElementById('confirm-modal-text');
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
         const confirmModalNoBtn = document.getElementById('confirm-modal-no');
-        
-        // ИЗМЕНЕНИЕ 4: Элементы для мобильного интерфейса
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-        const mainContentWrapper = document.getElementById('main-content-wrapper');
 
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
         function render() {
@@ -226,7 +214,6 @@
             renderSidebar();
             renderMainContent();
             renderMainNav();
-            updateSidebarView(); // Обновляем состояние панели
         }
 
         function renderSidebar() {
@@ -246,12 +233,14 @@
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
-                        // ИЗМЕНЕНИЕ 5: Скрывать панель на мобильных при выборе элемента
+                        
+                        // ИСПРАВЛЕНИЕ 3: Сначала рендерим, потом закрываем панель для лучшего UX
+                        render(); 
+                        
                         if (window.innerWidth < 1024) {
                            sidebar.classList.remove('open');
                            sidebarBackdrop.classList.add('hidden');
                         }
-                        render();
                     });
                     item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
                     item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
@@ -315,12 +304,10 @@
         function getSettingsViewHTML() { return `<div class="p-6"><h2 class="text-2xl font-bold mb-6">Настройки</h2><div class="bg-bg-sidebar p-6 rounded-lg"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4 mb-6"></div><div class="border-t border-border-color pt-6"><h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4><form id="add-provider-form" class="space-y-3"><input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="password" id="provider-key" placeholder="API Ключ" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button></form></div></div></div>`; }
         function renderProviders() { const list = document.getElementById('providers-list'); if (!list) return; if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } list.innerHTML = state.providers.map(p => `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path}</p></div><button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div>`).join(''); lucide.createIcons(); }
         
-        // --- ОБРАБОТЧИКИ СОБЫТИЙ (без существенных изменений в логике) ---
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА (Без изменений) ---
         function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
         function setupNotepadViewEventListeners() { const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); }
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
-        
-        // --- ЛОГИКА (без изменений) ---
         async function handleChatSubmit(e) { e.preventDefault(); const input = document.getElementById('chat-input'); const message = input.value.trim(); if (!message || state.isLoading) return; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); const activeSession = state.sessions.find(s => s.id === state.activeSessionId); const provider = state.providers.find(p => p.id === activeSession.providerId); if (!provider) { showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); return; } const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); input.value = ''; input.style.height = 'auto'; state.isLoading = true; updateLoadingIndicator(); try { const fullUrl = new URL(provider.path, provider.baseUrl).href; const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content })); const response = await fetch(fullUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` }, body: JSON.stringify({ model: provider.model, messages: apiMessages }) }); if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${errorData.error?.message || response.statusText}`); } const data = await response.json(); const assistantMessage = data.choices[0].message.content; await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] }); } catch (error) { console.error("Error calling LLM API:", error); await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** ${error.message}` }] }); } finally { state.isLoading = false; updateLoadingIndicator(); } }
         function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
         async function handleAddProvider(e) { e.preventDefault(); const name = document.getElementById('provider-name').value; const baseUrl = document.getElementById('provider-url').value; const path = document.getElementById('provider-path').value; const apiKey = document.getElementById('provider-key').value; const model = document.getElementById('provider-model').value; await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name, baseUrl, path, apiKey, model }); e.target.reset(); }
@@ -329,28 +316,19 @@
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
 
-        // ИЗМЕНЕНИЕ 6: Новая функция для управления видимостью панели
+        // --- УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ ---
         function updateSidebarView() {
             const isMobile = window.innerWidth < 1024;
             const toggleIcon = document.getElementById('sidebar-toggle-icon');
 
             if (isMobile) {
-                // На мобильных управляем классом 'open'
                 sidebar.classList.remove('collapsed');
-                mainContentWrapper.classList.remove('sidebar-collapsed');
                 toggleIcon.setAttribute('data-lucide', 'menu');
             } else {
-                // На десктопе управляем классом 'collapsed'
                 sidebar.classList.remove('open');
                 sidebarBackdrop.classList.add('hidden');
-                mainContentWrapper.classList.toggle('sidebar-collapsed', state.isSidebarCollapsed);
                 sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
-                
-                if (state.isSidebarCollapsed) {
-                    toggleIcon.setAttribute('data-lucide', 'panel-right-close');
-                } else {
-                    toggleIcon.setAttribute('data-lucide', 'panel-left-close');
-                }
+                toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-right-close' : 'panel-left-close');
             }
             lucide.createIcons();
         }
@@ -366,30 +344,26 @@
                 });
             });
 
-            newChatBtn.addEventListener('click', async () => {
-                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), {
-                    type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null,
-                    createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-                });
+            const createNewItem = async (type) => {
+                 const newSessionData = type === 'chat'
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                
+                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                 state.activeSessionId = newSessionRef.id;
-                if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
+                
                 render();
-            });
+                if (window.innerWidth < 1024) { 
+                    sidebar.classList.remove('open'); 
+                    sidebarBackdrop.classList.add('hidden'); 
+                }
+            };
 
-            newNoteBtn.addEventListener('click', async () => {
-                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), {
-                    type: 'notepad', title: 'Новая заметка', content: '',
-                    createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-                });
-                state.activeSessionId = newSessionRef.id;
-                if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
-                render();
-            });
+            newChatBtn.addEventListener('click', () => createNewItem('chat'));
+            newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
             
-            // ИЗМЕНЕНИЕ 7: Обновленный обработчик для кнопки переключения панели
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
-                const isMobile = window.innerWidth < 1024;
-                if (isMobile) {
+                if (window.innerWidth < 1024) {
                     sidebar.classList.toggle('open');
                     sidebarBackdrop.classList.toggle('hidden');
                 } else {
@@ -398,13 +372,11 @@
                 }
             });
 
-            // Закрытие мобильной панели при клике на подложку
             sidebarBackdrop.addEventListener('click', () => {
                 sidebar.classList.remove('open');
                 sidebarBackdrop.classList.add('hidden');
             });
             
-            // Обновление вида при изменении размера окна
             window.addEventListener('resize', updateSidebarView);
 
             document.body.addEventListener('click', async (e) => {
@@ -459,7 +431,6 @@
             unsubscribeSessions(); unsubscribeProviders();
             state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');
-            mainContentWrapper.classList.remove('sidebar-collapsed');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');
         }
@@ -484,7 +455,6 @@
                         document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
                         document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
                         attachFirestoreListeners();
-                        render();
                     } else {
                         userId = null;
                         state.isAuthReady = false;
@@ -493,7 +463,7 @@
                         resetState();
                         renderMainNav(); 
                     }
-                    updateSidebarView(); // Первоначальная настройка вида панели
+                    updateSidebarView();
                 });
                 
                 setupGlobalEventListeners();

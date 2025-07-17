@@ -560,7 +560,6 @@
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId); 
             const provider = state.providers.find(p => p.id === activeSession.providerId); 
-            
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
         
             if (!provider) { 
@@ -593,52 +592,53 @@
             }
             apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
         
-        
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
                 const currentKey = apiKeys[keyIndex];
                 
                 try {
-                    // Убедимся, что URL собирается корректно
-                    if (!provider.baseUrl || !provider.path) {
-                        throw new Error("В настройках провайдера не указан 'Базовый URL' или 'Путь запроса'.");
-                    }
+                    // Собираем реальный URL API, как и раньше
                     const fullUrl = new URL(provider.path, provider.baseUrl).href; 
         
-                    const response = await fetch(fullUrl, { 
+                    // --- ЭТО ГЛАВНОЕ ИЗМЕНЕНИЕ ---
+                    // "Упаковываем" все данные для отправки на НАШ собственный прокси
+                    const proxyRequestBody = {
+                        targetUrl: fullUrl,         // URL реального API
+                        apiKey: currentKey,         // Ключ пользователя
+                        payload: {                  // Тело запроса для реального API
+                            model: provider.model,
+                            messages: apiMessagesPayload
+                        }
+                    };
+        
+                    // Отправляем запрос не на fullUrl, а на наш прокси /api/proxy
+                    const response = await fetch('/api/proxy', { 
                         method: 'POST', 
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentKey}` }, 
-                        body: JSON.stringify({ model: provider.model, messages: apiMessagesPayload }) 
+                        headers: { 
+                          'Content-Type': 'application/json' 
+                          // Заголовок Authorization здесь не нужен, его добавит прокси
+                        }, 
+                        body: JSON.stringify(proxyRequestBody) 
                     }); 
                     
-                    // --- УЛУЧШЕННАЯ ПРОВЕРКА ОТВЕТА ---
-                    const contentType = response.headers.get("content-type");
-                    if (!response.ok || !contentType || !contentType.includes("application/json")) {
-                        const errorText = await response.text();
-                        let errorMessage = `Ошибка API (статус: ${response.status}).`;
-                        if (contentType && !contentType.includes("application/json")) {
-                             errorMessage += ` Сервер вернул не JSON, а ${contentType}. Вероятно, неверный URL.`;
-                        }
-                        // Показываем часть ответа, чтобы понять, что это (часто это HTML страница 404)
-                        errorMessage += ` Ответ сервера: ${errorText.substring(0, 300)}...`;
-                        throw new Error(errorMessage); 
-                    }
-                    
                     const data = await response.json(); 
-                    
-                    if (data.error) {
-                         throw new Error(`API вернуло ошибку: ${data.error.message}`);
-                    }
         
+                    // Если прокси или API вернули ошибку, обрабатываем ее
+                    if (!response.ok || data.error) {
+                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
+                        throw new Error(`Ошибка от API (статус ${response.status}): ${errorMessage}`);
+                    }
+                    
                     assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
         
+                    // Обновляем индекс ключа в Firestore при успехе
                     const nextKeyIndex = (keyIndex + 1) % apiKeys.length;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
         
-                    break; // Выходим из цикла, так как получили успешный ответ
+                    break; // Успех, выходим из цикла перебора ключей
                 
                 } catch (error) {
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
@@ -649,7 +649,6 @@
             if (isSuccess) {
                  await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
             } else {
-                 // Отображаем последнюю, самую информативную ошибку
                  await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }] });
             }
         

@@ -566,32 +566,26 @@
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
                 return;
             }
-        
             const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
-        
             if (apiKeys.length === 0) {
                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
                 return;
             }
         
             const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }];
-            // Сначала обновляем чат сообщением пользователя
             await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
         
             input.value = '';
             input.style.height = 'auto';
-        
-            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-            // 1. Устанавливаем состояние загрузки в true
+            
+            // Показываем индикатор
             state.isLoading = true;
-            // 2. Вызываем функцию, чтобы показать индикатор и заблокировать форму
             updateLoadingIndicator();
-            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
         
             let assistantMessage = '';
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
-        
+            
             const apiMessagesPayload = [];
             if (selectedRole && selectedRole.content) {
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
@@ -602,63 +596,55 @@
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
                 const currentKey = apiKeys[keyIndex];
-        
+                
                 try {
-                    const fullUrl = new URL(provider.path, provider.baseUrl).href;
-        
+                    const fullUrl = new URL(provider.path, provider.baseUrl).href; 
                     const proxyRequestBody = {
                         targetUrl: fullUrl,
                         apiKey: currentKey,
-                        payload: {
-                            model: provider.model,
-                            messages: apiMessagesPayload
-                        }
+                        payload: { model: provider.model, messages: apiMessagesPayload }
                     };
-        
-                    const response = await fetch('/api/proxy', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(proxyRequestBody)
-                    });
-        
+                    const response = await fetch('/api/proxy', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(proxyRequestBody) 
+                    }); 
                     if (!response.ok) {
                         const errorText = await response.text();
-                        throw new Error(`Ошибка прокси-сервера (статус ${response.status}): ${errorText}`);
+                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
                     }
-        
-                    const data = await response.json();
-        
+                    const data = await response.json(); 
                     if (data.error) {
-                        throw new Error(`Ошибка от внешнего API: ${data.error.message || JSON.stringify(data.error)}`);
+                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
+                        throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
-        
                     assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
-        
-                    const nextKeyIndex = (keyIndex + 1) % apiKeys.length;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
-                    await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
-        
+                    await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
                     break;
-        
                 } catch (error) {
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
                     lastError = error.message;
                 }
             }
+            
+            const finalMessages = isSuccess
+                ? [...newMessages, { role: 'assistant', content: assistantMessage }]
+                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
         
-            if (isSuccess) {
-                await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
-            } else {
-                await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }] });
-            }
-        
-            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-            // 3. Устанавливаем состояние загрузки в false
+            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // 1. Сначала меняем состояние на "загрузка окончена"
             state.isLoading = false;
-            // 4. Вызываем функцию снова, чтобы скрыть индикатор и разблокировать форму
+            
+            // 2. И только ПОТОМ обновляем документ в Firestore.
+            // Это вызовет onSnapshot, который перерисует интерфейс уже с state.isLoading = false,
+            // и индикатор будет скрыт автоматически при перерисовке.
+            await updateDoc(sessionRef, { messages: finalMessages });
+        
+            // 3. Этот вызов теперь нужен в основном для того, чтобы гарантированно
+            // разблокировать поле ввода, на случай если onSnapshot не сработает.
             updateLoadingIndicator();
-            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
         }
         function updateLoadingIndicator() {
                     const indicator = document.getElementById('loading-indicator');

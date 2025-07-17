@@ -417,20 +417,19 @@
                 const icon = msg.role === 'user' ? 'user' : 'sparkles';
                 
                 const messageWrapper = document.createElement('div');
-                messageWrapper.className = 'message-container group relative flex items-start space-x-4 mb-6 pr-8';
+                // --- ИЗМЕНЕНИЕ 1: Адаптивный flex-контейнер ---
+                // По умолчанию - колонка (мобильные). На экранах sm (640px) и больше - строка.
+                messageWrapper.className = 'message-container group relative flex flex-col sm:flex-row sm:items-start sm:space-x-4 mb-6 pr-8';
                 
                 const iconDiv = document.createElement('div');
-                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+                // --- ИЗМЕНЕНИЕ 2: Адаптивный отступ для иконки ---
+                // Добавляем отступ снизу для мобильных, убираем его (sm:mb-0) для десктопа.
+                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center mb-2 sm:mb-0`;
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
-                // Класс 'prose' от Tailwind отлично подходит для стилизации контента, сгенерированного из Markdown
                 contentDiv.className = 'flex-grow prose max-w-full'; 
                 
-                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
-                // 1. Преобразуем Markdown в HTML с помощью marked.js
-                // 2. Очищаем HTML с помощью DOMPurify для безопасности
-                // 3. Вставляем безопасный HTML в наш div
                 const rawHtml = marked.parse(msg.content || '');
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml);
                 
@@ -446,12 +445,9 @@
                 messagesContainer.appendChild(messageWrapper);
             });
             
-            // --- ДОБАВЛЕНИЕ ПОДСВЕТКИ СИНТАКСИСА ---
-            // Находим все блоки <pre><code> внутри сообщений и применяем highlight.js
             messagesContainer.querySelectorAll('pre code').forEach((block) => {
-                // Добавляем кнопки копирования к блокам кода
                 const preElement = block.parentElement;
-                if (preElement.querySelector('.copy-code-btn')) return; // Не добавлять, если уже есть
+                if (preElement.querySelector('.copy-code-btn')) return;
                 
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-code-btn';
@@ -467,7 +463,6 @@
                 });
                 preElement.appendChild(copyBtn);
 
-                // Применяем подсветку
                 hljs.highlightElement(block);
             });
 

@@ -25,9 +25,8 @@
             --danger: #e53e3e;
             --danger-hover: #c53030;
         }
-        /* --- ИЗМЕНЕНИЕ 1: Убрали 'overflow: hidden' --- */
         html, body {
-            height: 100%; /* Добавили для согласованности, основное исправление в body */
+            height: 100%;
         }
         body {
             font-family: 'Inter', sans-serif;
@@ -97,7 +96,6 @@
         }
     </style>
 </head>
-<!-- --- ИЗМЕНЕНИЕ 2: Заменили 'h-screen w-screen' на 'h-dvh w-full' --- -->
 <body class="h-dvh w-full flex">
 
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
@@ -155,6 +153,41 @@
             </div>
         </div>
     </div>
+    
+    <!-- ИЗМЕНЕНИЕ: Модальное окно для редактирования провайдера -->
+    <div id="edit-provider-modal" class="modal-overlay hidden">
+        <div class="modal-content !max-w-xl">
+            <h3 class="text-xl font-semibold mb-4">Редактировать провайдера</h3>
+            <form id="edit-provider-form" class="space-y-3">
+                <input type="hidden" id="edit-provider-id">
+                <div>
+                    <label for="edit-provider-name" class="text-sm text-text-secondary block mb-1">Название</label>
+                    <input type="text" id="edit-provider-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div>
+                    <label for="edit-provider-url" class="text-sm text-text-secondary block mb-1">Базовый URL</label>
+                    <input type="text" id="edit-provider-url" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                 <div>
+                    <label for="edit-provider-path" class="text-sm text-text-secondary block mb-1">Путь запроса</label>
+                    <input type="text" id="edit-provider-path" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div>
+                    <label for="edit-provider-keys" class="text-sm text-text-secondary block mb-1">API Ключи (каждый с новой строки)</label>
+                    <textarea id="edit-provider-keys" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="4" required></textarea>
+                </div>
+                <div>
+                    <label for="edit-provider-model" class="text-sm text-text-secondary block mb-1">Название модели</label>
+                    <input type="text" id="edit-provider-model" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="edit-provider-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
+                    <button type="submit" class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <script type="module">
         // Ваш JavaScript код остается без изменений.
@@ -202,6 +235,11 @@
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
         const confirmModalNoBtn = document.getElementById('confirm-modal-no');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        // ИЗМЕНЕНИЕ: Добавляем переменные для нового модального окна
+        const editProviderModal = document.getElementById('edit-provider-modal');
+        const editProviderForm = document.getElementById('edit-provider-form');
+        const editProviderCancelBtn = document.getElementById('edit-provider-cancel-btn');
+
 
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
         function render() {
@@ -294,7 +332,6 @@
         function renderChatMessages(session) { const messagesContainer = document.getElementById('chat-messages'); if (!messagesContainer || !session || !session.messages) { messagesContainer.innerHTML = ''; return; } messagesContainer.innerHTML = session.messages.map(msg => { const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">"); const htmlContent = markdownConverter.makeHtml(safeContent); return `<div class="flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center"><i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full">${htmlContent}</div></div>`; }).join(''); messagesContainer.querySelectorAll('pre').forEach(preElement => { const wrapper = document.createElement('div'); wrapper.className = 'relative'; const copyBtn = document.createElement('button'); copyBtn.className = 'copy-code-btn'; copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; preElement.parentNode.insertBefore(wrapper, preElement); wrapper.appendChild(preElement); wrapper.appendChild(copyBtn); }); hljs.highlightAll(); lucide.createIcons(); messagesContainer.scrollTop = messagesContainer.scrollHeight; }
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
-        // ИЗМЕНЕНИЕ: 1. Заменяем input для ключа на textarea и добавляем информативный placeholder.
         function getSettingsViewHTML() { 
             return `<div class="p-6">
                 <h2 class="text-2xl font-bold mb-6">Настройки</h2>
@@ -316,7 +353,7 @@
             </div>`; 
         }
 
-        // ИЗМЕНЕНИЕ: 2. Отображаем количество ключей у каждого провайдера.
+        // ИЗМЕНЕНИЕ: Добавлена кнопка редактирования и div-контейнер для кнопок
         function renderProviders() { 
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
@@ -325,15 +362,20 @@
                 return; 
             } 
             list.innerHTML = state.providers.map(p => {
-                const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0); // Обратная совместимость
+                const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0);
                 return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between">
                     <div>
                         <p class="font-bold">${p.name}</p>
                         <p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p>
                     </div>
-                    <button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
-                    </button>
+                    <div class="flex items-center space-x-2">
+                        <button class="edit-provider-btn text-text-secondary hover:text-accent transition-colors" data-id="${p.id}">
+                            <i data-lucide="edit" class="w-5 h-5"></i>
+                        </button>
+                        <button class="delete-provider-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                 </div>`
             }).join(''); 
             lucide.createIcons(); 
@@ -344,7 +386,6 @@
         function setupNotepadViewEventListeners() { const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); }
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
         
-        // ИЗМЕНЕНИЕ: 3. Главная логика перебора ключей.
         async function handleChatSubmit(e) { 
             e.preventDefault(); 
             const input = document.getElementById('chat-input'); 
@@ -360,7 +401,6 @@
                 return; 
             } 
             
-            // Обеспечиваем обратную совместимость, если у провайдера только старое поле apiKey
             const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
 
             if (apiKeys.length === 0) {
@@ -379,8 +419,7 @@
             let assistantMessage = '';
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
-
-            // Цикл перебора ключей
+            
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
@@ -404,12 +443,11 @@
                     assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
 
-                    // В случае успеха, обновляем индекс для следующего запроса
                     const nextKeyIndex = (keyIndex + 1) % apiKeys.length;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
 
-                    break; // Выходим из цикла, так как запрос успешен
+                    break;
                 
                 } catch (error) {
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
@@ -417,7 +455,6 @@
                 }
             }
             
-            // Обновляем чат результатом
             if (isSuccess) {
                  await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
             } else {
@@ -430,7 +467,6 @@
 
         function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
         
-        // ИЗМЕНЕНИЕ: 4. Логика добавления провайдера теперь работает с массивом ключей.
         async function handleAddProvider(e) { 
             e.preventDefault(); 
             const name = document.getElementById('provider-name').value; 
@@ -450,13 +486,62 @@
                 name, 
                 baseUrl, 
                 path, 
-                apiKeys, // Сохраняем массив ключей
+                apiKeys,
                 model,
-                currentKeyIndex: 0 // Начальный индекс - 0
+                currentKeyIndex: 0
             }); 
             e.target.reset(); 
         }
         
+        // ИЗМЕНЕНИЕ: Новые функции для обработки редактирования
+        function handleOpenEditProviderModal(providerId) {
+            const providerToEdit = state.providers.find(p => p.id === providerId);
+            if (!providerToEdit) return;
+
+            const apiKeysArray = providerToEdit.apiKeys || (providerToEdit.apiKey ? [providerToEdit.apiKey] : []);
+
+            document.getElementById('edit-provider-id').value = providerToEdit.id;
+            document.getElementById('edit-provider-name').value = providerToEdit.name;
+            document.getElementById('edit-provider-url').value = providerToEdit.baseUrl;
+            document.getElementById('edit-provider-path').value = providerToEdit.path;
+            document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n');
+            document.getElementById('edit-provider-model').value = providerToEdit.model;
+
+            editProviderModal.classList.remove('hidden');
+        }
+
+        async function handleEditProviderSubmit(e) {
+            e.preventDefault();
+            const providerId = document.getElementById('edit-provider-id').value;
+            if (!providerId) return;
+
+            const name = document.getElementById('edit-provider-name').value;
+            const baseUrl = document.getElementById('edit-provider-url').value;
+            const path = document.getElementById('edit-provider-path').value;
+            const keysRaw = document.getElementById('edit-provider-keys').value;
+            const model = document.getElementById('edit-provider-model').value;
+
+            const apiKeys = keysRaw.split('\n').map(k => k.trim()).filter(k => k !== '');
+            if (apiKeys.length === 0) {
+                showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
+                return;
+            }
+
+            const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, providerId);
+            const originalProvider = state.providers.find(p => p.id === providerId);
+            const originalKeys = originalProvider.apiKeys || (originalProvider.apiKey ? [originalProvider.apiKey] : []);
+            
+            const keysChanged = JSON.stringify(originalKeys.sort()) !== JSON.stringify(apiKeys.sort());
+
+            const updatedData = { name, baseUrl, path, apiKeys, model };
+            if (keysChanged) {
+                updatedData.currentKeyIndex = 0;
+            }
+
+            await updateDoc(providerRef, updatedData);
+            editProviderModal.classList.add('hidden');
+        }
+
         function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
         function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
@@ -524,6 +609,7 @@
             window.addEventListener('resize', updateSidebarView);
 
             document.body.addEventListener('click', async (e) => {
+                // Обработчик для удаления сессии
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
@@ -533,6 +619,8 @@
                         render(); 
                     });
                 }
+                
+                // ИЗМЕНЕНИЕ: Добавлены обработчики для кнопок редактирования и удаления провайдера
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;
@@ -540,10 +628,21 @@
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
                     });
                 }
+                const editProviderBtn = e.target.closest('.edit-provider-btn');
+                if (editProviderBtn) {
+                    const idToEdit = editProviderBtn.dataset.id;
+                    handleOpenEditProviderModal(idToEdit);
+                }
             });
             
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
+            
+            // ИЗМЕНЕНИЕ: Добавлены обработчики для модального окна редактирования
+            editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
+            editProviderCancelBtn?.addEventListener('click', () => {
+                editProviderModal.classList.add('hidden');
+            });
             
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});

@@ -66,14 +66,12 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
         .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         
-        /* ИСПРАВЛЕНИЕ 1: Обновленные стили для боковой панели */
         #sidebar {
             transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
             width: 280px;
-            flex-shrink: 0; /* Панель не будет сжиматься */
+            flex-shrink: 0;
         }
         
-        /* Стили для мобильных устройств (до 1024px) */
         @media (max-width: 1023px) {
             #sidebar {
                 position: fixed;
@@ -88,7 +86,6 @@
             }
         }
 
-        /* Стили для десктопных устройств (от 1024px) */
         @media (min-width: 1024px) {
             #sidebar.collapsed {
                 width: 0;
@@ -104,7 +101,6 @@
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
 
     <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
-        <!-- Содержимое боковой панели осталось без изменений -->
         <div class="p-4 border-b border-border-color flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
         </div>
@@ -117,7 +113,6 @@
             </button>
         </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
-            <!-- Список чатов/заметок -->
         </nav>
         <div id="auth-section" class="p-3 border-t border-border-color text-center hidden">
             <button id="google-signin-btn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
@@ -134,7 +129,6 @@
         </div>
     </aside>
 
-    <!-- ИСПРАВЛЕНИЕ 2: Обертка больше не нужна, основной контент становится прямым flex-элементом -->
     <main class="flex-grow flex flex-col h-full w-full">
         <nav class="flex-shrink-0 border-b border-border-color flex items-center">
             <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
@@ -147,12 +141,10 @@
             </div>
         </nav>
         <div id="main-content" class="flex-grow overflow-y-auto">
-            <!-- Содержимое вкладок -->
         </div>
     </main>
     
     <div id="confirm-modal" class="modal-overlay hidden">
-        <!-- Содержимое модального окна без изменений -->
         <div class="modal-content">
             <p id="confirm-modal-text" class="text-text-primary mb-6 text-center">Вы уверены?</p>
             <div class="flex justify-center space-x-4">
@@ -233,10 +225,7 @@
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
-                        
-                        // ИСПРАВЛЕНИЕ 3: Сначала рендерим, потом закрываем панель для лучшего UX
                         render(); 
-                        
                         if (window.innerWidth < 1024) {
                            sidebar.classList.remove('open');
                            sidebarBackdrop.classList.add('hidden');
@@ -296,27 +285,180 @@
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
 
-        // --- ШАБЛОНЫ HTML (Без изменений) ---
+        // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         function getChatViewHTML(activeSession) { const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join(''); return `<div class="flex flex-col h-full"><div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"><input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата"><select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-shrink-0">${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}</select></div><div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div><div id="loading-indicator" class="p-4 hidden"><div class="flex items-center space-x-2"><div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div><div class="typing-indicator"><span></span><span></span><span></span></div></div></div><div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div></div>`; }
         function renderChatMessages(session) { const messagesContainer = document.getElementById('chat-messages'); if (!messagesContainer || !session || !session.messages) { messagesContainer.innerHTML = ''; return; } messagesContainer.innerHTML = session.messages.map(msg => { const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">"); const htmlContent = markdownConverter.makeHtml(safeContent); return `<div class="flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center"><i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full">${htmlContent}</div></div>`; }).join(''); messagesContainer.querySelectorAll('pre').forEach(preElement => { const wrapper = document.createElement('div'); wrapper.className = 'relative'; const copyBtn = document.createElement('button'); copyBtn.className = 'copy-code-btn'; copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; preElement.parentNode.insertBefore(wrapper, preElement); wrapper.appendChild(preElement); wrapper.appendChild(copyBtn); }); hljs.highlightAll(); lucide.createIcons(); messagesContainer.scrollTop = messagesContainer.scrollHeight; }
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
-        function getSettingsViewHTML() { return `<div class="p-6"><h2 class="text-2xl font-bold mb-6">Настройки</h2><div class="bg-bg-sidebar p-6 rounded-lg"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4 mb-6"></div><div class="border-t border-border-color pt-6"><h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4><form id="add-provider-form" class="space-y-3"><input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="password" id="provider-key" placeholder="API Ключ" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button></form></div></div></div>`; }
-        function renderProviders() { const list = document.getElementById('providers-list'); if (!list) return; if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } list.innerHTML = state.providers.map(p => `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path}</p></div><button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div>`).join(''); lucide.createIcons(); }
         
-        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА (Без изменений) ---
+        // ИЗМЕНЕНИЕ: 1. Заменяем input для ключа на textarea и добавляем информативный placeholder.
+        function getSettingsViewHTML() { 
+            return `<div class="p-6">
+                <h2 class="text-2xl font-bold mb-6">Настройки</h2>
+                <div class="bg-bg-sidebar p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4">Провайдеры API</h3>
+                    <div id="providers-list" class="space-y-4 mb-6"></div>
+                    <div class="border-t border-border-color pt-6">
+                        <h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4>
+                        <form id="add-provider-form" class="space-y-3">
+                            <input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                            <input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                            <input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                            <textarea id="provider-keys" placeholder="API Ключи (каждый ключ с новой строки)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="3" required></textarea>
+                            <input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                            <button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>`; 
+        }
+
+        // ИЗМЕНЕНИЕ: 2. Отображаем количество ключей у каждого провайдера.
+        function renderProviders() { 
+            const list = document.getElementById('providers-list'); 
+            if (!list) return; 
+            if (state.providers.length === 0) { 
+                list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; 
+                return; 
+            } 
+            list.innerHTML = state.providers.map(p => {
+                const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0); // Обратная совместимость
+                return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between">
+                    <div>
+                        <p class="font-bold">${p.name}</p>
+                        <p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p>
+                    </div>
+                    <button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>`
+            }).join(''); 
+            lucide.createIcons(); 
+        }
+        
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
         function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
         function setupNotepadViewEventListeners() { const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); }
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
-        async function handleChatSubmit(e) { e.preventDefault(); const input = document.getElementById('chat-input'); const message = input.value.trim(); if (!message || state.isLoading) return; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); const activeSession = state.sessions.find(s => s.id === state.activeSessionId); const provider = state.providers.find(p => p.id === activeSession.providerId); if (!provider) { showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); return; } const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); input.value = ''; input.style.height = 'auto'; state.isLoading = true; updateLoadingIndicator(); try { const fullUrl = new URL(provider.path, provider.baseUrl).href; const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content })); const response = await fetch(fullUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` }, body: JSON.stringify({ model: provider.model, messages: apiMessages }) }); if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${errorData.error?.message || response.statusText}`); } const data = await response.json(); const assistantMessage = data.choices[0].message.content; await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] }); } catch (error) { console.error("Error calling LLM API:", error); await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** ${error.message}` }] }); } finally { state.isLoading = false; updateLoadingIndicator(); } }
+        
+        // ИЗМЕНЕНИЕ: 3. Главная логика перебора ключей.
+        async function handleChatSubmit(e) { 
+            e.preventDefault(); 
+            const input = document.getElementById('chat-input'); 
+            const message = input.value.trim(); 
+            if (!message || state.isLoading) return; 
+
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); 
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId); 
+            const provider = state.providers.find(p => p.id === activeSession.providerId); 
+            
+            if (!provider) { 
+                showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); 
+                return; 
+            } 
+            
+            // Обеспечиваем обратную совместимость, если у провайдера только старое поле apiKey
+            const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
+
+            if (apiKeys.length === 0) {
+                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
+                 return;
+            }
+
+            const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; 
+            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); 
+            
+            input.value = ''; 
+            input.style.height = 'auto'; 
+            state.isLoading = true; 
+            updateLoadingIndicator(); 
+            
+            let assistantMessage = '';
+            let isSuccess = false;
+            let lastError = 'Неизвестная ошибка.';
+
+            // Цикл перебора ключей
+            const startIndex = provider.currentKeyIndex || 0;
+            for (let i = 0; i < apiKeys.length; i++) {
+                const keyIndex = (startIndex + i) % apiKeys.length;
+                const currentKey = apiKeys[keyIndex];
+                
+                try {
+                    const fullUrl = new URL(provider.path, provider.baseUrl).href; 
+                    const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content })); 
+                    const response = await fetch(fullUrl, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentKey}` }, 
+                        body: JSON.stringify({ model: provider.model, messages: apiMessages }) 
+                    }); 
+
+                    if (!response.ok) { 
+                        const errorData = await response.json(); 
+                        throw new Error(`Ошибка API (статус: ${response.status}, ключ: ...${currentKey.slice(-4)}): ${errorData.error?.message || response.statusText}`); 
+                    } 
+                    
+                    const data = await response.json(); 
+                    assistantMessage = data.choices[0].message.content;
+                    isSuccess = true;
+
+                    // В случае успеха, обновляем индекс для следующего запроса
+                    const nextKeyIndex = (keyIndex + 1) % apiKeys.length;
+                    const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
+                    await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
+
+                    break; // Выходим из цикла, так как запрос успешен
+                
+                } catch (error) {
+                    console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
+                    lastError = error.message;
+                }
+            }
+            
+            // Обновляем чат результатом
+            if (isSuccess) {
+                 await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
+            } else {
+                 await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: ${lastError}` }] });
+            }
+
+            state.isLoading = false; 
+            updateLoadingIndicator(); 
+        }
+
         function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
-        async function handleAddProvider(e) { e.preventDefault(); const name = document.getElementById('provider-name').value; const baseUrl = document.getElementById('provider-url').value; const path = document.getElementById('provider-path').value; const apiKey = document.getElementById('provider-key').value; const model = document.getElementById('provider-model').value; await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { name, baseUrl, path, apiKey, model }); e.target.reset(); }
+        
+        // ИЗМЕНЕНИЕ: 4. Логика добавления провайдера теперь работает с массивом ключей.
+        async function handleAddProvider(e) { 
+            e.preventDefault(); 
+            const name = document.getElementById('provider-name').value; 
+            const baseUrl = document.getElementById('provider-url').value; 
+            const path = document.getElementById('provider-path').value; 
+            const keysRaw = document.getElementById('provider-keys').value;
+            const model = document.getElementById('provider-model').value; 
+
+            const apiKeys = keysRaw.split('\n').map(k => k.trim()).filter(k => k !== '');
+
+            if (apiKeys.length === 0) {
+                showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
+                return;
+            }
+
+            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), { 
+                name, 
+                baseUrl, 
+                path, 
+                apiKeys, // Сохраняем массив ключей
+                model,
+                currentKeyIndex: 0 // Начальный индекс - 0
+            }); 
+            e.target.reset(); 
+        }
+        
         function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
         function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
 
-        // --- УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ ---
         function updateSidebarView() {
             const isMobile = window.innerWidth < 1024;
             const toggleIcon = document.getElementById('sidebar-toggle-icon');
@@ -333,7 +475,6 @@
             lucide.createIcons();
         }
 
-        // --- ГЛАВНЫЕ ОБРАБОТЧИКИ И ИНИЦИАЛИЗАЦИЯ ---
         function setupGlobalEventListeners() {
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {

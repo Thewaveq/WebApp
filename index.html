@@ -323,8 +323,6 @@
                         }
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
-                        // --- ИЗМЕНЕНИЕ ---
-                        // Убедимся, что индикатор и форма обновляются при каждой перерисовке
                         updateLoadingIndicator();
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
@@ -367,6 +365,7 @@
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
     
+            // --- ИЗМЕНЕНИЕ: Удален старый блок #loading-indicator ---
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
                     <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
@@ -381,7 +380,6 @@
                     </div>
                 </div>
                 <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
-                <div id="loading-indicator" class="p-4 hidden"><div class="flex items-center space-x-2"><div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>
                 <div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div>
             </div>`; 
         }
@@ -395,9 +393,11 @@
             messagesContainer.innerHTML = session.messages.map((msg, index) => {
                 const safeContent = msg.content || '';
                 const htmlContent = markdownConverter.makeHtml(safeContent);
+                // --- ИЗМЕНЕНИЕ: Иконка "bot" заменена на "sparkles" для лучшего вида ---
+                const icon = msg.role === 'user' ? 'user' : 'sparkles'; 
                 return `<div class="message-container group relative flex items-start space-x-4 mb-6 pr-8">
                             <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center">
-                                <i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i>
+                                <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
                             </div>
                             <div class="flex-grow prose max-w-full">${htmlContent}</div>
                             <button class="delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex" data-message-index="${index}">
@@ -417,7 +417,11 @@
             });
             hljs.highlightAll();
             lucide.createIcons();
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Если загрузка не идет, прокручиваем в конец
+            if(!state.isLoading) {
+                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
     
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
@@ -578,6 +582,8 @@
             
             state.isLoading = true;
             updateLoadingIndicator();
+            // --- ИЗМЕНЕНИЕ: Добавляем временный индикатор загрузки в чат ---
+            showTypingIndicatorInChat();
         
             let assistantMessage = '';
             let isSuccess = false;
@@ -630,32 +636,43 @@
                 ? [...newMessages, { role: 'assistant', content: assistantMessage }]
                 : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
         
-            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // 1. Сначала меняем локальное состояние на "загрузка окончена".
             state.isLoading = false;
             
-            // 2. И только ПОТОМ обновляем документ в Firestore.
-            // Это вызовет onSnapshot, который перерисует интерфейс уже с `state.isLoading = false`,
-            // и индикатор будет скрыт автоматически при перерисовке.
+            // Обновляем документ в Firestore. onSnapshot автоматически перерисует интерфейс,
+            // убрав индикатор и показав реальное сообщение.
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
-        
-            // 3. Этот вызов теперь нужен в основном для того, чтобы гарантированно
-            // разблокировать поле ввода, на случай если onSnapshot не сработает вовремя.
+            
+            // Этот вызов просто разблокирует поле ввода
             updateLoadingIndicator();
         }
         
-        // --- УЛУЧШЕННАЯ ФУНКЦИЯ ---
+        // --- ИЗМЕНЕНИЕ: Функция для показа индикатора в списке сообщений ---
+        function showTypingIndicatorInChat() {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) return;
+
+            // Удаляем старый индикатор, если он вдруг остался
+            const oldIndicator = document.getElementById('loading-message-placeholder');
+            if(oldIndicator) oldIndicator.remove();
+
+            const indicatorHtml = `
+                <div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-accent flex-shrink-0 flex items-center justify-center">
+                        <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="pt-2 typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
+            lucide.createIcons();
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // --- ИЗМЕНЕНИЕ: Упрощенная функция, только для блокировки/разблокировки формы ---
         function updateLoadingIndicator() {
-            const indicator = document.getElementById('loading-indicator');
             const form = document.getElementById('chat-form');
-            
-            if (indicator) {
-                indicator.classList.toggle('hidden', !state.isLoading);
-                if (state.isLoading) {
-                    indicator.scrollIntoView({ behavior: 'smooth' });
-                }
-            }
-            
             if (form) {
                 const button = form.querySelector('button');
                 const textarea = form.querySelector('textarea');
@@ -917,14 +934,17 @@
                     const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                     state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                 }
-                render();
+                // --- ИЗМЕНЕНИЕ: Не вызываем render() напрямую, если идет загрузка, чтобы не удалить индикатор ---
+                if (!state.isLoading) {
+                    render();
+                }
             }, error => console.error("Session listener error: ", error));
     
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 if (state.activeTab === 'settings' || state.activeTab === 'chat') {
-                    render();
+                     if (!state.isLoading) render();
                 }
             }, error => console.error("Providers listener error: ", error));
     
@@ -932,7 +952,7 @@
             unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
                 state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
                 if (state.activeTab === 'roles' || state.activeTab === 'chat') {
-                    render();
+                    if (!state.isLoading) render();
                 }
             }, error => console.error("Roles listener error: ", error));
         }

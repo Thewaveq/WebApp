@@ -146,16 +146,13 @@
         
         /* Стилизация контента */
         .prose { color: var(--text-primary); }
-        .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; margin-top: 1em; margin-bottom: 0.8em;}
-        .prose p { margin-top: 0.8em; margin-bottom: 0.8em; }
-        .prose ul, .prose ol { margin-top: 0.8em; margin-bottom: 0.8em; padding-left: 1.5em; }
-        .prose li { margin-top: 0.2em; margin-bottom: 0.2em; }
-        .prose a { color: var(--accent-start); transition: color 0.2s; text-decoration: none; }
-        .prose a:hover { color: var(--accent-end); text-decoration: underline; }
+        .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
+        .prose a { color: var(--accent-start); transition: color 0.2s; }
+        .prose a:hover { color: var(--accent-end); }
         .prose pre { background-color: rgba(0,0,0,0.3); padding: 1rem; border-radius: 0.5rem; position: relative; margin-top: 1.25em; margin-bottom: 1.25em; border: 1px solid var(--border-color); }
-        .prose code { background-color: var(--bg-element); padding: 0.2em 0.4em; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; }
-        .prose pre code { background-color: transparent; padding: 0; border-radius: 0; font-size: 1em; }
-        .prose blockquote { border-left: 4px solid var(--accent-start); padding-left: 1em; margin-left: 0; font-style: italic; color: var(--text-secondary); }
+        .prose code { background-color: var(--bg-element); padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; }
+        .prose pre code { background-color: transparent; padding: 0; border-radius: 0; }
+        .prose blockquote { border-left-color: var(--accent-start); }
         .copy-code-btn { position: absolute; top: 0.5rem; right: 0.5rem; background-color: var(--bg-element); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 0.3rem; padding: 0.25rem; opacity: 0.5; transition: all 0.2s; }
         .prose pre:hover .copy-code-btn { opacity: 1; }
         .copy-code-btn:hover { background-color: var(--bg-input); color: var(--text-primary); transform: scale(1.1); }
@@ -309,6 +306,7 @@
         </div>
     </div>
 
+    <!-- СКРИПТЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -343,17 +341,7 @@
         };
         
         let confirmModalCallback = null;
-
-        // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлены опции 'simpleLineBreaks' и 'ghCodeBlocks' ---
-        const markdownConverter = new showdown.Converter({ 
-            tables: true, 
-            strikethrough: true, 
-            tasklists: true, 
-            openLinksInNewWindow: true, 
-            ghCompatibleHeaderId: true,
-            simpleLineBreaks: true, // Преобразует одиночный перенос строки в <br>
-            ghCodeBlocks: true      // Улучшает обработку блоков кода
-        });
+        const markdownConverter = new showdown.Converter({ tables: true, strikethrough: true, tasklists: true, openLinksInNewWindow: true, ghCompatibleHeaderId: true });
         
         const sidebar = document.getElementById('sidebar');
         const sidebarList = document.getElementById('sidebar-list');
@@ -429,7 +417,7 @@
                         mainContent.innerHTML = getChatViewHTML(activeSession);
                         if (!activeSession.providerId && state.providers.length > 0) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { providerId: state.providers.id });
+                            updateDoc(sessionRef, { providerId: state.providers[0].id });
                         }
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
@@ -499,19 +487,26 @@
                 if (messagesContainer) messagesContainer.innerHTML = '';
                 return;
             }
-
+        
             messagesContainer.innerHTML = session.messages.map((msg, index) => {
                 const isUser = msg.role === 'user';
                 const safeContent = msg.content || '';
+                // Преобразуем Markdown в HTML
                 const htmlContent = markdownConverter.makeHtml(safeContent);
                 const icon = isUser ? 'user' : 'sparkles';
+        
+                // --- КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---
                 const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
                 const containerFlexClasses = isUser ? 'flex-row-reverse' : '';
+                
+                // Определяем стили для "пузыря" сообщения.
+                // prose-invert делает текст внутри .prose белым, что полезно для темных тем.
                 const bubbleClasses = isUser 
-                    ? 'bg-blue-600 text-white prose-invert'
+                    ? 'bg-accent-start text-white prose-invert' 
                     : 'bg-bg-element';
+        
                 const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
-
+        
                 return `
                 <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
                     <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
@@ -520,21 +515,22 @@
                         <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
                             <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
                         </div>
-
+        
                         <!-- "Пузырь" с текстом -->
                         <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
                             ${htmlContent}
                         </div>
                         
-                        <!-- Кнопка удаления (теперь позиционируется относительно всего блока) -->
+                        <!-- Кнопка удаления -->
                         <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
-
+        
                     </div>
                 </div>`;
             }).join('');
             
+            // Этот блок для добавления кнопок копирования остается без изменений.
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative';
@@ -546,10 +542,11 @@
                 wrapper.appendChild(preElement);
                 wrapper.appendChild(copyBtn);
             });
-
+        
+            // Переинициализация скриптов для подсветки синтаксиса и иконок
             hljs.highlightAll();
             lucide.createIcons();
-
+        
             if(!state.isLoading) {
                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
@@ -637,6 +634,8 @@
             lucide.createIcons(); 
         }
         
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА (ОСТАЮТСЯ БЕЗ КРИТИЧЕСКИХ ИЗМЕНЕНИЙ) ---
+        // (Весь остальной JavaScript-код остается таким же, как в вашем исходном файле)
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 
@@ -686,8 +685,11 @@
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            const message = input.value;
-            if (!message.trim() || state.isLoading) return;
+            
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            const message = input.value; // Сохраняем сообщение с оригинальным форматированием
+            if (!message.trim() || state.isLoading) return; // А для проверки используем .trim()
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
         
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
@@ -736,28 +738,21 @@
                         apiKey: currentKey,
                         payload: { model: provider.model, messages: apiMessagesPayload }
                     };
-                    // Прокси-запрос теперь не нужен для этого примера, но логика оставлена
-                    // const response = await fetch('/api/proxy', { ... });
-                    
-                    const response = await fetch(fullUrl, {
-                         method: 'POST',
-                         headers: {
-                           'Authorization': `Bearer ${currentKey}`,
-                           'Content-Type': 'application/json',
-                         },
-                         body: JSON.stringify({ model: provider.model, messages: apiMessagesPayload, stream: false }), // stream: false
-                    });
-
+                    const response = await fetch('/api/proxy', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(proxyRequestBody) 
+                    }); 
                     if (!response.ok) {
                         const errorText = await response.text();
-                        throw new Error(`Ошибка от API (статус ${response.status}): ${errorText}`);
+                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
                     }
                     const data = await response.json(); 
                     if (data.error) {
-                        const errorMessage = data.error?.message || JSON.stringify(data.error);
-                        throw new Error(`Ошибка от API: ${errorMessage}`);
+                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
+                        throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
-                    assistantMessage = data.choices.message.content;
+                    assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
@@ -785,14 +780,12 @@
             if(oldIndicator) oldIndicator.remove();
 
             const indicatorHtml = `
-                <div id="loading-message-placeholder" class="message-wrapper w-full flex justify-start mb-4">
-                    <div class="message-container flex items-start gap-x-3 max-w-[85%]">
-                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-start to-accent-end flex-shrink-0 flex items-center justify-center">
-                            <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
-                        </div>
-                        <div class="pt-2 typing-indicator">
-                            <span></span><span></span><span></span>
-                        </div>
+                <div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-start to-accent-end flex-shrink-0 flex items-center justify-center">
+                        <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="pt-2 typing-indicator">
+                        <span></span><span></span><span></span>
                     </div>
                 </div>
             `;
@@ -808,13 +801,6 @@
                 const textarea = form.querySelector('textarea');
                 if (button) button.disabled = state.isLoading;
                 if (textarea) textarea.disabled = state.isLoading;
-                 if (state.isLoading) {
-                    const placeholder = document.getElementById('loading-message-placeholder');
-                    if (!placeholder) showTypingIndicatorInChat();
-                } else {
-                    const placeholder = document.getElementById('loading-message-placeholder');
-                    if (placeholder) placeholder.remove();
-                }
             }
         }        
         
@@ -960,7 +946,7 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers.id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

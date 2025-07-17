@@ -382,7 +382,8 @@
         }
         
         // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
-        function setupNotepadViewEventListeners() {
+        function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
+                function setupNotepadViewEventListeners() {
             const titleInput = document.getElementById('note-title-input');
             const contentTextarea = document.getElementById('note-content-textarea');
 
@@ -403,7 +404,6 @@
             titleInput?.addEventListener('blur', saveNote);
             contentTextarea?.addEventListener('blur', saveNote);
         }
-        function setupNotepadViewEventListeners() { const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); }
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
         
         async function handleChatSubmit(e) { 

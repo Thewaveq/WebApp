@@ -660,8 +660,22 @@
             updateLoadingIndicator();
             // --- КОНЕЦ ИЗМЕНЕНИЙ ---
         }
-        function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
-        
+        function updateLoadingIndicator() {
+                    const indicator = document.getElementById('loading-indicator');
+                    const form = document.getElementById('chat-form');
+                    if (indicator) {
+                        indicator.classList.toggle('hidden', !state.isLoading);
+                        // Прокрутка вниз, чтобы увидеть индикатор, если он появился
+                        if (state.isLoading) {
+                            indicator.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }
+                    if (form) {
+                        // Блокируем кнопку и поле ввода, пока ИИ "печатает"
+                        form.querySelector('button').disabled = state.isLoading;
+                        form.querySelector('textarea').disabled = state.isLoading;
+                    }
+                }        
         // ИЗМЕНЕНИЕ: Функция теперь создает "пустого" провайдера и открывает модальное окно для его редактирования.
         async function handleAddProvider() {
             if (state.isLoading) return;

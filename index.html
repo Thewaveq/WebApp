@@ -547,10 +547,7 @@
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
                     // ДЛЯ АССИСТЕНТА:
-                    // ШАГ 1: Сначала обрабатываем текст для сохранения отступов
                     const preprocessedContent = preprocessTextForIndents(safeContent);
-                    
-                    // ШАГ 2: Затем отдаем обработанный текст в Markdown конвертер
                     htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
                         
@@ -970,7 +967,7 @@
             const processedLines = lines.map(line => {
                 // Проверяем, не начинается или не заканчивается ли блок кода на этой строке
                 if (line.trim().startsWith('```')) {
-                    inCodeBlock = !inCodeCodeBlock; // Инвертируем флаг
+                    inCodeBlock = !inCodeBlock; // <--- ОПЕЧАТКА ИСПРАВЛЕНА
                     return line; // Возвращаем строку с ``` как есть
                 }
         
@@ -979,16 +976,14 @@
                     return line;
                 }
         
-                // --- ВОТ ГЛАВНАЯ МАГИЯ ---
-                // Если мы НЕ в блоке кода, заменяем начальные пробелы на  
+                // Заменяем начальные пробелы на  
                 let leadingSpaces = 0;
-                while (leadingSpaces < line.length && line[leadingSpaces] === ' ') {
-                    leadingSpaces++;
-                }
-        
-                if (leadingSpaces > 0) {
+                // Используем .search() с регулярным выражением для поиска первого символа, не являющегося пробелом
+                const firstNonSpace = line.search(/\S|$/);
+                
+                if (firstNonSpace > 0) {
                     // Создаем строку из неразрывных пробелов и добавляем остаток строки
-                    return ' '.repeat(leadingSpaces) + line.substring(leadingSpaces);
+                    return ' '.repeat(firstNonSpace) + line.substring(firstNonSpace);
                 }
         
                 return line; // Если отступов нет, возвращаем как есть

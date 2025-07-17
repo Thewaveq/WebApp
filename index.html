@@ -156,6 +156,14 @@
         .copy-code-btn { position: absolute; top: 0.5rem; right: 0.5rem; background-color: var(--bg-element); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 0.3rem; padding: 0.25rem; opacity: 0.5; transition: all 0.2s; }
         .prose pre:hover .copy-code-btn { opacity: 1; }
         .copy-code-btn:hover { background-color: var(--bg-input); color: var(--text-primary); transform: scale(1.1); }
+        .prose pre {
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        
+        .prose code {
+          white-space: pre-wrap;
+        }
         
         /* Модальные окна со стеклянным эффектом */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }

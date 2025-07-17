@@ -1,5 +1,5 @@
 // Файл: /api/proxy.js
-// Это наш новый, умный и динамический прокси-сервер
+// Исправленная и улучшенная версия прокси-сервера
 
 export default async function handler(req, res) {
   // Разрешаем запросы только методом POST
@@ -9,37 +9,51 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Получаем "пакет" данных от нашего фронтенда
     const { targetUrl, apiKey, payload } = req.body;
 
-    // Проверяем, что все необходимые данные пришли
     if (!targetUrl || !apiKey || !payload) {
       return res.status(400).json({ error: 'Missing targetUrl, apiKey, or payload in request body.' });
     }
 
-    // Делаем реальный запрос к нужному API от имени нашего сервера
+    // Делаем запрос к внешнему API
     const apiResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload), // Используем данные, которые прислал фронтенд
+      body: JSON.stringify(payload),
     });
 
-    // Получаем ответ от API
-    const data = await apiResponse.json();
-    
-    // Если в ответе от API есть ошибка, отправляем ее дальше
-    if (data.error) {
-        return res.status(apiResponse.status).json(data);
+    // **КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Проверяем, был ли ответ от API успешным**
+    if (!apiResponse.ok) {
+      // Если ответ неуспешный (статус 4xx или 5xx), пытаемся прочитать тело ответа как текст
+      const errorText = await apiResponse.text();
+      console.error(`Error from target API [${apiResponse.status}]:`, errorText);
+      
+      // Отправляем на фронтенд более информативную ошибку
+      // Статус 502 (Bad Gateway) семантически корректен в данном случае
+      return res.status(502).json({
+        error: `Upstream API returned an error.`,
+        details: {
+          status: apiResponse.status,
+          statusText: apiResponse.statusText,
+          body: errorText, // Тело ответа, которое могло вызвать сбой
+        }
+      });
     }
 
+    // Только если ответ был успешным (статус 2xx), парсим его как JSON
+    const data = await apiResponse.json();
+
     // Отправляем успешный ответ от API обратно нашему фронтенду
-    res.status(apiResponse.status).json(data);
+    return res.status(200).json(data);
 
   } catch (error) {
-    console.error('Proxy Error:', error);
-    res.status(500).json({ error: 'An internal error occurred in the proxy.' });
+    // Этот блок теперь будет ловить только настоящие сбои:
+    // - Ошибки сети (например, не удалось разрешить DNS-имя targetUrl)
+    // - Внутренние ошибки в самом коде прокси
+    console.error('Proxy Internal Error:', error);
+    res.status(500).json({ error: 'An internal error occurred in the proxy.', details: error.message });
   }
 }

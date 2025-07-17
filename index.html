@@ -414,37 +414,49 @@
             messagesContainer.innerHTML = ''; // Очищаем контейнер
 
             session.messages.forEach((msg, index) => {
-                const icon = msg.role === 'user' ? 'user' : 'sparkles';
-                
-                const messageWrapper = document.createElement('div');
-                // --- ИЗМЕНЕНИЕ 1: Адаптивный flex-контейнер ---
-                // По умолчанию - колонка (мобильные). На экранах sm (640px) и больше - строка.
-                messageWrapper.className = 'message-container group relative flex flex-col sm:flex-row sm:items-start sm:space-x-4 mb-6 pr-8';
-                
-                const iconDiv = document.createElement('div');
-                // --- ИЗМЕНЕНИЕ 2: Адаптивный отступ для иконки ---
-                // Добавляем отступ снизу для мобильных, убираем его (sm:mb-0) для десктопа.
-                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center mb-2 sm:mb-0`;
-                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'flex-grow prose max-w-full'; 
-                
-                const rawHtml = marked.parse(msg.content || '');
-                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml);
-                
-                const deleteButton = document.createElement('button');
-                deleteButton.className = 'delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex';
-                deleteButton.dataset.messageIndex = index;
-                deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
+                const isUser = msg.role === 'user';
 
-                messageWrapper.appendChild(iconDiv);
-                messageWrapper.appendChild(contentDiv);
-                messageWrapper.appendChild(deleteButton);
+                // Определяем классы в зависимости от роли
+                const alignmentClass = isUser ? 'justify-end' : 'justify-start';
+                const orderClass = isUser ? 'flex-row-reverse' : 'flex-row';
+                const iconClass = isUser ? 'bg-blue-600' : 'bg-accent';
+                const bubbleClass = isUser 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-bg-element';
+                // Для текста в "пузыре" пользователя инвертируем цвета, чтобы ссылки были видны
+                const proseClass = isUser ? 'prose-invert' : '';
+                const icon = isUser ? 'user' : 'sparkles';
                 
-                messagesContainer.appendChild(messageWrapper);
+                // Создаем HTML для сообщения
+                const messageHtml = `
+                    <div class="w-full flex ${alignmentClass} mb-6">
+                        <div class="group relative flex items-start gap-3 max-w-3xl ${orderClass}">
+                            <!-- Иконка -->
+                            <div class="${iconClass} w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center">
+                                <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
+                            </div>
+
+                            <!-- "Пузырь" с текстом -->
+                            <div class="${bubbleClass} rounded-lg p-3">
+                                <div class="prose max-w-none ${proseClass}">
+                                    ${DOMPurify.sanitize(marked.parse(msg.content || ''))}
+                                </div>
+                            </div>
+
+                            <!-- Кнопка удаления (позиционируется относительно group) -->
+                            <button 
+                                class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${isUser ? '-left-8' : '-right-8'} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                data-message-index="${index}">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
             });
             
+            // Подсветка синтаксиса и кнопки копирования (логика остается прежней)
             messagesContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;

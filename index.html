@@ -541,60 +541,39 @@
                 const icon = isUser ? 'user' : 'sparkles';
                 let htmlContent;
         
-                // --- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ЛОГИКИ ---
-        
                 if (isUser) {
-                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ:
-                    // 1. Экранируем HTML, чтобы избежать инъекций.
                     const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
-                    // 2. Оборачиваем в div с НАШИМ специальным классом, который сохраняет переносы.
-                    // Этот класс уже есть у вас в CSS и он ПРАВИЛЬНЫЙ.
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
-                    // ДЛЯ АССИСТЕНТА:
-                    // 1. Пропускаем через наш НОВЫЙ умный пре-процессор
-                    const preprocessedContent = preprocessTextForMarkdown(safeContent); // <-- ОБНОВЛЕННАЯ СТРОКА
-                    // 2. Отдаем в Markdown конвертер
+                    // --- ВЫЗОВ ИСПРАВЛЕННОЙ ФУНКЦИИ ---
+                    const preprocessedContent = preprocessTextForMarkdown(safeContent);
                     htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
         
-                // --- ОСНОВНАЯ СТРУКТУРА СООБЩЕНИЯ (ОСТАЕТСЯ НЕИЗМЕННОЙ) ---
-                // Эти классы отвечают за выравнивание (справа/слева)
                 const wrapperFlexClasses = isUser ? 'justify-end' : 'justify-start';
                 const containerFlexClasses = isUser ? 'flex-row-reverse' : '';
-                
-                // Эти классы отвечают за цвет "пузыря"
                 const bubbleClasses = isUser 
                     ? 'bg-accent-start text-white prose-invert' 
                     : 'bg-bg-element';
         
                 const deleteButtonPosition = isUser ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2';
         
-                // Собираем финальный HTML для одного сообщения
                 return `
                 <div class="message-wrapper w-full flex ${wrapperFlexClasses} mb-4">
                     <div class="message-container flex items-start gap-x-3 max-w-[85%] group relative ${containerFlexClasses}">
-                        
-                        <!-- Иконка (зависит от isUser) -->
                         <div class="w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-accent-start to-accent-end'} flex-shrink-0 flex items-center justify-center shadow-md">
                             <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
                         </div>
-        
-                        <!-- "Пузырь" с текстом (цвет зависит от isUser) -->
                         <div class="flex-grow prose max-w-full ${bubbleClasses} rounded-xl px-4 py-2 shadow-sm">
                             ${htmlContent}
                         </div>
-                        
-                        <!-- Кнопка удаления (позиция зависит от isUser) -->
                         <button class="delete-message-btn absolute top-1/2 -translate-y-1/2 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" data-message-index="${index}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
-        
                     </div>
                 </div>`;
             }).join('');
             
-            // Этот код для кнопок копирования и подсветки остается без изменений
             messagesContainer.querySelectorAll('pre').forEach(preElement => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative';
@@ -980,33 +959,32 @@
             if (!text) return '';
         
             const lines = text.split('\n');
-            let inCodeBlock = false; // Флаг для отслеживания блоков ```
+            let inCodeBlock = false;
         
             const processedLines = lines.map(line => {
-                // Проверяем, не находимся ли мы на строке с открытием/закрытием блока кода
                 if (line.trim().startsWith('```')) {
-                    inCodeBlock = !inCodeBlock;
-                    return line; // Возвращаем эту строку как есть, showdown ее обработает
+                    inCodeCodeBlock = !inCodeBlock;
+                    return line;
                 }
         
-                // Если мы внутри блока кода, ничего не меняем
                 if (inCodeBlock) {
                     return line;
                 }
         
-                // --- ВОТ КЛЮЧЕВАЯ ЛОГИКА ---
-                // Ищем ведущие пробелы в строке
+                // Ищем совпадение только с ведущими пробелами.
                 const match = line.match(/^(\s+)/);
         
+                // --- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
+                // Проверяем, что совпадение найдено
                 if (match) {
+                    // match содержит саму строку с пробелами (например, "    ")
                     const leadingSpaces = match;
-                    // Заменяем каждый обычный пробел на неразрывный
+                    // Заменяем каждый пробел на неразрывный
                     const nonBreakingSpaces = ' '.repeat(leadingSpaces.length);
-                    // Возвращаем строку с замененными пробелами + остаток строки
+                    // Возвращаем неразрывные пробелы + остаток строки
                     return nonBreakingSpaces + line.substring(leadingSpaces.length);
                 }
         
-                // Если ведущих пробелов нет, возвращаем строку как есть
                 return line;
             });
         

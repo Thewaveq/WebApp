@@ -255,7 +255,6 @@
         };
         
         let confirmModalCallback = null;
-        // ИЗМЕНЕНИЕ: Markdown конвертер удален.
         
         const sidebar = document.getElementById('sidebar');
         const sidebarList = document.getElementById('sidebar-list');
@@ -330,7 +329,7 @@
                         mainContent.innerHTML = getChatViewHTML(activeSession);
                         if (!activeSession.providerId && state.providers.length > 0) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { providerId: state.providers[0].id });
+                            updateDoc(sessionRef, { providerId: state.providers.id });
                         }
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
@@ -394,41 +393,58 @@
             </div>`; 
         }
         
-        // --- ИЗМЕНЕНИЕ: Функция отображает текст "как есть", без Markdown ---
+        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer || !session || !session.messages) {
                 if (messagesContainer) messagesContainer.innerHTML = '';
                 return;
             }
-            messagesContainer.innerHTML = session.messages.map((msg, index) => {
-                const safeContent = msg.content || '';
-                // Конвертация в HTML УДАЛЕНА. Текст будет вставлен напрямую.
-                // CSS-свойство white-space: pre-wrap позаботится об отступах.
-                const icon = msg.role === 'user' ? 'user' : 'sparkles'; 
-                return `<div class="message-container group relative flex items-start space-x-4 mb-6 pr-8">
-                            <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center">
-                                <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
-                            </div>
-                            <div class="flex-grow prose max-w-full">${safeContent}</div>
-                            <button class="delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex" data-message-index="${index}">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>`;
-            }).join('');
             
-            // Этот код по-прежнему полезен, если модель вернет HTML с тегами <pre><code>
-            messagesContainer.querySelectorAll('pre').forEach(preElement => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'relative';
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-code-btn';
-                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                preElement.parentNode.insertBefore(wrapper, preElement);
-                wrapper.appendChild(preElement);
-                wrapper.appendChild(copyBtn);
+            // Очищаем контейнер перед новой отрисовкой
+            messagesContainer.innerHTML = '';
+
+            session.messages.forEach((msg, index) => {
+                const icon = msg.role === 'user' ? 'user' : 'sparkles';
+                
+                // Создаем главный контейнер для всего сообщения
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = 'message-container group relative flex items-start space-x-4 mb-6 pr-8';
+                
+                // Создаем блок с иконкой
+                const iconDiv = document.createElement('div');
+                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
+                
+                // Создаем блок для текста сообщения
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'flex-grow prose max-w-full';
+                
+                // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Используем `textContent` вместо `innerHTML`.
+                // Это безопасно вставляет контент как чистый текст, предотвращая выполнение HTML-тегов
+                // и позволяя CSS-свойству `white-space: pre-wrap` работать как положено.
+                contentDiv.textContent = msg.content || '';
+
+                // Создаем кнопку удаления
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex';
+                deleteButton.dataset.messageIndex = index;
+                deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
+
+                // Собираем все части в один элемент сообщения
+                messageWrapper.appendChild(iconDiv);
+                messageWrapper.appendChild(contentDiv);
+                messageWrapper.appendChild(deleteButton);
+                
+                // Добавляем готовое сообщение в контейнер чата
+                messagesContainer.appendChild(messageWrapper);
             });
-            hljs.highlightAll(); // Подсветка синтаксиса для блоков кода
+
+            // Так как мы больше не преобразуем Markdown в HTML (<pre><code>),
+            // код для подсветки синтаксиса и добавления кнопок копирования больше не нужен
+            // и не будет работать, что соответствует требованию "вырезать md".
+            // hljs.highlightAll(); 
+            
             lucide.createIcons();
 
             if(!state.isLoading) {
@@ -632,7 +648,7 @@
                         const errorMessage = data.error?.message || data.error || JSON.stringify(data);
                         throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
-                    assistantMessage = data.choices[0].message.content;
+                    assistantMessage = data.choices.message.content;
                     isSuccess = true;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
@@ -827,7 +843,7 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers.id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

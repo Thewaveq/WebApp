@@ -157,8 +157,19 @@
         .prose pre:hover .copy-code-btn { opacity: 1; }
         .copy-code-btn:hover { background-color: var(--bg-input); color: var(--text-primary); transform: scale(1.1); }
         .prose pre {
-          white-space: pre-wrap;
-          word-break: break-word;
+            background-color: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            position: relative;
+            margin-top: 1.25em;
+            margin-bottom: 1.25em;
+            border: 1px solid var(--border-color);
+            
+            /* Эти два свойства исправляют форматирование */
+            white-space: pre-wrap; /* Сохраняет пробелы и переносы строк */
+            tab-size: 4;           /* Отображает 1 символ табуляции как 4 пробела */
+            
+            word-break: break-word; /* Помогает переносить очень длинные строки без пробелов */
         }
         
         .prose code {

@@ -717,7 +717,8 @@
             const keysRaw = document.getElementById('edit-provider-keys').value;
             const model = document.getElementById('edit-provider-model').value;
 
-            const apiKeys = keysRaw.split('\n').map(k => k.trim()).filter(k => k !== '');
+            //const apiKeys = keysRaw.split('\n').map(k => k.trim()).filter(k => k !== '');
+            const apiKeys = keysRaw.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
             if (apiKeys.length === 0) {
                 showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
                 return;

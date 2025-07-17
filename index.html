@@ -636,15 +636,18 @@
                         body: JSON.stringify(proxyRequestBody) 
                     }); 
                     if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
+                        const errorData = await response.json().catch(() => response.text());
+                        throw new Error(`Ошибка от прокси-сервера (статус ${response.status}): ${JSON.stringify(errorData)}`);
                     }
                     const data = await response.json(); 
                     if (data.error) {
-                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
+                        const errorMessage = data.error?.message || JSON.stringify(data.error);
                         throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
-                    assistantMessage = data.choices.message.content;
+
+                    // --- ВОТ ИСПРАВЛЕННАЯ СТРОКА ---
+                    assistantMessage = data.choices[0].message.content;
+                    
                     isSuccess = true;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
@@ -657,13 +660,14 @@
             
             const finalMessages = isSuccess
                 ? [...newMessages, { role: 'assistant', content: assistantMessage }]
-                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
+                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}` }];
         
             state.isLoading = false;
             
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
-            updateLoadingIndicator();
+            // Эта строка теперь вызовется в любом случае и обновит чат
+            render(); 
         }
         
         function showTypingIndicatorInChat() {

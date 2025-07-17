@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Multi-Tool</title>
-    <!-- ИЗМЕНЕНИЕ: Ссылка на Tailwind БЕЗ плагина typography -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- ИЗМЕНЕНИЕ: showdown.js полностью удален -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -402,45 +402,66 @@
                 return;
             }
             
-            // Очищаем контейнер перед новой отрисовкой
-            messagesContainer.innerHTML = '';
+            messagesContainer.innerHTML = ''; // Очищаем контейнер
 
             session.messages.forEach((msg, index) => {
                 const icon = msg.role === 'user' ? 'user' : 'sparkles';
                 
-                // Создаем главный контейнер для всего сообщения
                 const messageWrapper = document.createElement('div');
                 messageWrapper.className = 'message-container group relative flex items-start space-x-4 mb-6 pr-8';
                 
-                // Создаем блок с иконкой
                 const iconDiv = document.createElement('div');
                 iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
                 
-                // Создаем блок для текста сообщения
                 const contentDiv = document.createElement('div');
-                contentDiv.className = 'flex-grow prose max-w-full';
+                // Класс 'prose' от Tailwind отлично подходит для стилизации контента, сгенерированного из Markdown
+                contentDiv.className = 'flex-grow prose max-w-full'; 
                 
-                // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Используем `textContent` вместо `innerHTML`.
-                // Это безопасно вставляет контент как чистый текст, предотвращая выполнение HTML-тегов
-                // и позволяя CSS-свойству `white-space: pre-wrap` работать как положено.
-                contentDiv.textContent = msg.content || '';
-
-                // Создаем кнопку удаления
+                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
+                // 1. Преобразуем Markdown в HTML с помощью marked.js
+                // 2. Очищаем HTML с помощью DOMPurify для безопасности
+                // 3. Вставляем безопасный HTML в наш div
+                const rawHtml = marked.parse(msg.content || '');
+                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml);
+                
                 const deleteButton = document.createElement('button');
                 deleteButton.className = 'delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex';
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                // Собираем все части в один элемент сообщения
                 messageWrapper.appendChild(iconDiv);
                 messageWrapper.appendChild(contentDiv);
                 messageWrapper.appendChild(deleteButton);
                 
-                // Добавляем готовое сообщение в контейнер чата
                 messagesContainer.appendChild(messageWrapper);
             });
             
+            // --- ДОБАВЛЕНИЕ ПОДСВЕТКИ СИНТАКСИСА ---
+            // Находим все блоки <pre><code> внутри сообщений и применяем highlight.js
+            messagesContainer.querySelectorAll('pre code').forEach((block) => {
+                // Добавляем кнопки копирования к блокам кода
+                const preElement = block.parentElement;
+                if (preElement.querySelector('.copy-code-btn')) return; // Не добавлять, если уже есть
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-code-btn';
+                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(block.innerText);
+                    copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                        lucide.createIcons();
+                    }, 2000);
+                    lucide.createIcons();
+                });
+                preElement.appendChild(copyBtn);
+
+                // Применяем подсветку
+                hljs.highlightElement(block);
+            });
+
             lucide.createIcons();
 
             if(!state.isLoading) {
@@ -548,9 +569,7 @@
             roleSelect?.addEventListener('change', (e) => {
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { roleId: e.target.value });
-            });
-            
-            messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); 
+            });            
         }
         
         function setupNotepadViewEventListeners() {

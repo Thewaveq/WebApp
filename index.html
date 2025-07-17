@@ -154,7 +154,6 @@
         </div>
     </div>
     
-    <!-- ИЗМЕНЕНИЕ: Модальное окно для редактирования провайдера -->
     <div id="edit-provider-modal" class="modal-overlay hidden">
         <div class="modal-content !max-w-xl">
             <h3 class="text-xl font-semibold mb-4">Редактировать провайдера</h3>
@@ -190,7 +189,6 @@
 
 
     <script type="module">
-        // Ваш JavaScript код остается без изменений.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -235,7 +233,6 @@
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
         const confirmModalNoBtn = document.getElementById('confirm-modal-no');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-        // ИЗМЕНЕНИЕ: Добавляем переменные для нового модального окна
         const editProviderModal = document.getElementById('edit-provider-modal');
         const editProviderForm = document.getElementById('edit-provider-form');
         const editProviderCancelBtn = document.getElementById('edit-provider-cancel-btn');
@@ -329,7 +326,42 @@
         // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         function getChatViewHTML(activeSession) { const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join(''); return `<div class="flex flex-col h-full"><div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"><input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата"><select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-shrink-0">${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}</select></div><div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div><div id="loading-indicator" class="p-4 hidden"><div class="flex items-center space-x-2"><div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div><div class="typing-indicator"><span></span><span></span><span></span></div></div></div><div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div></div>`; }
-        function renderChatMessages(session) { const messagesContainer = document.getElementById('chat-messages'); if (!messagesContainer || !session || !session.messages) { messagesContainer.innerHTML = ''; return; } messagesContainer.innerHTML = session.messages.map(msg => { const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">"); const htmlContent = markdownConverter.makeHtml(safeContent); return `<div class="flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center"><i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full">${htmlContent}</div></div>`; }).join(''); messagesContainer.querySelectorAll('pre').forEach(preElement => { const wrapper = document.createElement('div'); wrapper.className = 'relative'; const copyBtn = document.createElement('button'); copyBtn.className = 'copy-code-btn'; copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; preElement.parentNode.insertBefore(wrapper, preElement); wrapper.appendChild(preElement); wrapper.appendChild(copyBtn); }); hljs.highlightAll(); lucide.createIcons(); messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+        
+        // ИЗМЕНЕНИЕ: В рендер сообщения добавлена кнопка удаления
+        function renderChatMessages(session) {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer || !session || !session.messages) {
+                messagesContainer.innerHTML = '';
+                return;
+            }
+            messagesContainer.innerHTML = session.messages.map((msg, index) => {
+                const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">");
+                const htmlContent = markdownConverter.makeHtml(safeContent);
+                return `<div class="message-container group relative flex items-start space-x-4 mb-6 pr-8">
+                            <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center">
+                                <i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="flex-grow prose max-w-full">${htmlContent}</div>
+                            <button class="delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex" data-message-index="${index}">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>`;
+            }).join('');
+            messagesContainer.querySelectorAll('pre').forEach(preElement => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative';
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-code-btn';
+                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                preElement.parentNode.insertBefore(wrapper, preElement);
+                wrapper.appendChild(preElement);
+                wrapper.appendChild(copyBtn);
+            });
+            hljs.highlightAll();
+            lucide.createIcons();
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
         function getSettingsViewHTML() { 
@@ -353,7 +385,6 @@
             </div>`; 
         }
 
-        // ИЗМЕНЕНИЕ: Добавлена кнопка редактирования и div-контейнер для кнопок
         function renderProviders() { 
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
@@ -383,15 +414,12 @@
         
         // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
         function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
-                function setupNotepadViewEventListeners() {
+        
+        function setupNotepadViewEventListeners() {
             const titleInput = document.getElementById('note-title-input');
             const contentTextarea = document.getElementById('note-content-textarea');
-
-            // Функция для сохранения заметки
             const saveNote = () => {
-                // Проверяем, есть ли активная сессия, чтобы избежать ошибок
                 if (!state.activeSessionId) return;
-
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, {
                     title: titleInput.value,
@@ -399,11 +427,10 @@
                     updatedAt: serverTimestamp()
                 });
             };
-
-            // Сохраняем заметку, когда пользователь убирает фокус с поля (например, нажимает в другом месте)
             titleInput?.addEventListener('blur', saveNote);
             contentTextarea?.addEventListener('blur', saveNote);
         }
+
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
         
         async function handleChatSubmit(e) { 
@@ -513,7 +540,6 @@
             e.target.reset(); 
         }
         
-        // ИЗМЕНЕНИЕ: Новые функции для обработки редактирования
         function handleOpenEditProviderModal(providerId) {
             const providerToEdit = state.providers.find(p => p.id === providerId);
             if (!providerToEdit) return;
@@ -636,11 +662,26 @@
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                         if (state.activeSessionId === idToDelete) { state.activeSessionId = null; }
-                        render(); 
+                        // Рендер вызовется автоматически через onSnapshot
                     });
                 }
                 
-                // ИЗМЕНЕНИЕ: Добавлены обработчики для кнопок редактирования и удаления провайдера
+                // ИЗМЕНЕНИЕ: Добавлен обработчик для удаления сообщения
+                const deleteMessageBtn = e.target.closest('.delete-message-btn');
+                if (deleteMessageBtn) {
+                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
+                            const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: newMessages });
+                            // Рендер также вызовется автоматически через onSnapshot
+                        });
+                    }
+                }
+
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;
@@ -658,7 +699,6 @@
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
             
-            // ИЗМЕНЕНИЕ: Добавлены обработчики для модального окна редактирования
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
             editProviderCancelBtn?.addEventListener('click', () => {
                 editProviderModal.classList.add('hidden');

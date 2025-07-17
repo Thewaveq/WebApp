@@ -956,8 +956,6 @@
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
         
-         * @param {string} text Исходный текст от ассистента.
-         * @returns {string} Текст, подготовленный для showdown.js.
         function preprocessTextForMarkdown(text) {
             if (!text) return '';
         

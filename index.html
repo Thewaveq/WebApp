@@ -684,8 +684,11 @@
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message || state.isLoading) return;
+            
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            const message = input.value; // Сохраняем сообщение с оригинальным форматированием
+            if (!message.trim() || state.isLoading) return; // А для проверки используем .trim()
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
         
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);

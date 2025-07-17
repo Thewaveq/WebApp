@@ -598,47 +598,52 @@
                 const currentKey = apiKeys[keyIndex];
                 
                 try {
-                    // Собираем реальный URL API, как и раньше
                     const fullUrl = new URL(provider.path, provider.baseUrl).href; 
         
-                    // --- ЭТО ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-                    // "Упаковываем" все данные для отправки на НАШ собственный прокси
                     const proxyRequestBody = {
-                        targetUrl: fullUrl,         // URL реального API
-                        apiKey: currentKey,         // Ключ пользователя
-                        payload: {                  // Тело запроса для реального API
+                        targetUrl: fullUrl,
+                        apiKey: currentKey,
+                        payload: {
                             model: provider.model,
                             messages: apiMessagesPayload
                         }
                     };
         
-                    // Отправляем запрос не на fullUrl, а на наш прокси /api/proxy
                     const response = await fetch('/api/proxy', { 
                         method: 'POST', 
-                        headers: { 
-                          'Content-Type': 'application/json' 
-                          // Заголовок Authorization здесь не нужен, его добавит прокси
-                        }, 
+                        headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify(proxyRequestBody) 
                     }); 
+        
+                    // --- ПРАВИЛЬНАЯ ЛОГИКА ОБРАБОТКИ ОШИБОК ---
+                    // 1. СНАЧАЛА проверяем, что сам прокси ответил успешно.
+                    if (!response.ok) {
+                        // Если статус 404, значит прокси-файл не найден Vercel.
+                        if (response.status === 404) {
+                            throw new Error(`Ошибка 404: Прокси-эндпоинт (/api/proxy) не найден. Проверьте правильность расположения файла /api/proxy.js в вашем проекте.`);
+                        }
+                        // Для других ошибок сервера (500 и т.д.) читаем ответ как текст.
+                        const errorText = await response.text();
+                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
+                    }
                     
+                    // 2. ТОЛЬКО ЕСЛИ ответ успешный, пытаемся его прочитать как JSON.
                     const data = await response.json(); 
         
-                    // Если прокси или API вернули ошибку, обрабатываем ее
-                    if (!response.ok || data.error) {
+                    // 3. Проверяем, нет ли ошибки уже внутри самого JSON от внешнего API.
+                    if (data.error) {
                         const errorMessage = data.error?.message || data.error || JSON.stringify(data);
-                        throw new Error(`Ошибка от API (статус ${response.status}): ${errorMessage}`);
+                        throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
                     
                     assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
         
-                    // Обновляем индекс ключа в Firestore при успехе
                     const nextKeyIndex = (keyIndex + 1) % apiKeys.length;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
         
-                    break; // Успех, выходим из цикла перебора ключей
+                    break;
                 
                 } catch (error) {
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);

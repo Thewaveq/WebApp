@@ -552,9 +552,9 @@
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
                     // ДЛЯ АССИСТЕНТА:
-                    // 1. Сохраняем отступы перед обработкой Markdown.
+                    // 1. Пропускаем через наш НОВЫЙ умный пре-процессор
                     const preprocessedContent = preprocessTextForIndents(safeContent);
-                    // 2. Конвертируем Markdown в HTML.
+                    // 2. Отдаем в Markdown конвертер
                     htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
         
@@ -978,39 +978,42 @@
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
         function preprocessTextForIndents(text) {
             if (!text) return '';
+        
             const lines = text.split('\n');
-            let inCodeBlock = false;
+            let inCodeBlock = false; // Флаг для ``` блоков
+        
             const processedLines = lines.map(line => {
+                // 1. Управляем ``` блоками
                 if (line.trim().startsWith('```')) {
                     inCodeBlock = !inCodeBlock;
-                    return line;
+                    return line; // Возвращаем строку с ``` как есть, showdown разберется
                 }
+        
+                // 2. Если мы внутри ``` блока, ничего не трогаем
                 if (inCodeBlock) {
                     return line;
                 }
+        
+                // 3. ПРОВЕРКА НА 4-ПРОБЕЛЬНЫЙ БЛОК КОДА (КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ!)
+                // Если строка начинается с 4 пробелов, мы считаем это блоком кода,
+                // который showdown должен обработать САМ. Мы его не трогаем.
+                if (line.startsWith('    ')) {
+                    return line;
+                }
+        
+                // 4. ВОТ НАША ЛОГИКА ДЛЯ "АБЗАЦЕВ С ОТСТУПОМ"
+                // Это сработает только если пробелов МЕНЬШЕ 4-х.
+                // Например, для 2-х или 3-х пробелов.
                 const firstNonSpace = line.search(/\S|$/);
                 if (firstNonSpace > 0) {
                     return ' '.repeat(firstNonSpace) + line.substring(firstNonSpace);
                 }
+        
+                // 5. Если ничего из вышеперечисленного не подошло, возвращаем строку как есть
                 return line;
             });
-            return processedLines.join('\n');
-        }
         
-        function updateSidebarView() {
-            const isMobile = window.innerWidth < 1024;
-            const toggleIcon = document.getElementById('sidebar-toggle-icon');
-            if (isMobile) {
-                sidebar.classList.remove('collapsed');
-                sidebar.classList.add('glassmorphism');
-                toggleIcon.setAttribute('data-lucide', 'menu');
-            } else {
-                sidebar.classList.remove('open', 'glassmorphism');
-                sidebarBackdrop.classList.add('hidden');
-                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
-                toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-right-close' : 'panel-left-close');
-            }
-            lucide.createIcons();
+            return processedLines.join('\n');
         }
     
         function setupGlobalEventListeners() {

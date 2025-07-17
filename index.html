@@ -1,59 +1,1013 @@
-// Файл: /api/proxy.js
-// Исправленная и улучшенная версия прокси-сервера
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Multi-Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-export default async function handler(req, res) {
-  // Разрешаем запросы только методом POST
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-
-  try {
-    const { targetUrl, apiKey, payload } = req.body;
-
-    if (!targetUrl || !apiKey || !payload) {
-      return res.status(400).json({ error: 'Missing targetUrl, apiKey, or payload in request body.' });
-    }
-
-    // Делаем запрос к внешнему API
-    const apiResponse = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    // **КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Проверяем, был ли ответ от API успешным**
-    if (!apiResponse.ok) {
-      // Если ответ неуспешный (статус 4xx или 5xx), пытаемся прочитать тело ответа как текст
-      const errorText = await apiResponse.text();
-      console.error(`Error from target API [${apiResponse.status}]:`, errorText);
-      
-      // Отправляем на фронтенд более информативную ошибку
-      // Статус 502 (Bad Gateway) семантически корректен в данном случае
-      return res.status(502).json({
-        error: `Upstream API returned an error.`,
-        details: {
-          status: apiResponse.status,
-          statusText: apiResponse.statusText,
-          body: errorText, // Тело ответа, которое могло вызвать сбой
+    <style>
+        :root {
+            --bg-main: #1e1e1e;фф
+            --bg-sidebar: #252526;
+            --bg-element: #333333;
+            --bg-input: #3c3c3c;
+            --text-primary: #f5f5f5;
+            --text-secondary: #b0b0b0;
+            --accent: #0e639c;
+            --accent-hover: #1177bb;
+            --border-color: #4a4a4a;
+            --danger: #e53e3e;
+            --danger-hover: #c53030;
         }
-      });
-    }
+        html, body {
+            height: 100%;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+        }
+        input, textarea, select {
+            color: var(--text-primary);
+        }
+        input::placeholder, textarea::placeholder {
+            color: var(--text-secondary);
+        }
+        .bg-input {
+            background-color: var(--bg-input);
+        }
+        .sidebar-item.active { background-color: var(--accent); color: white; }
+        .sidebar-item:hover { background-color: var(--bg-element); }
+        .main-nav-item.active { border-bottom: 2px solid var(--accent); color: white; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #666; }
+        .typing-indicator span { height: 8px; width: 8px; background-color: var(--accent); border-radius: 50%; display: inline-block; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+        .prose { color: var(--text-primary); }
+        .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
+        .prose a { color: var(--accent-hover); }
+        .prose pre { background-color: #282c34; padding: 1rem; border-radius: 0.5rem; position: relative; margin-top: 1.25em; margin-bottom: 1.25em; }
+        .prose code { background-color: var(--bg-element); padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; }
+        .prose pre code { background-color: transparent; padding: 0; border-radius: 0; }
+        .prose blockquote { border-left-color: var(--accent); }
+        .copy-code-btn { position: absolute; top: 0.5rem; right: 0.5rem; background-color: var(--bg-element); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 0.3rem; padding: 0.25rem; opacity: 0.5; transition: opacity 0.2s; }
+        .prose pre:hover .copy-code-btn { opacity: 1; }
+        .copy-code-btn:hover { background-color: var(--bg-input); color: var(--text-primary); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
+        .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        
+        #sidebar {
+            transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+            width: 280px;
+            flex-shrink: 0;
+        }
+        
+        @media (max-width: 1023px) {
+            #sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 40;
+                transform: translateX(-100%);
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+        }
 
-    // Только если ответ был успешным (статус 2xx), парсим его как JSON
-    const data = await apiResponse.json();
+        @media (min-width: 1024px) {
+            #sidebar.collapsed {
+                width: 0;
+                padding-left: 0;
+                padding-right: 0;
+                overflow: hidden;
+            }
+        }
+    </style>
+</head>
+<body class="h-dvh w-full flex">
 
-    // Отправляем успешный ответ от API обратно нашему фронтенду
-    return res.status(200).json(data);
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
 
-  } catch (error) {
-    // Этот блок теперь будет ловить только настоящие сбои:
-    // - Ошибки сети (например, не удалось разрешить DNS-имя targetUrl)
-    // - Внутренние ошибки в самом коде прокси
-    console.error('Proxy Internal Error:', error);
-    res.status(500).json({ error: 'An internal error occurred in the proxy.', details: error.message });
-  }
-}
+    <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
+        <div class="p-4 border-b border-border-color flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
+        </div>
+        <div class="p-2 flex-shrink-0">
+            <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новый чат
+            </button>
+             <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
+            </button>
+        </div>
+        <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
+        </nav>
+        <div id="auth-section" class="p-3 border-t border-border-color text-center hidden">
+            <button id="google-signin-btn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
+                <svg class="w-4 h-4 mr-2" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                Войти через Google
+            </button>
+            <div id="user-profile" class="hidden flex items-center text-left">
+                <img id="user-avatar" class="w-8 h-8 rounded-full mr-2 flex-shrink-0">
+                <div class="text-xs overflow-hidden">
+                    <p id="user-name" class="font-semibold text-text-primary truncate"></p>
+                    <a href="#" id="sign-out-btn" class="text-red-400 hover:text-red-500">Выйти</a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-grow flex flex-col h-full w-full">
+        <nav class="flex-shrink-0 border-b border-border-color flex items-center">
+            <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
+                <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
+            </button>
+            <div class="flex space-x-4 px-4">
+                <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
+                <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
+                <button data-tab="roles" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Роли</button>
+                <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
+            </div>
+        </nav>
+        <div id="main-content" class="flex-grow overflow-y-auto">
+        </div>
+    </main>
+    
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <p id="confirm-modal-text" class="text-text-primary mb-6 text-center">Вы уверены?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-modal-no" class="px-6 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Нет</button>
+                <button id="confirm-modal-yes" class="px-6 py-2 rounded-md bg-danger hover:bg-danger-hover text-white transition-colors">Да</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="edit-provider-modal" class="modal-overlay hidden">
+        <div class="modal-content !max-w-xl">
+            <h3 class="text-xl font-semibold mb-4">Редактировать провайдера</h3>
+            <form id="edit-provider-form" class="space-y-3">
+                <input type="hidden" id="edit-provider-id">
+                <div>
+                    <label for="edit-provider-name" class="text-sm text-text-secondary block mb-1">Название</label>
+                    <input type="text" id="edit-provider-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div>
+                    <label for="edit-provider-url" class="text-sm text-text-secondary block mb-1">Базовый URL</label>
+                    <input type="text" id="edit-provider-url" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                 <div>
+                    <label for="edit-provider-path" class="text-sm text-text-secondary block mb-1">Путь запроса</label>
+                    <input type="text" id="edit-provider-path" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div>
+                    <label for="edit-provider-keys" class="text-sm text-text-secondary block mb-1">API Ключи (каждый с новой строки)</label>
+                    <textarea id="edit-provider-keys" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="4" required></textarea>
+                </div>
+                <div>
+                    <label for="edit-provider-model" class="text-sm text-text-secondary block mb-1">Название модели</label>
+                    <input type="text" id="edit-provider-model" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="edit-provider-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
+                    <button type="submit" class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="edit-role-modal" class="modal-overlay hidden">
+        <div class="modal-content !max-w-xl">
+            <h3 class="text-xl font-semibold mb-4">Редактировать роль</h3>
+            <form id="edit-role-form" class="space-y-3">
+                <input type="hidden" id="edit-role-id">
+                <div>
+                    <label for="edit-role-name" class="text-sm text-text-secondary block mb-1">Название роли</label>
+                    <input type="text" id="edit-role-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                </div>
+                <div>
+                    <label for="edit-role-content" class="text-sm text-text-secondary block mb-1">Содержимое роли (Системный промпт)</label>
+                    <textarea id="edit-role-content" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="8" required></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="edit-role-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
+                    <button type="submit" class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+        <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+        // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZ3u9scjk3dydutXO0EUrWlpUnsp4OuqA",
+            authDomain: "appllm.firebaseapp.com",
+            projectId: "appllm",
+            storageBucket: "appllm.appspot.com",
+            messagingSenderId: "926733538345",
+            appId: "1:926733538345:web:dac990973b29ca574ff938",
+            measurementId: "G-YX6FY680C9"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    
+        let db, auth, userId;
+        let unsubscribeSessions = () => {};
+        let unsubscribeProviders = () => {};
+        let unsubscribeRoles = () => {};
+    
+        let state = {
+            activeTab: 'chat',
+            activeSessionId: null,
+            sessions: [],
+            providers: [],
+            roles: [],
+            isLoading: false,
+            isAuthReady: false,
+            isSidebarCollapsed: false,
+        };
+        
+        let confirmModalCallback = null;
+        const markdownConverter = new showdown.Converter({ tables: true, strikethrough: true, tasklists: true, simpleLineBreaks: true, openLinksInNewWindow: true, ghCompatibleHeaderId: true });
+        
+        const sidebar = document.getElementById('sidebar');
+        const sidebarList = document.getElementById('sidebar-list');
+        const mainContent = document.getElementById('main-content');
+        const mainNavItems = document.querySelectorAll('.main-nav-item');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const newNoteBtn = document.getElementById('new-note-btn');
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmModalText = document.getElementById('confirm-modal-text');
+        const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
+        const confirmModalNoBtn = document.getElementById('confirm-modal-no');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        const editProviderModal = document.getElementById('edit-provider-modal');
+        const editProviderForm = document.getElementById('edit-provider-form');
+        const editProviderCancelBtn = document.getElementById('edit-provider-cancel-btn');
+        const editRoleModal = document.getElementById('edit-role-modal');
+        const editRoleForm = document.getElementById('edit-role-form');
+        const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
+    
+    
+        // --- ФУНКЦИИ РЕНДЕРИНГА ---
+        function render() {
+            if (!state.isAuthReady) return;
+            renderSidebar();
+            renderMainContent();
+            renderMainNav();
+        }
+    
+        function renderSidebar() {
+            sidebarList.innerHTML = '';
+            const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
+    
+            if (filteredSessions.length > 0) {
+                filteredSessions.forEach(session => {
+                    const item = document.createElement('div');
+                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
+                    item.innerHTML = `
+                        <span class="truncate pr-2">${session.title || 'Без названия'}</span>
+                        <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    `;
+                    item.addEventListener('click', (e) => {
+                        if (e.target.closest('.delete-session-btn')) return;
+                        state.activeSessionId = session.id;
+                        render(); 
+                        if (window.innerWidth < 1024) {
+                           sidebar.classList.remove('open');
+                           sidebarBackdrop.classList.add('hidden');
+                        }
+                    });
+                    item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
+                    item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
+                    
+                    sidebarList.appendChild(item);
+                });
+            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
+                 sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${state.activeTab === 'chat' ? 'чатов' : 'заметок'}.</div>`;
+            } else {
+                 sidebarList.innerHTML = ''; 
+            }
+            lucide.createIcons();
+        }
+    
+        function renderMainContent() {
+            mainContent.innerHTML = '';
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            
+            switch (state.activeTab) {
+                case 'chat':
+                    if (activeSession) {
+                        mainContent.innerHTML = getChatViewHTML(activeSession);
+                        if (!activeSession.providerId && state.providers.length > 0) {
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            updateDoc(sessionRef, { providerId: state.providers[0].id });
+                        }
+                        renderChatMessages(activeSession);
+                        setupChatViewEventListeners();
+                        updateLoadingIndicator();
+                    } else {
+                         mainContent.innerHTML = getEmptyStateHTML('chat');
+                    }
+                    break;
+                case 'notepad':
+                     if (activeSession) {
+                        mainContent.innerHTML = getNotepadViewHTML(activeSession);
+                        setupNotepadViewEventListeners();
+                    } else {
+                        mainContent.innerHTML = getEmptyStateHTML('notepad');
+                    }
+                    break;
+                case 'roles': 
+                    mainContent.innerHTML = getRolesViewHTML();
+                    renderRoles();
+                    setupRolesViewEventListeners();
+                    break;
+                case 'settings':
+                    mainContent.innerHTML = getSettingsViewHTML();
+                    renderProviders();
+                    setupSettingsViewEventListeners();
+                    break;
+            }
+            lucide.createIcons();
+        }
+        
+        function renderMainNav() {
+            mainNavItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === state.activeTab);
+            });
+            newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
+            newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+        }
+    
+        // --- ШАБЛОНЫ HTML ---
+        function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
+        
+        function getChatViewHTML(activeSession) { 
+            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
+            const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
+    
+            // --- ИЗМЕНЕНИЕ: Удален старый блок #loading-indicator ---
+            return `<div class="flex flex-col h-full">
+                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
+                    <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                        <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                           <option value="">Без роли</option>
+                           ${roleOptions}
+                        </select>
+                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                           ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                        </select>
+                    </div>
+                </div>
+                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
+                <div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div>
+            </div>`; 
+        }
+        
+        function renderChatMessages(session) {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer || !session || !session.messages) {
+                if (messagesContainer) messagesContainer.innerHTML = '';
+                return;
+            }
+            messagesContainer.innerHTML = session.messages.map((msg, index) => {
+                const safeContent = msg.content || '';
+                const htmlContent = markdownConverter.makeHtml(safeContent);
+                // --- ИЗМЕНЕНИЕ: Иконка "bot" заменена на "sparkles" для лучшего вида ---
+                const icon = msg.role === 'user' ? 'user' : 'sparkles'; 
+                return `<div class="message-container group relative flex items-start space-x-4 mb-6 pr-8">
+                            <div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center">
+                                <i data-lucide="${icon}" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="flex-grow prose max-w-full">${htmlContent}</div>
+                            <button class="delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex" data-message-index="${index}">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>`;
+            }).join('');
+            messagesContainer.querySelectorAll('pre').forEach(preElement => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative';
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-code-btn';
+                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                preElement.parentNode.insertBefore(wrapper, preElement);
+                wrapper.appendChild(preElement);
+                wrapper.appendChild(copyBtn);
+            });
+            hljs.highlightAll();
+            lucide.createIcons();
+
+            // Если загрузка не идет, прокручиваем в конец
+            if(!state.isLoading) {
+                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+    
+        function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
+        
+        function getRolesViewHTML() {
+            return `<div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Управление ролями</h2>
+                    <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                        Добавить роль
+                    </button>
+                </div>
+                <div class="bg-bg-sidebar p-6 rounded-lg">
+                    <div id="roles-list" class="space-y-4"></div>
+                </div>
+            </div>`;
+        }
+        
+        function renderRoles() {
+            const list = document.getElementById('roles-list');
+            if (!list) return;
+            if (state.roles.length === 0) {
+                list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`;
+                return;
+            }
+            list.innerHTML = state.roles.map(r => `
+                <div class="bg-bg-element p-3 rounded-md">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="font-bold">${r.name}</p>
+                        <div class="flex items-center space-x-2">
+                            <button class="edit-role-btn text-text-secondary hover:text-accent transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button>
+                            <button class="delete-role-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+        
+        function getSettingsViewHTML() { 
+            return `<div class="p-6">
+                 <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Настройки</h2>
+                     <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                        Добавить провайдера
+                    </button>
+                </div>
+                <div class="bg-bg-sidebar p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4">Провайдеры API</h3>
+                    <div id="providers-list" class="space-y-4"></div>
+                </div>
+            </div>`; 
+        }
+    
+        function renderProviders() { 
+            const list = document.getElementById('providers-list'); 
+            if (!list) return; 
+            if (state.providers.length === 0) { 
+                list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров. Нажмите "Добавить провайдера", чтобы создать новый.</p>`; 
+                return; 
+            } 
+            list.innerHTML = state.providers.map(p => {
+                const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0);
+                return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between">
+                    <div>
+                        <p class="font-bold">${p.name}</p>
+                        <p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button class="edit-provider-btn text-text-secondary hover:text-accent transition-colors" data-id="${p.id}">
+                            <i data-lucide="edit" class="w-5 h-5"></i>
+                        </button>
+                        <button class="delete-provider-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>`
+            }).join(''); 
+            lucide.createIcons(); 
+        }
+        
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ И ЛОГИКА ---
+        function setupChatViewEventListeners() { 
+            const form = document.getElementById('chat-form'); 
+            const input = document.getElementById('chat-input'); 
+            const titleInput = document.getElementById('chat-title-input'); 
+            const providerSelect = document.getElementById('provider-select'); 
+            const roleSelect = document.getElementById('role-select'); 
+            const messagesContainer = document.getElementById('chat-messages'); 
+            
+            form?.addEventListener('submit', handleChatSubmit); 
+            input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); 
+            input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
+            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
+            providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
+            
+            roleSelect?.addEventListener('change', (e) => {
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, { roleId: e.target.value });
+            });
+            
+            messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); 
+        }
+        
+        function setupNotepadViewEventListeners() {
+            const titleInput = document.getElementById('note-title-input');
+            const contentTextarea = document.getElementById('note-content-textarea');
+            const saveNote = () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
+                    updatedAt: serverTimestamp()
+                });
+            };
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
+        }
+    
+        function setupRolesViewEventListeners() {
+            document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
+        }
+    
+        function setupSettingsViewEventListeners() { 
+            document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
+        }
+        
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || state.isLoading) return;
+        
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            const provider = state.providers.find(p => p.id === activeSession.providerId);
+            const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+        
+            if (!provider) {
+                showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
+                return;
+            }
+            const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
+            if (apiKeys.length === 0) {
+                showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
+                return;
+            }
+        
+            const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }];
+            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
+        
+            input.value = '';
+            input.style.height = 'auto';
+            
+            state.isLoading = true;
+            updateLoadingIndicator();
+            // --- ИЗМЕНЕНИЕ: Добавляем временный индикатор загрузки в чат ---
+            showTypingIndicatorInChat();
+        
+            let assistantMessage = '';
+            let isSuccess = false;
+            let lastError = 'Неизвестная ошибка.';
+            
+            const apiMessagesPayload = [];
+            if (selectedRole && selectedRole.content) {
+                apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
+            }
+            apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
+        
+            const startIndex = provider.currentKeyIndex || 0;
+            for (let i = 0; i < apiKeys.length; i++) {
+                const keyIndex = (startIndex + i) % apiKeys.length;
+                const currentKey = apiKeys[keyIndex];
+                
+                try {
+                    const fullUrl = new URL(provider.path, provider.baseUrl).href; 
+                    const proxyRequestBody = {
+                        targetUrl: fullUrl,
+                        apiKey: currentKey,
+                        payload: { model: provider.model, messages: apiMessagesPayload }
+                    };
+                    const response = await fetch('/api/proxy', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(proxyRequestBody) 
+                    }); 
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
+                    }
+                    const data = await response.json(); 
+                    if (data.error) {
+                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
+                        throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
+                    }
+                    assistantMessage = data.choices[0].message.content;
+                    isSuccess = true;
+                    const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
+                    await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
+                    break;
+                } catch (error) {
+                    console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
+                    lastError = error.message;
+                }
+            }
+            
+            const finalMessages = isSuccess
+                ? [...newMessages, { role: 'assistant', content: assistantMessage }]
+                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }];
+        
+            state.isLoading = false;
+            
+            // Обновляем документ в Firestore. onSnapshot автоматически перерисует интерфейс,
+            // убрав индикатор и показав реальное сообщение.
+            await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+            
+            // Этот вызов просто разблокирует поле ввода
+            updateLoadingIndicator();
+        }
+        
+        // --- ИЗМЕНЕНИЕ: Функция для показа индикатора в списке сообщений ---
+        function showTypingIndicatorInChat() {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) return;
+
+            // Удаляем старый индикатор, если он вдруг остался
+            const oldIndicator = document.getElementById('loading-message-placeholder');
+            if(oldIndicator) oldIndicator.remove();
+
+            const indicatorHtml = `
+                <div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-accent flex-shrink-0 flex items-center justify-center">
+                        <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="pt-2 typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
+            lucide.createIcons();
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // --- ИЗМЕНЕНИЕ: Упрощенная функция, только для блокировки/разблокировки формы ---
+        function updateLoadingIndicator() {
+            const form = document.getElementById('chat-form');
+            if (form) {
+                const button = form.querySelector('button');
+                const textarea = form.querySelector('textarea');
+                if (button) button.disabled = state.isLoading;
+                if (textarea) textarea.disabled = state.isLoading;
+            }
+        }        
+        
+        async function handleAddProvider() {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            try {
+                const newProviderData = {
+                    name: 'Новый провайдер',
+                    baseUrl: 'https://api.openai.com',
+                    path: '/v1/chat/completions',
+                    apiKeys: [],
+                    model: 'gpt-4o',
+                    currentKeyIndex: 0
+                };
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), newProviderData);
+                handleOpenEditProviderModal(docRef.id);
+            } catch (error) {
+                console.error("Ошибка при добавлении провайдера: ", error);
+                showModalAlert("Не удалось создать провайдера.");
+            } finally {
+                state.isLoading = false;
+            }
+        }
+        
+        async function handleAddRole() {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            try {
+                const newRoleData = {
+                    name: 'Новая роль',
+                    content: 'Ты — полезный ассистент.',
+                    createdAt: serverTimestamp()
+                };
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), newRoleData);
+                handleOpenEditRoleModal(docRef.id);
+            } catch (error) {
+                console.error("Ошибка при добавлении роли: ", error);
+                showModalAlert("Не удалось создать роль.");
+            } finally {
+                state.isLoading = false;
+            }
+        }
+        
+        function handleOpenEditProviderModal(providerId) {
+            const providerToEdit = state.providers.find(p => p.id === providerId);
+            if (!providerToEdit) return;
+            const apiKeysArray = providerToEdit.apiKeys || (providerToEdit.apiKey ? [providerToEdit.apiKey] : []);
+            document.getElementById('edit-provider-id').value = providerToEdit.id;
+            document.getElementById('edit-provider-name').value = providerToEdit.name;
+            document.getElementById('edit-provider-url').value = providerToEdit.baseUrl;
+            document.getElementById('edit-provider-path').value = providerToEdit.path;
+            document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n');
+            document.getElementById('edit-provider-model').value = providerToEdit.model;
+            editProviderModal.classList.remove('hidden');
+        }
+    
+        function handleOpenEditRoleModal(roleId) {
+            const roleToEdit = state.roles.find(r => r.id === roleId);
+            if (!roleToEdit) return;
+    
+            document.getElementById('edit-role-id').value = roleToEdit.id;
+            document.getElementById('edit-role-name').value = roleToEdit.name;
+            document.getElementById('edit-role-content').value = roleToEdit.content;
+    
+            editRoleModal.classList.remove('hidden');
+        }
+    
+        async function handleEditProviderSubmit(e) {
+            e.preventDefault();
+            const providerId = document.getElementById('edit-provider-id').value;
+            if (!providerId) return;
+    
+            const name = document.getElementById('edit-provider-name').value;
+            const baseUrl = document.getElementById('edit-provider-url').value;
+            const path = document.getElementById('edit-provider-path').value;
+            const keysRaw = document.getElementById('edit-provider-keys').value;
+            const model = document.getElementById('edit-provider-model').value;
+    
+            const apiKeys = keysRaw.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
+            if (apiKeys.length === 0) {
+                showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
+                return;
+            }
+    
+            const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, providerId);
+            const originalProvider = state.providers.find(p => p.id === providerId);
+            const originalKeys = originalProvider.apiKeys || (originalProvider.apiKey ? [originalProvider.apiKey] : []);
+            const keysChanged = JSON.stringify(originalKeys.sort()) !== JSON.stringify(apiKeys.sort());
+            const updatedData = { name, baseUrl, path, apiKeys, model };
+            if (keysChanged) { updatedData.currentKeyIndex = 0; }
+            await updateDoc(providerRef, updatedData);
+            editProviderModal.classList.add('hidden');
+        }
+    
+        async function handleEditRoleSubmit(e) {
+            e.preventDefault();
+            const roleId = document.getElementById('edit-role-id').value;
+            if (!roleId) return;
+    
+            const name = document.getElementById('edit-role-name').value;
+            const content = document.getElementById('edit-role-content').value;
+    
+            const roleRef = doc(db, `artifacts/${appId}/users/${userId}/roles`, roleId);
+            await updateDoc(roleRef, { name, content });
+            editRoleModal.classList.add('hidden');
+        }
+    
+        function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
+        function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
+        function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
+        function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
+    
+        function updateSidebarView() {
+            const isMobile = window.innerWidth < 1024;
+            const toggleIcon = document.getElementById('sidebar-toggle-icon');
+            if (isMobile) {
+                sidebar.classList.remove('collapsed');
+                toggleIcon.setAttribute('data-lucide', 'menu');
+            } else {
+                sidebar.classList.remove('open');
+                sidebarBackdrop.classList.add('hidden');
+                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
+                toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-right-close' : 'panel-left-close');
+            }
+            lucide.createIcons();
+        }
+    
+        function setupGlobalEventListeners() {
+            mainNavItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    state.activeTab = item.dataset.tab;
+                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
+                        const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
+                        state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                    } else {
+                        state.activeSessionId = null;
+                    }
+                    render();
+                });
+            });
+    
+            const createNewItem = async (type) => {
+                 const newSessionData = type === 'chat'
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                
+                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                state.activeSessionId = newSessionRef.id;
+                
+                render();
+                if (window.innerWidth < 1024) { 
+                    sidebar.classList.remove('open'); 
+                    sidebarBackdrop.classList.add('hidden'); 
+                }
+            };
+    
+            newChatBtn.addEventListener('click', () => createNewItem('chat'));
+            newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+            
+            document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.toggle('open');
+                    sidebarBackdrop.classList.toggle('hidden');
+                } else {
+                    state.isSidebarCollapsed = !state.isSidebarCollapsed;
+                    updateSidebarView();
+                }
+            });
+    
+            sidebarBackdrop.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarBackdrop.classList.add('hidden');
+            });
+            
+            window.addEventListener('resize', updateSidebarView);
+    
+            document.body.addEventListener('click', async (e) => {
+                const deleteSessionBtn = e.target.closest('.delete-session-btn');
+                if (deleteSessionBtn) {
+                    const idToDelete = deleteSessionBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
+                        if (state.activeSessionId === idToDelete) { 
+                           const firstSession = state.sessions.find(s => s.id !== idToDelete && s.type === state.activeTab);
+                           state.activeSessionId = firstSession ? firstSession.id : null;
+                        }
+                    });
+                }
+                
+                const deleteMessageBtn = e.target.closest('.delete-message-btn');
+                if (deleteMessageBtn) {
+                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+    
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
+                            const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: newMessages });
+                        });
+                    }
+                }
+    
+                const deleteProviderBtn = e.target.closest('.delete-provider-btn');
+                if (deleteProviderBtn) {
+                    const idToDelete = deleteProviderBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
+                    });
+                }
+                const editProviderBtn = e.target.closest('.edit-provider-btn');
+                if (editProviderBtn) {
+                    const idToEdit = editProviderBtn.dataset.id;
+                    handleOpenEditProviderModal(idToEdit);
+                }
+                
+                const deleteRoleBtn = e.target.closest('.delete-role-btn');
+                if (deleteRoleBtn) {
+                    const idToDelete = deleteRoleBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
+                    });
+                }
+                const editRoleBtn = e.target.closest('.edit-role-btn');
+                if (editRoleBtn) {
+                    const idToEdit = editRoleBtn.dataset.id;
+                    handleOpenEditRoleModal(idToEdit);
+                }
+            });
+            
+            confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
+            confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
+            
+            editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
+            editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
+    
+            editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
+            editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
+    
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
+            document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
+        }
+        
+        function attachFirestoreListeners() {
+            unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
+            if (!userId) return;
+    
+            const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
+            unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
+                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+                const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
+                if (!activeSessionExists) {
+                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
+                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                }
+                // --- ИЗМЕНЕНИЕ: Не вызываем render() напрямую, если идет загрузка, чтобы не удалить индикатор ---
+                if (!state.isLoading) {
+                    render();
+                }
+            }, error => console.error("Session listener error: ", error));
+    
+            const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
+            unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
+                state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
+                     if (!state.isLoading) render();
+                }
+            }, error => console.error("Providers listener error: ", error));
+    
+            const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
+            unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
+                state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+                if (state.activeTab === 'roles' || state.activeTab === 'chat') {
+                    if (!state.isLoading) render();
+                }
+            }, error => console.error("Roles listener error: ", error));
+        }
+    
+        function resetState() {
+            unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
+            userId = null;
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
+            sidebar.classList.remove('collapsed', 'open');
+            sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
+            mainContent.innerHTML = getEmptyStateHTML('chat');
+        }
+    
+        async function init() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                onAuthStateChanged(auth, (user) => {
+                    const googleBtn = document.getElementById('google-signin-btn');
+                    const userProfile = document.getElementById('user-profile');
+                    const authSection = document.getElementById('auth-section');
+                    authSection.classList.remove('hidden');
+    
+                    if (user) {
+                        userId = user.uid;
+                        googleBtn.classList.add('hidden');
+                        userProfile.classList.remove('hidden');
+                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
+                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
+                        
+                        state.isAuthReady = true;
+                        attachFirestoreListeners();
+                    } else {
+                        resetState();
+                        googleBtn.classList.remove('hidden');
+                        userProfile.classList.add('hidden');
+                        state.isAuthReady = false; 
+                        render(); // Перерисовка для отображения состояния выхода
+                    }
+                    renderMainNav(); 
+                    updateSidebarView();
+                });
+                
+                setupGlobalEventListeners();
+    
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
+            }
+        }
+        
+        init();
+    </script>
+
+</body>
+</html>

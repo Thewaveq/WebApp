@@ -63,19 +63,113 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
         .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         
-        /* ИЗМЕНЕНИЕ 1: Стили для корректной работы сворачиваемой панели */
-        .sidebar {
-            transition: width 0.3s ease-in-out;
+        /* ИЗМЕНЕНИЕ 1: Адаптивные стили для боковой панели */
+        #sidebar {
+            transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+            width: 280px; /* Фиксированная ширина для удобства */
         }
-        .sidebar.collapsed {
-            width: 0;
-            padding: 0;
-            overflow: hidden;
-            border-right: none;
+        
+        /* Стили для мобильных устройств (до 1024px) */
+        @media (max-width: 1023px) {
+            #sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 40;
+                transform: translateX(-100%);
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+            #main-content-wrapper {
+                 width: 100%;
+            }
+        }
+
+        /* Стили для десктопных устройств (от 1024px) */
+        @media (min-width: 1024px) {
+            #sidebar.collapsed {
+                width: 0;
+                padding: 0;
+                overflow: hidden;
+                border-right: none;
+            }
+            #main-content-wrapper {
+                transition: margin-left 0.3s ease-in-out;
+                margin-left: 280px; /* Ширина панели */
+            }
+             #main-content-wrapper.sidebar-collapsed {
+                margin-left: 0;
+            }
         }
     </style>
 </head>
 <body class="h-screen w-screen flex overflow-hidden">
+    
+    <!-- ИЗМЕНЕНИЕ 2: Добавлена подложка для мобильного меню -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
+
+    <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color flex-shrink-0">
+        <div class="p-4 border-b border-border-color flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
+        </div>
+        <div class="p-2 flex-shrink-0">
+            <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новый чат
+            </button>
+             <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
+            </button>
+        </div>
+        <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
+            <!-- Список чатов/заметок -->
+        </nav>
+        
+        <div id="auth-section" class="p-3 border-t border-border-color text-center hidden">
+            <button id="google-signin-btn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
+                <svg class="w-4 h-4 mr-2" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                Войти через Google
+            </button>
+            <div id="user-profile" class="hidden flex items-center text-left">
+                <img id="user-avatar" class="w-8 h-8 rounded-full mr-2 flex-shrink-0">
+                <div class="text-xs overflow-hidden">
+                    <p id="user-name" class="font-semibold text-text-primary truncate"></p>
+                    <a href="#" id="sign-out-btn" class="text-red-400 hover:text-red-500">Выйти</a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ИЗМЕНЕНИЕ 3: Добавлена обертка для основного контента для управления отступом -->
+    <div id="main-content-wrapper" class="flex-grow flex flex-col h-full w-full">
+        <!-- Main Content -->
+        <main class="flex-grow flex flex-col h-full">
+            <nav class="flex-shrink-0 border-b border-border-color flex items-center">
+                <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
+                    <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
+                </button>
+                <div class="flex space-x-4 px-4">
+                    <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
+                    <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
+                    <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
+                </div>
+            </nav>
+            <div id="main-content" class="flex-grow overflow-y-auto">
+                <!-- Содержимое вкладок -->
+            </div>
+        </main>
+    </div>
+    
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <p id="confirm-modal-text" class="text-text-primary mb-6 text-center">Вы уверены?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-modal-no" class="px-6 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Нет</button>
+                <button id="confirm-modal-yes" class="px-6 py-2 rounded-md bg-danger hover:bg-danger-hover text-white transition-colors">Да</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -98,7 +192,6 @@
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
 
-        // ИЗМЕНЕНИЕ 2: Возвращена state.activeTab для навигации
         let state = {
             activeTab: 'chat',
             activeSessionId: null,
@@ -122,6 +215,10 @@
         const confirmModalText = document.getElementById('confirm-modal-text');
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
         const confirmModalNoBtn = document.getElementById('confirm-modal-no');
+        
+        // ИЗМЕНЕНИЕ 4: Элементы для мобильного интерфейса
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        const mainContentWrapper = document.getElementById('main-content-wrapper');
 
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
         function render() {
@@ -129,11 +226,11 @@
             renderSidebar();
             renderMainContent();
             renderMainNav();
+            updateSidebarView(); // Обновляем состояние панели
         }
 
         function renderSidebar() {
             sidebarList.innerHTML = '';
-            // Фильтруем сессии в зависимости от активной вкладки
             const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
 
             if (filteredSessions.length > 0) {
@@ -149,6 +246,11 @@
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
+                        // ИЗМЕНЕНИЕ 5: Скрывать панель на мобильных при выборе элемента
+                        if (window.innerWidth < 1024) {
+                           sidebar.classList.remove('open');
+                           sidebarBackdrop.classList.add('hidden');
+                        }
                         render();
                     });
                     item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
@@ -204,63 +306,16 @@
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
-        
-        // --- ШАБЛОНЫ HTML ---
-        function getEmptyStateHTML(type) {
-            const icon = type === 'chat' ? 'message-square' : 'notebook';
-            const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую';
-            return `<div class="flex flex-col h-full items-center justify-center text-gray-500">
-                        <i data-lucide="${icon}" class="w-16 h-16 mb-4"></i>
-                        <h2 class="text-2xl">${text}</h2>
-                    </div>`;
-        }
-        function getChatViewHTML(activeSession) {
-            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
-            return `
-                <div class="flex flex-col h-full">
-                    <div class="flex-shrink-0 p-3 border-b border-border-color flex items-center justify-between">
-                        <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата">
-                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent ml-4 flex-shrink-0">
-                            ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
-                        </select>
-                    </div>
-                    <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
-                    <div id="loading-indicator" class="p-4 hidden">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div>
-                            <div class="typing-indicator"><span></span><span></span><span></span></div>
-                        </div>
-                    </div>
-                    <div class="flex-shrink-0 p-4 border-t border-border-color">
-                        <form id="chat-form" class="relative">
-                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                            <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button>
-                        </form>
-                    </div>
-                </div>`;
-        }
-        function renderChatMessages(session) {
-            const messagesContainer = document.getElementById('chat-messages');
-            if (!messagesContainer || !session || !session.messages) { messagesContainer.innerHTML = ''; return; }
-            messagesContainer.innerHTML = session.messages.map(msg => {
-                const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">");
-                const htmlContent = markdownConverter.makeHtml(safeContent);
-                return `<div class="flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center"><i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full">${htmlContent}</div></div>`;
-            }).join('');
-            messagesContainer.querySelectorAll('pre').forEach(preElement => {
-                const wrapper = document.createElement('div'); wrapper.className = 'relative';
-                const copyBtn = document.createElement('button'); copyBtn.className = 'copy-code-btn'; copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                preElement.parentNode.insertBefore(wrapper, preElement); wrapper.appendChild(preElement); wrapper.appendChild(copyBtn);
-            });
-            hljs.highlightAll(); lucide.createIcons(); messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-        function getNotepadViewHTML(activeSession) {
-            return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
-        }
+
+        // --- ШАБЛОНЫ HTML (Без изменений) ---
+        function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
+        function getChatViewHTML(activeSession) { const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join(''); return `<div class="flex flex-col h-full"><div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"><input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название чата"><select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-shrink-0">${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}</select></div><div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div><div id="loading-indicator" class="p-4 hidden"><div class="flex items-center space-x-2"><div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center"><i data-lucide="bot" class="w-6 h-6 text-white"></i></div><div class="typing-indicator"><span></span><span></span><span></span></div></div></div><div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div></div>`; }
+        function renderChatMessages(session) { const messagesContainer = document.getElementById('chat-messages'); if (!messagesContainer || !session || !session.messages) { messagesContainer.innerHTML = ''; return; } messagesContainer.innerHTML = session.messages.map(msg => { const safeContent = msg.content.replace(/</g, "<").replace(/>/g, ">"); const htmlContent = markdownConverter.makeHtml(safeContent); return `<div class="flex items-start space-x-4 mb-6"><div class="w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center"><i data-lucide="${msg.role === 'user' ? 'user' : 'bot'}" class="w-6 h-6 text-white"></i></div><div class="flex-grow prose max-w-full">${htmlContent}</div></div>`; }).join(''); messagesContainer.querySelectorAll('pre').forEach(preElement => { const wrapper = document.createElement('div'); wrapper.className = 'relative'; const copyBtn = document.createElement('button'); copyBtn.className = 'copy-code-btn'; copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; preElement.parentNode.insertBefore(wrapper, preElement); wrapper.appendChild(preElement); wrapper.appendChild(copyBtn); }); hljs.highlightAll(); lucide.createIcons(); messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+        function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         function getSettingsViewHTML() { return `<div class="p-6"><h2 class="text-2xl font-bold mb-6">Настройки</h2><div class="bg-bg-sidebar p-6 rounded-lg"><h3 class="text-xl font-semibold mb-4">Провайдеры API</h3><div id="providers-list" class="space-y-4 mb-6"></div><div class="border-t border-border-color pt-6"><h4 class="text-lg font-semibold mb-3">Добавить нового провайдера</h4><form id="add-provider-form" class="space-y-3"><input type="text" id="provider-name" placeholder="Название (например, My OpenAI)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-url" placeholder="Базовый URL (например, https://api.openai.com)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-path" placeholder="Путь запроса (например, /v1/chat/completions)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="password" id="provider-key" placeholder="API Ключ" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><input type="text" id="provider-model" placeholder="Название модели (например, gpt-4o)" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required><button type="submit" class="px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">Добавить</button></form></div></div></div>`; }
         function renderProviders() { const list = document.getElementById('providers-list'); if (!list) return; if (state.providers.length === 0) { list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров.</p>`; return; } list.innerHTML = state.providers.map(p => `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between"><div><p class="font-bold">${p.name}</p><p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path}</p></div><button class="delete-provider-btn text-text-secondary hover:text-red-400" data-id="${p.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div>`).join(''); lucide.createIcons(); }
         
-        // --- ОБРАБОТЧИКИ СОБЫТИЙ (без существенных изменений в логике, только восстановление) ---
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ (без существенных изменений в логике) ---
         function setupChatViewEventListeners() { const form = document.getElementById('chat-form'); const input = document.getElementById('chat-input'); const titleInput = document.getElementById('chat-title-input'); const providerSelect = document.getElementById('provider-select'); const messagesContainer = document.getElementById('chat-messages'); form?.addEventListener('submit', handleChatSubmit); input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); messagesContainer?.addEventListener('click', e => { const copyBtn = e.target.closest('.copy-code-btn'); if (copyBtn) { const codeElement = copyBtn.parentElement.querySelector('pre code'); if (codeElement) { copyToClipboard(codeElement.innerText); copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>'; lucide.createIcons(); setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000); } } }); }
         function setupNotepadViewEventListeners() { const titleInput = document.getElementById('note-title-input'); const contentTextarea = document.getElementById('note-content-textarea'); let debounceTimer; const updateNote = () => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: titleInput.value, content: contentTextarea.value, updatedAt: serverTimestamp() }); }; titleInput?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); contentTextarea?.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(updateNote, 500); }); }
         function setupSettingsViewEventListeners() { document.getElementById('add-provider-form')?.addEventListener('submit', handleAddProvider); }
@@ -274,13 +329,37 @@
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
 
+        // ИЗМЕНЕНИЕ 6: Новая функция для управления видимостью панели
+        function updateSidebarView() {
+            const isMobile = window.innerWidth < 1024;
+            const toggleIcon = document.getElementById('sidebar-toggle-icon');
+
+            if (isMobile) {
+                // На мобильных управляем классом 'open'
+                sidebar.classList.remove('collapsed');
+                mainContentWrapper.classList.remove('sidebar-collapsed');
+                toggleIcon.setAttribute('data-lucide', 'menu');
+            } else {
+                // На десктопе управляем классом 'collapsed'
+                sidebar.classList.remove('open');
+                sidebarBackdrop.classList.add('hidden');
+                mainContentWrapper.classList.toggle('sidebar-collapsed', state.isSidebarCollapsed);
+                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
+                
+                if (state.isSidebarCollapsed) {
+                    toggleIcon.setAttribute('data-lucide', 'panel-right-close');
+                } else {
+                    toggleIcon.setAttribute('data-lucide', 'panel-left-close');
+                }
+            }
+            lucide.createIcons();
+        }
+
         // --- ГЛАВНЫЕ ОБРАБОТЧИКИ И ИНИЦИАЛИЗАЦИЯ ---
         function setupGlobalEventListeners() {
-            // ИЗМЕНЕНИЕ 3: Обработчики для вкладок и кнопок
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
-                    // При смене вкладки выбираем первый элемент нового типа или ничего
                     const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                     state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                     render();
@@ -293,6 +372,7 @@
                     createdAt: serverTimestamp(), updatedAt: serverTimestamp()
                 });
                 state.activeSessionId = newSessionRef.id;
+                if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
                 render();
             });
 
@@ -302,21 +382,30 @@
                     createdAt: serverTimestamp(), updatedAt: serverTimestamp()
                 });
                 state.activeSessionId = newSessionRef.id;
+                if (window.innerWidth < 1024) { sidebar.classList.remove('open'); sidebarBackdrop.classList.add('hidden'); }
                 render();
             });
             
-            // ИЗМЕНЕНИЕ 4: Исправленный обработчик для сворачивания панели
+            // ИЗМЕНЕНИЕ 7: Обновленный обработчик для кнопки переключения панели
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
-                state.isSidebarCollapsed = !state.isSidebarCollapsed;
-                sidebar.classList.toggle('collapsed', state.isSidebarCollapsed);
-                const toggleIcon = document.getElementById('sidebar-toggle-icon');
-                if (state.isSidebarCollapsed) {
-                    toggleIcon.setAttribute('data-lucide', 'panel-right-close');
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile) {
+                    sidebar.classList.toggle('open');
+                    sidebarBackdrop.classList.toggle('hidden');
                 } else {
-                    toggleIcon.setAttribute('data-lucide', 'panel-left-close');
+                    state.isSidebarCollapsed = !state.isSidebarCollapsed;
+                    updateSidebarView();
                 }
-                lucide.createIcons();
             });
+
+            // Закрытие мобильной панели при клике на подложку
+            sidebarBackdrop.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarBackdrop.classList.add('hidden');
+            });
+            
+            // Обновление вида при изменении размера окна
+            window.addEventListener('resize', updateSidebarView);
 
             document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
@@ -325,7 +414,7 @@
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                         if (state.activeSessionId === idToDelete) { state.activeSessionId = null; }
-                        render(); // Перерисовываем, чтобы обновить интерфейс
+                        render(); 
                     });
                 }
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
@@ -369,7 +458,8 @@
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders();
             state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
-            sidebar.classList.remove('collapsed'); // Возвращаем панель в исходное состояние
+            sidebar.classList.remove('collapsed', 'open');
+            mainContentWrapper.classList.remove('sidebar-collapsed');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');
         }
@@ -401,8 +491,9 @@
                         googleBtn.classList.remove('hidden');
                         userProfile.classList.add('hidden');
                         resetState();
-                        renderMainNav(); // Чтобы вкладки правильно отобразились
+                        renderMainNav(); 
                     }
+                    updateSidebarView(); // Первоначальная настройка вида панели
                 });
                 
                 setupGlobalEventListeners();
@@ -415,66 +506,6 @@
         
         init();
     </script>
-
-    <!-- ИЗМЕНЕНИЕ 5: HTML-структура возвращена к исходной с улучшениями -->
-    <aside id="sidebar" class="w-1/4 max-w-xs bg-bg-sidebar flex flex-col h-full border-r border-border-color sidebar flex-shrink-0">
-        <div class="p-4 border-b border-border-color flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool</h1>
-        </div>
-        <div class="p-2 flex-shrink-0">
-            <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
-                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новый чат
-            </button>
-             <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
-                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
-            </button>
-        </div>
-        <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
-            <!-- Список чатов/заметок -->
-        </nav>
-        
-        <div id="auth-section" class="p-3 border-t border-border-color text-center hidden">
-            <button id="google-signin-btn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
-                <svg class="w-4 h-4 mr-2" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-                Войти через Google
-            </button>
-            <div id="user-profile" class="hidden flex items-center text-left">
-                <img id="user-avatar" class="w-8 h-8 rounded-full mr-2 flex-shrink-0">
-                <div class="text-xs overflow-hidden">
-                    <p id="user-name" class="font-semibold text-text-primary truncate"></p>
-                    <a href="#" id="sign-out-btn" class="text-red-400 hover:text-red-500">Выйти</a>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-grow flex flex-col h-full">
-         <!-- ИЗМЕНЕНИЕ 6: Кнопка сворачивания и возвращенная навигация -->
-        <nav class="flex-shrink-0 border-b border-border-color flex items-center">
-            <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
-                <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
-            </button>
-            <div class="flex space-x-4 px-4">
-                <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
-                <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
-                <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
-            </div>
-        </nav>
-        <div id="main-content" class="flex-grow overflow-y-auto">
-            <!-- Содержимое вкладок -->
-        </div>
-    </main>
-    
-    <div id="confirm-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <p id="confirm-modal-text" class="text-text-primary mb-6 text-center">Вы уверены?</p>
-            <div class="flex justify-center space-x-4">
-                <button id="confirm-modal-no" class="px-6 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Нет</button>
-                <button id="confirm-modal-yes" class="px-6 py-2 rounded-md bg-danger hover:bg-danger-hover text-white transition-colors">Да</button>
-            </div>
-        </div>
-    </div>
 
 </body>
 </html>

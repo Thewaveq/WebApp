@@ -549,43 +549,66 @@
         function setupSettingsViewEventListeners() { 
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
         }
+
+        function updateLoadingIndicator() {
+            const indicator = document.getElementById('loading-indicator');
+            const form = document.getElementById('chat-form');
+            if (indicator) {
+                indicator.classList.toggle('hidden', !state.isLoading);
+                // Прокрутка вниз, чтобы увидеть индикатор, если он появился
+                if (state.isLoading) {
+                    indicator.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+            if (form) {
+                // Блокируем кнопку и поле ввода, пока ИИ "печатает"
+                form.querySelector('button').disabled = state.isLoading;
+                form.querySelector('textarea').disabled = state.isLoading;
+            }
+        }
         
         // Новая, улучшенная функция handleChatSubmit
-        async function handleChatSubmit(e) { 
-            e.preventDefault(); 
-            const input = document.getElementById('chat-input'); 
-            const message = input.value.trim(); 
-            if (!message || state.isLoading) return; 
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || state.isLoading) return;
         
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); 
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId); 
-            const provider = state.providers.find(p => p.id === activeSession.providerId); 
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
         
-            if (!provider) { 
-                showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках."); 
-                return; 
-            } 
-            
+            if (!provider) {
+                showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
+                return;
+            }
+        
             const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
         
             if (apiKeys.length === 0) {
-                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
-                 return;
+                showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
+                return;
             }
         
-            const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }]; 
-            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() }); 
-            
-            input.value = ''; 
-            input.style.height = 'auto'; 
-            state.isLoading = true; 
-            updateLoadingIndicator(); 
-            
+            const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }];
+            // Сначала обновляем чат сообщением пользователя
+            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
+        
+            input.value = '';
+            input.style.height = 'auto';
+        
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // 1. Устанавливаем состояние загрузки в true
+            state.isLoading = true;
+            // 2. Вызываем функцию, чтобы показать индикатор и заблокировать форму
+            updateLoadingIndicator();
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+        
             let assistantMessage = '';
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
-            
+        
             const apiMessagesPayload = [];
             if (selectedRole && selectedRole.content) {
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
@@ -596,9 +619,9 @@
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
                 const currentKey = apiKeys[keyIndex];
-                
+        
                 try {
-                    const fullUrl = new URL(provider.path, provider.baseUrl).href; 
+                    const fullUrl = new URL(provider.path, provider.baseUrl).href;
         
                     const proxyRequestBody = {
                         targetUrl: fullUrl,
@@ -609,33 +632,23 @@
                         }
                     };
         
-                    const response = await fetch('/api/proxy', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify(proxyRequestBody) 
-                    }); 
+                    const response = await fetch('/api/proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(proxyRequestBody)
+                    });
         
-                    // --- ПРАВИЛЬНАЯ ЛОГИКА ОБРАБОТКИ ОШИБОК ---
-                    // 1. СНАЧАЛА проверяем, что сам прокси ответил успешно.
                     if (!response.ok) {
-                        // Если статус 404, значит прокси-файл не найден Vercel.
-                        if (response.status === 404) {
-                            throw new Error(`Ошибка 404: Прокси-эндпоинт (/api/proxy) не найден. Проверьте правильность расположения файла /api/proxy.js в вашем проекте.`);
-                        }
-                        // Для других ошибок сервера (500 и т.д.) читаем ответ как текст.
                         const errorText = await response.text();
-                        throw new Error(`Ошибка от нашего прокси-сервера (статус ${response.status}): ${errorText}`);
+                        throw new Error(`Ошибка прокси-сервера (статус ${response.status}): ${errorText}`);
                     }
-                    
-                    // 2. ТОЛЬКО ЕСЛИ ответ успешный, пытаемся его прочитать как JSON.
-                    const data = await response.json(); 
         
-                    // 3. Проверяем, нет ли ошибки уже внутри самого JSON от внешнего API.
+                    const data = await response.json();
+        
                     if (data.error) {
-                        const errorMessage = data.error?.message || data.error || JSON.stringify(data);
-                        throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
+                        throw new Error(`Ошибка от внешнего API: ${data.error.message || JSON.stringify(data.error)}`);
                     }
-                    
+        
                     assistantMessage = data.choices[0].message.content;
                     isSuccess = true;
         
@@ -644,23 +657,26 @@
                     await updateDoc(providerRef, { currentKeyIndex: nextKeyIndex });
         
                     break;
-                
+        
                 } catch (error) {
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
                     lastError = error.message;
                 }
             }
-            
+        
             if (isSuccess) {
-                 await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
+                await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: assistantMessage }] });
             } else {
-                 await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }] });
+                await updateDoc(sessionRef, { messages: [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ ни с одним из ключей. Последняя ошибка: \n\`\`\`\n${lastError}\n\`\`\`` }] });
             }
         
-            state.isLoading = false; 
-            updateLoadingIndicator(); 
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // 3. Устанавливаем состояние загрузки в false
+            state.isLoading = false;
+            // 4. Вызываем функцию снова, чтобы скрыть индикатор и разблокировать форму
+            updateLoadingIndicator();
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
         }
-
         function updateLoadingIndicator() { const indicator = document.getElementById('loading-indicator'); const form = document.getElementById('chat-form'); if (indicator) { indicator.classList.toggle('hidden', !state.isLoading); if (!state.isLoading) { const messagesContainer = document.getElementById('chat-messages'); if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; } } if (form) { form.querySelector('button').disabled = state.isLoading; form.querySelector('textarea').disabled = state.isLoading; } }
         
         // ИЗМЕНЕНИЕ: Функция теперь создает "пустого" провайдера и открывает модальное окно для его редактирования.

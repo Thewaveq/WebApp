@@ -542,15 +542,16 @@
                 let htmlContent; // <-- Сюда будем класть готовый HTML
                 
                 if (isUser) {
-                    // ДЛЯ ПОЛЬЗОВАТЕЛЯ: Оставляем как есть. Экранируем текст и используем CSS для переносов.
-                    // Это безопасно и правильно.
+                    // Код для пользователя остается без изменений
                     const escapedContent = safeContent.replace(/</g, "<").replace(/>/g, ">");
                     htmlContent = `<div class="user-message-content">${escapedContent}</div>`;
                 } else {
-                    // ДЛЯ АССИСТЕНТА: ПРОСТО ИСПОЛЬЗУЕМ КОНВЕРТЕР!
-                    // Ничего не экранируем. Отдаем ему сырой текст от модели.
-                    // Конвертер сам превратит *жирный* в <b>жирный</b> и \n в <br>.
-                    htmlContent = markdownConverter.makeHtml(safeContent);
+                    // ДЛЯ АССИСТЕНТА:
+                    // ШАГ 1: Сначала обрабатываем текст для сохранения отступов
+                    const preprocessedContent = preprocessTextForIndents(safeContent);
+                    
+                    // ШАГ 2: Затем отдаем обработанный текст в Markdown конвертер
+                    htmlContent = markdownConverter.makeHtml(preprocessedContent);
                 }
                         
                 // --- КЛАССЫ ДЛЯ СТИЛИЗАЦИИ ---
@@ -960,7 +961,42 @@
         function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
-    
+        function preprocessTextForIndents(text) {
+            if (!text) return '';
+        
+            const lines = text.split('\n');
+            let inCodeBlock = false; // Флаг, находимся ли мы внутри блока ```
+        
+            const processedLines = lines.map(line => {
+                // Проверяем, не начинается или не заканчивается ли блок кода на этой строке
+                if (line.trim().startsWith('```')) {
+                    inCodeBlock = !inCodeCodeBlock; // Инвертируем флаг
+                    return line; // Возвращаем строку с ``` как есть
+                }
+        
+                // Если мы внутри блока кода, ничего не меняем
+                if (inCodeBlock) {
+                    return line;
+                }
+        
+                // --- ВОТ ГЛАВНАЯ МАГИЯ ---
+                // Если мы НЕ в блоке кода, заменяем начальные пробелы на  
+                let leadingSpaces = 0;
+                while (leadingSpaces < line.length && line[leadingSpaces] === ' ') {
+                    leadingSpaces++;
+                }
+        
+                if (leadingSpaces > 0) {
+                    // Создаем строку из неразрывных пробелов и добавляем остаток строки
+                    return ' '.repeat(leadingSpaces) + line.substring(leadingSpaces);
+                }
+        
+                return line; // Если отступов нет, возвращаем как есть
+            });
+        
+            return processedLines.join('\n');
+        }
+        
         function updateSidebarView() {
             const isMobile = window.innerWidth < 1024;
             const toggleIcon = document.getElementById('sidebar-toggle-icon');

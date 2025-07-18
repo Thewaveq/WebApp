@@ -915,7 +915,7 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', isHeaderCollapsed: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

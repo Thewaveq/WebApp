@@ -450,13 +450,13 @@
 
                 const messageWrapper = document.createElement('div');
                 
-                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Динамическое добавление классов ---
-                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl';
-                const layoutClasses = isUser 
-                    ? 'flex-row-reverse space-x-reverse space-x-4 user-message-bg'  // Для пользователя: иконка справа
-                    : 'space-x-4 assistant-message-bg';                           // Для AI: иконка слева
+                // Определяем классы в зависимости от роли
+                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl space-x-4';
+                const roleSpecificClasses = isUser 
+                    ? 'flex-row-reverse space-x-reverse user-message-bg'  // Для пользователя: переворачиваем порядок и добавляем фон
+                    : 'assistant-message-bg';                             // Для ИИ: просто добавляем фон
 
-                messageWrapper.className = `${baseClasses} ${layoutClasses}`;
+                messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
                 
                 const iconDiv = document.createElement('div');
                 iconDiv.className = `w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
@@ -474,18 +474,22 @@
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
-                deleteButton.className = 'delete-message-btn absolute top-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex';
+                // Кнопка удаления теперь располагается относительно всего облачка
+                const deleteBtnPosition = isUser ? 'left-2' : 'right-2';
+                deleteButton.className = `delete-message-btn absolute top-1 ${deleteBtnPosition} p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                // Порядок добавления важен для flex-row-reverse
-                messageWrapper.appendChild(contentDiv);
+                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Стандартный порядок добавления в DOM ---
+                // flex-row-reverse сделает всю магию за нас
                 messageWrapper.appendChild(iconDiv);
-                messageWrapper.appendChild(deleteButton); // Кнопка удаления с абсолютным позиционированием
+                messageWrapper.appendChild(contentDiv);
+                messageWrapper.appendChild(deleteButton);
                 
                 messagesContainer.appendChild(messageWrapper);
             });
             
+            // ... остальная часть функции остается без изменений ...
             messagesContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;

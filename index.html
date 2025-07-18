@@ -106,19 +106,6 @@
                 opacity: 0.8;
             }
 
-            /* --- Стили для сворачиваемой панели чата --- */
-            #chat-header-content {
-                max-height: 200px;
-                overflow: hidden;
-                transition: max-height 0.35s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
-            }
-            #chat-header-content.collapsed {
-                max-height: 0;
-                opacity: 0;
-                padding-top: 0;
-                padding-bottom: 0;
-            }
-
             /* --- НОВЫЙ СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
             .user-message-bg {
                 background-color: var(--bg-element);
@@ -304,7 +291,6 @@
             isLoading: false,
             isAuthReady: false,
             isSidebarCollapsed: false,
-            isChatHeaderCollapsed: false,
         };
         
         let confirmModalCallback = null;
@@ -428,27 +414,17 @@
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
     
-            const headerClass = state.isChatHeaderCollapsed ? 'collapsed' : '';
-            const headerIcon = state.isChatHeaderCollapsed ? 'chevron-down' : 'chevron-up';
-
             return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 border-b border-border-color">
-                    <div id="chat-header-content" class="p-3 flex flex-col sm:flex-row items-center justify-between gap-3 ${headerClass}">
-                        <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
-                        <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                            <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                               <option value="">Без роли</option>
-                               ${roleOptions}
-                            </select>
-                            <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                               ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="flex justify-center">
-                        <button id="toggle-chat-header-btn" class="w-full py-1 flex justify-center items-center text-text-secondary hover:text-white transition-colors" title="Свернуть/развернуть панель">
-                            <i data-lucide="${headerIcon}" class="w-5 h-5"></i>
-                        </button>
+                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
+                    <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                        <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                           <option value="">Без роли</option>
+                           ${roleOptions}
+                        </select>
+                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                           ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                        </select>
                     </div>
                 </div>
                 <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
@@ -623,21 +599,8 @@
             const titleInput = document.getElementById('chat-title-input'); 
             const providerSelect = document.getElementById('provider-select'); 
             const roleSelect = document.getElementById('role-select'); 
+            const messagesContainer = document.getElementById('chat-messages'); 
             
-            // --- Код для управления сворачиваемой панелью (ИЗМЕНЕНО) ---
-            const toggleBtn = document.getElementById('toggle-chat-header-btn');
-            const headerContent = document.getElementById('chat-header-content');
-            
-            toggleBtn?.addEventListener('click', () => {
-                headerContent.classList.toggle('collapsed');
-                
-                state.isChatHeaderCollapsed = headerContent.classList.contains('collapsed');
-                
-                const iconName = state.isChatHeaderCollapsed ? 'chevron-down' : 'chevron-up';
-                toggleBtn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
-                lucide.createIcons();
-            });
-
             form?.addEventListener('submit', handleChatSubmit); 
             input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); 
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
@@ -648,6 +611,22 @@
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { roleId: e.target.value });
             });            
+        }
+        
+        function setupNotepadViewEventListeners() {
+            const titleInput = document.getElementById('note-title-input');
+            const contentTextarea = document.getElementById('note-content-textarea');
+            const saveNote = () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
+                    updatedAt: serverTimestamp()
+                });
+            };
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupRolesViewEventListeners() {
@@ -922,7 +901,7 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', isHeaderCollapsed: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

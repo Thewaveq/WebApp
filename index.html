@@ -427,10 +427,13 @@
         function getChatViewHTML(activeSession) { 
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-    
+            const headerClass = state.isChatHeaderCollapsed ? 'collapsed' : '';
+            const headerIcon = state.isChatHeaderCollapsed ? 'chevron-down' : 'chevron-up';
+
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 border-b border-border-color">
-                    <div id="chat-header-content" class="p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    {/* Применяем класс, определенный выше */}
+                    <div id="chat-header-content" class="p-3 flex flex-col sm:flex-row items-center justify-between gap-3 ${headerClass}">
                         <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
                         <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
                             <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
@@ -444,7 +447,8 @@
                     </div>
                     <div class="flex justify-center">
                         <button id="toggle-chat-header-btn" class="w-full py-1 flex justify-center items-center text-text-secondary hover:text-white transition-colors" title="Свернуть/развернуть панель">
-                            <i data-lucide="chevron-up" class="w-5 h-5"></i>
+                            {/* Применяем иконку, определенную выше */}
+                            <i data-lucide="${headerIcon}" class="w-5 h-5"></i>
                         </button>
                     </div>
                 </div>
@@ -621,13 +625,14 @@
             const providerSelect = document.getElementById('provider-select'); 
             const roleSelect = document.getElementById('role-select'); 
             
-            // --- Код для управления сворачиваемой панелью с АНИМАЦИЕЙ ---
+            // --- Код для управления сворачиваемой панелью (ИЗМЕНЕНО) ---
             const toggleBtn = document.getElementById('toggle-chat-header-btn');
             const headerContent = document.getElementById('chat-header-content');
             
             toggleBtn?.addEventListener('click', () => {
                 headerContent.classList.toggle('collapsed');
-                const iconName = headerContent.classList.contains('collapsed') ? 'chevron-down' : 'chevron-up';
+                state.isChatHeaderCollapsed = headerContent.classList.contains('collapsed');
+                const iconName = state.isChatHeaderCollapsed ? 'chevron-down' : 'chevron-up';
                 toggleBtn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
                 lucide.createIcons();
             });

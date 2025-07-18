@@ -145,6 +145,21 @@
                     overflow: hidden;
                 }
             }
+            /* --- НОВЫЕ СТИЛИ ДЛЯ СВОРАЧИВАЕМОЙ ПАНЕЛИ --- */
+            .collapsible-panel {
+                display: grid;
+                grid-template-rows: 0fr;
+                transition: grid-template-rows 0.3s ease-out;
+            }
+            .collapsible-panel.expanded {
+                grid-template-rows: 1fr;
+            }
+            .collapsible-panel > div {
+                overflow: hidden;
+            }
+            #chat-settings-icon.expanded {
+                transform: rotate(180deg);
+            }
     </style>
 </head>
 <body class="h-dvh w-full flex">
@@ -415,16 +430,25 @@
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
     
             return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-3 border-b border-border-color flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
-                    <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                        <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                           <option value="">Без роли</option>
-                           ${roleOptions}
-                        </select>
-                        <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                           ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
-                        </select>
+                <div class="flex-shrink-0 p-3 border-b border-border-color">
+                    <div class="flex items-center justify-between gap-3">
+                        <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название чата">
+                        <button id="chat-settings-toggle" class="p-1 rounded-full hover:bg-bg-element transition-colors flex-shrink-0">
+                            <i data-lucide="chevron-down" id="chat-settings-icon" class="w-5 h-5 transition-transform"></i>
+                        </button>
+                    </div>
+                    <div id="chat-settings-collapsible" class="collapsible-panel">
+                        <div>
+                            <div class="flex flex-col sm:flex-row items-center gap-2 w-full pt-3">
+                                <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                                <option value="">Без роли</option>
+                                ${roleOptions}
+                                </select>
+                                <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                                ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
@@ -601,6 +625,15 @@
             const roleSelect = document.getElementById('role-select'); 
             const messagesContainer = document.getElementById('chat-messages'); 
             
+            const settingsToggle = document.getElementById('chat-settings-toggle');
+            const settingsPanel = document.getElementById('chat-settings-collapsible');
+            const settingsIcon = document.getElementById('chat-settings-icon');
+
+            settingsToggle?.addEventListener('click', () => {
+                settingsPanel.classList.toggle('expanded');
+                settingsIcon.classList.toggle('expanded');
+            });
+
             form?.addEventListener('submit', handleChatSubmit); 
             input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); 
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 

@@ -450,11 +450,10 @@
 
                 const messageWrapper = document.createElement('div');
                 
-                // Определяем классы в зависимости от роли
                 const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl space-x-4';
                 const roleSpecificClasses = isUser 
-                    ? 'flex-row-reverse space-x-reverse user-message-bg'  // Для пользователя: переворачиваем порядок и добавляем фон
-                    : 'assistant-message-bg';                             // Для ИИ: просто добавляем фон
+                    ? 'flex-row-reverse space-x-reverse user-message-bg'
+                    : 'assistant-message-bg';
 
                 messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
                 
@@ -474,14 +473,14 @@
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
-                // Кнопка удаления теперь располагается относительно всего облачка
-                const deleteBtnPosition = isUser ? 'left-2' : 'right-2';
-                deleteButton.className = `delete-message-btn absolute top-1 ${deleteBtnPosition} p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+                
+                // --- ИЗМЕНЕНА СТРОКА НИЖЕ ---
+                // Устанавливаем абсолютное позиционирование снизу справа для ВСЕХ сообщений.
+                deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+                
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Стандартный порядок добавления в DOM ---
-                // flex-row-reverse сделает всю магию за нас
                 messageWrapper.appendChild(iconDiv);
                 messageWrapper.appendChild(contentDiv);
                 messageWrapper.appendChild(deleteButton);
@@ -489,7 +488,7 @@
                 messagesContainer.appendChild(messageWrapper);
             });
             
-            // ... остальная часть функции остается без изменений ...
+            // ... остальная часть функции без изменений
             messagesContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;

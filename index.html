@@ -108,13 +108,12 @@
 
             /* --- НОВЫЙ СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
             .user-message-bg {
-                background-color: var(--bg-element); /* Более темный фон для пользователя */
+                background-color: var(--bg-element);
             }
             .assistant-message-bg {
-                background-color: var(--bg-sidebar); /* Слегка другой фон для AI */
+                background-color: var(--bg-sidebar);
             }
 
-            /* --- Остальные стили без изменений --- */
             .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
             .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
             
@@ -150,7 +149,6 @@
 </head>
 <body class="h-dvh w-full flex">
 
-    <!-- Остальной HTML без изменений -->
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
     <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
         <div class="p-4 border-b border-border-color flex justify-between items-center">
@@ -434,7 +432,6 @@
             </div>`; 
         }
         
-        // --- ИЗМЕНЕННАЯ ФУНКЦИЯ ДЛЯ ОБРАБОТКИ <think> ТЕГОВ ---
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer || !session || !session.messages) {
@@ -450,7 +447,7 @@
 
                 const messageWrapper = document.createElement('div');
                 
-                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl space-x-4';
+                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl space-x-3 sm:space-x-4';
                 const roleSpecificClasses = isUser 
                     ? 'flex-row-reverse space-x-reverse user-message-bg'
                     : 'assistant-message-bg';
@@ -458,13 +455,12 @@
                 messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
                 
                 const iconDiv = document.createElement('div');
-                iconDiv.className = `w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
-                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
+                iconDiv.className = `w-8 h-8 sm:w-10 sm:h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 sm:w-6 sm:h-6 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
                 
-                // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-                contentDiv.className = 'flex-grow prose max-w-full min-w-0'; // Добавлен класс min-w-0
+                contentDiv.className = 'flex-grow prose max-w-full min-w-0';
                 
                 let processedContent = (msg.content || '').replace(
                     /<think>([\s\S]*?)<\/think>/g,
@@ -488,7 +484,6 @@
                 messagesContainer.appendChild(messageWrapper);
             });
             
-            // ... остальная часть функции без изменений
             messagesContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
@@ -598,7 +593,6 @@
             lucide.createIcons(); 
         }
         
-        // --- Весь остальной JavaScript остается без изменений ---
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 

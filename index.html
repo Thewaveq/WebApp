@@ -462,7 +462,9 @@
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
-                contentDiv.className = 'flex-grow prose max-w-full'; 
+                
+                // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+                contentDiv.className = 'flex-grow prose max-w-full min-w-0'; // Добавлен класс min-w-0
                 
                 let processedContent = (msg.content || '').replace(
                     /<think>([\s\S]*?)<\/think>/g,
@@ -474,8 +476,6 @@
                 
                 const deleteButton = document.createElement('button');
                 
-                // --- ИЗМЕНЕНА СТРОКА НИЖЕ ---
-                // Устанавливаем абсолютное позиционирование снизу справа для ВСЕХ сообщений.
                 deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
                 
                 deleteButton.dataset.messageIndex = index;

@@ -469,16 +469,17 @@
                 const isUser = msg.role === 'user';
                 const icon = isUser ? 'user' : 'sparkles';
 
-                const messageLineWrapper = document.createElement('div');
-                messageLineWrapper.className = `flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`;
-
-                const bubble = document.createElement('div');
-                const bubbleBaseClasses = 'group relative p-3 rounded-xl flex flex-col max-w-[85%] sm:max-w-[75%]';
-                const bubbleRoleClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
-                bubble.className = `${bubbleBaseClasses} ${bubbleRoleClasses}`;
-
+                const messageWrapper = document.createElement('div');
+                const baseClasses = 'message-container group relative flex mb-6 p-4 rounded-xl';
+                const roleSpecificClasses = isUser ? 'user-message-bg justify-end': 'assistant-message-bg justify-start';
+                messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
+                
+                const contentBlock = document.createElement('div');
+                contentBlock.className = 'flex flex-col w-auto max-w-[85%] sm:max-w-[75%]'
+                
                 const iconDiv = document.createElement('div');
-                iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+                
+                iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600 self-end' : 'bg-accent self-start'} flex-shrink-0 flex items-center justify-center`;
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
@@ -493,17 +494,18 @@
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
-                deleteButton.className = `delete-message-btn absolute top-1 right-1 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+                deleteButton.className = `delete-message-btn absolute top-1 ${isUser ? 'left-1' : 'right-1'} p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                // 6. Собираем все части вместе
-                bubble.appendChild(iconDiv);
-                bubble.appendChild(contentDiv);
-                bubble.appendChild(deleteButton);
+                // Собираем всё вместе:
+                contentBlock.appendChild(iconDiv);
+                contentBlock.appendChild(contentDiv);
                 
-                messageLineWrapper.appendChild(bubble);
-                messagesContainer.appendChild(messageLineWrapper);
+                messageWrapper.appendChild(contentBlock);
+                messageWrapper.appendChild(deleteButton);
+
+                messagesContainer.appendChild(messageWrapper);
             });
             
             messagesContainer.querySelectorAll('pre code').forEach((block) => {

@@ -474,9 +474,20 @@
                 const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
                 messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
                 
+                const headerDiv = document.createElement('div');
+                headerDiv.className = `flex items-center space-x-3`;
+
                 const iconDiv = document.createElement('div');
                 iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i>`;
+                headerDiv.appendChild(iconDiv);
+
+                if (!isUser && msg.modelName) {
+                    const modelNameSpan = document.createElement('span');
+                    modelNameSpan.className = 'text-xs text-text-secondary';
+                    modelNameSpan.textContent = msg.modelName;
+                    headerDiv.appendChild(modelNameSpan);
+                }
                 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
@@ -494,7 +505,7 @@
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                messageWrapper.appendChild(iconDiv);
+                messageWrapper.appendChild(headerDiv);
                 messageWrapper.appendChild(contentDiv);
                 messageWrapper.appendChild(deleteButton);
                 
@@ -744,8 +755,8 @@
             }
             
             const finalMessages = isSuccess
-                ? [...newMessages, { role: 'assistant', content: assistantMessage }]
-                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}` }];
+                ? [...newMessages, { role: 'assistant', content: assistantMessage, modelName: provider.model }]
+                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: provider.model }];
         
             state.isLoading = false;
             

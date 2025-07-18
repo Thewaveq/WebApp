@@ -63,7 +63,6 @@
             .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
             .prose a { color: var(--accent-hover); }
     
-            /* --- ИСПРАВЛЕННЫЙ БЛОК ДЛЯ КОДА --- */
             .prose pre { 
                 background-color: #282c34; 
                 padding: 1rem; 
@@ -71,8 +70,8 @@
                 position: relative; 
                 margin-top: 1.25em; 
                 margin-bottom: 1.25em;
-                white-space: pre;      /* Запрещает перенос строк внутри кода */
-                overflow-x: auto;    /* Добавляет горизонтальный скролл, если код слишком широкий */
+                white-space: pre;
+                overflow-x: auto;
             }
             
             .prose code { background-color: var(--bg-element); padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; }
@@ -82,6 +81,31 @@
             .prose pre:hover .copy-code-btn { opacity: 1; }
             .copy-code-btn:hover { background-color: var(--bg-input); color: var(--text-primary); }
             
+            /* --- НОВЫЕ СТИЛИ ДЛЯ БЛОКА <think> --- */
+            .prose details {
+                background-color: var(--bg-element);
+                border: 1px solid var(--border-color);
+                border-radius: 0.5rem;
+                margin: 1.25em 0;
+                padding: 0.5rem 1rem;
+            }
+            .prose details summary {
+                cursor: pointer;
+                font-weight: 600;
+                color: var(--text-secondary);
+                outline: none;
+                transition: color 0.2s;
+            }
+            .prose details summary:hover {
+                color: var(--text-primary);
+            }
+            .prose details > div {
+                padding-top: 0.75rem;
+                margin-top: 0.5rem;
+                border-top: 1px solid var(--border-color);
+                opacity: 0.8;
+            }
+
             /* --- Остальные стили без изменений --- */
             .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
             .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -336,7 +360,6 @@
                 case 'chat':
                     if (activeSession) {
                         mainContent.innerHTML = getChatViewHTML(activeSession);
-                        // ИСПРАВЛЕНИЕ ЗДЕСЬ: Устанавливаем ID первого провайдера, если он не задан
                         if (!activeSession.providerId && state.providers.length > 0) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, { providerId: state.providers[0].id });
@@ -403,7 +426,7 @@
             </div>`; 
         }
         
-        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
+        // --- ИЗМЕНЕННАЯ ФУНКЦИЯ ДЛЯ ОБРАБОТКИ <think> ТЕГОВ ---
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer || !session || !session.messages) {
@@ -411,27 +434,33 @@
                 return;
             }
             
-            messagesContainer.innerHTML = ''; // Очищаем контейнер
+            messagesContainer.innerHTML = ''; 
 
             session.messages.forEach((msg, index) => {
                 const icon = msg.role === 'user' ? 'user' : 'sparkles';
                 
                 const messageWrapper = document.createElement('div');
-                // --- ИЗМЕНЕНИЕ 1: Адаптивный flex-контейнер ---
-                // По умолчанию - колонка (мобильные). На экранах sm (640px) и больше - строка.
-                messageWrapper.className = 'message-container group relative flex flex-col sm:flex-row sm:items-start sm:space-x-4 mb-6 pr-8';
+                messageWrapper.className = 'message-container group relative flex items-start space-x-4 mb-6 pr-8';
                 
                 const iconDiv = document.createElement('div');
-                // --- ИЗМЕНЕНИЕ 2: Адаптивный отступ для иконки ---
-                // Добавляем отступ снизу для мобильных, убираем его (sm:mb-0) для десктопа.
-                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center mb-2 sm:mb-0`;
+                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'flex-grow prose max-w-full'; 
                 
-                const rawHtml = marked.parse(msg.content || '');
-                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml);
+                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
+                // 1. Заменяем <think>...</think> на <details>...</details>
+                let processedContent = (msg.content || '').replace(
+                    /<think>([\s\S]*?)<\/think>/g,
+                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                );
+                
+                // 2. Преобразуем Markdown в HTML
+                const rawHtml = marked.parse(processedContent);
+
+                // 3. Очищаем HTML, разрешая теги <details> и <summary>
+                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
                 deleteButton.className = 'delete-message-btn absolute top-1 right-0 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex';
@@ -462,7 +491,6 @@
                     lucide.createIcons();
                 });
                 preElement.appendChild(copyBtn);
-
                 hljs.highlightElement(block);
             });
 
@@ -668,7 +696,6 @@
                         throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
 
-                    // --- ВОТ ИСПРАВЛЕННАЯ СТРОКА ---
                     assistantMessage = data.choices[0].message.content;
                     
                     isSuccess = true;
@@ -689,7 +716,6 @@
             
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
-            // Эта строка теперь вызовется в любом случае и обновит чат
             render(); 
         }
         
@@ -866,7 +892,6 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    // ИСПРАВЛЕНИЕ ЗДЕСЬ: Правильно берем ID первого провайдера
                     ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 

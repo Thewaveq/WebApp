@@ -106,6 +106,19 @@
                 opacity: 0.8;
             }
 
+            /* --- Стили для сворачиваемой панели чата --- */
+            #chat-header-content {
+                max-height: 200px;
+                overflow: hidden;
+                transition: max-height 0.35s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+            }
+            #chat-header-content.collapsed {
+                max-height: 0;
+                opacity: 0;
+                padding-top: 0;
+                padding-bottom: 0;
+            }
+
             /* --- НОВЫЙ СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
             .user-message-bg {
                 background-color: var(--bg-element);
@@ -607,13 +620,13 @@
             const providerSelect = document.getElementById('provider-select'); 
             const roleSelect = document.getElementById('role-select'); 
             
-            // --- Код для управления сворачиваемой панелью (исправлено) ---
+            // --- Код для управления сворачиваемой панелью с АНИМАЦИЕЙ ---
             const toggleBtn = document.getElementById('toggle-chat-header-btn');
             const headerContent = document.getElementById('chat-header-content');
             
             toggleBtn?.addEventListener('click', () => {
-                headerContent.classList.toggle('hidden');
-                const iconName = headerContent.classList.contains('hidden') ? 'chevron-down' : 'chevron-up';
+                headerContent.classList.toggle('collapsed');
+                const iconName = headerContent.classList.contains('collapsed') ? 'chevron-down' : 'chevron-up';
                 toggleBtn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
                 lucide.createIcons();
             });
@@ -628,22 +641,6 @@
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { roleId: e.target.value });
             });            
-        }
-        
-        function setupNotepadViewEventListeners() {
-            const titleInput = document.getElementById('note-title-input');
-            const contentTextarea = document.getElementById('note-content-textarea');
-            const saveNote = () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: contentTextarea.value,
-                    updatedAt: serverTimestamp()
-                });
-            };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupRolesViewEventListeners() {

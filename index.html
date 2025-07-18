@@ -469,19 +469,20 @@
                 const isUser = msg.role === 'user';
                 const icon = isUser ? 'user' : 'sparkles';
 
-                const messageWrapper = document.createElement('div');
-                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl space-x-2 sm:space-x-3';
-                const roleSpecificClasses = isUser ? 'flex-row-reverse space-x-reverse user-message-bg' : 'assistant-message-bg';
+                const messageLineWrapper = document.createElement('div');
+                messageLineWrapper.className = `flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`;
 
-                messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
-                
+                const bubble = document.createElement('div');
+                const bubbleBaseClasses = 'group relative p-3 rounded-xl flex flex-col max-w-[85%] sm:max-w-[75%]';
+                const bubbleRoleClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
+                bubble.className = `${bubbleBaseClasses} ${bubbleRoleClasses}`;
+
                 const iconDiv = document.createElement('div');
-                iconDiv.className = `w-7 h-7 sm:w-8 sm:h-8 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center mt-1`;
-                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 sm:w-5 sm:h-5 text-white"></i>`;
+                iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
-                
-                contentDiv.className = 'flex-grow prose max-w-full min-w-0';
+                contentDiv.className = 'flex-grow prose max-w-full min-w-0 mt-2 w-full';
                 
                 let processedContent = (msg.content || '').replace(
                     /<think>([\s\S]*?)<\/think>/g,
@@ -492,17 +493,17 @@
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
-                
-                deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
-                
+                deleteButton.className = `delete-message-btn absolute top-1 right-1 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                messageWrapper.appendChild(iconDiv);
-                messageWrapper.appendChild(contentDiv);
-                messageWrapper.appendChild(deleteButton);
+                // 6. Собираем все части вместе
+                bubble.appendChild(iconDiv);
+                bubble.appendChild(contentDiv);
+                bubble.appendChild(deleteButton);
                 
-                messagesContainer.appendChild(messageWrapper);
+                messageLineWrapper.appendChild(bubble);
+                messagesContainer.appendChild(messageLineWrapper);
             });
             
             messagesContainer.querySelectorAll('pre code').forEach((block) => {

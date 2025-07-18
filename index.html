@@ -607,18 +607,14 @@
             const providerSelect = document.getElementById('provider-select'); 
             const roleSelect = document.getElementById('role-select'); 
             
-            // --- Код для управления сворачиваемой панелью ---
+            // --- Код для управления сворачиваемой панелью (исправлено) ---
             const toggleBtn = document.getElementById('toggle-chat-header-btn');
             const headerContent = document.getElementById('chat-header-content');
             
             toggleBtn?.addEventListener('click', () => {
-                const icon = toggleBtn.querySelector('i');
                 headerContent.classList.toggle('hidden');
-                if (headerContent.classList.contains('hidden')) {
-                    icon.setAttribute('data-lucide', 'chevron-down');
-                } else {
-                    icon.setAttribute('data-lucide', 'chevron-up');
-                }
+                const iconName = headerContent.classList.contains('hidden') ? 'chevron-down' : 'chevron-up';
+                toggleBtn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
                 lucide.createIcons();
             });
 

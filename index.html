@@ -411,19 +411,12 @@
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         
         function getChatViewHTML(activeSession) { 
-            const isCollapsed = activeSession.isHeaderCollapsed || false;
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-        
+    
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 border-b border-border-color">
-                    <div id="chat-header-toggle-bar" class="flex justify-between items-center p-2 cursor-pointer hover:bg-bg-element transition-colors">
-                        <span class="font-semibold truncate pl-1">${activeSession.title || 'Название чата'}</span>
-                        <button id="toggle-chat-header-btn" class="p-1 rounded-md hover:bg-bg-input">
-                            <i data-lucide="${isCollapsed ? 'chevron-down' : 'chevron-up'}" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                    <div id="collapsible-chat-header" class="${isCollapsed ? 'hidden' : ''} p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div id="chat-header-content" class="p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
                         <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full sm:flex-1" value="${activeSession.title || ''}" placeholder="Название чата">
                         <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
                             <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
@@ -434,6 +427,11 @@
                                ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
                             </select>
                         </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <button id="toggle-chat-header-btn" class="w-full py-1 flex justify-center items-center text-text-secondary hover:text-white transition-colors" title="Свернуть/развернуть панель">
+                            <i data-lucide="chevron-up" class="w-5 h-5"></i>
+                        </button>
                     </div>
                 </div>
                 <div id="chat-messages" class="flex-grow p-4 overflow-y-auto"></div>
@@ -609,35 +607,30 @@
             const providerSelect = document.getElementById('provider-select'); 
             const roleSelect = document.getElementById('role-select'); 
             const messagesContainer = document.getElementById('chat-messages'); 
-            const toggleBar = document.getElementById('chat-header-toggle-bar');
+            const toggleBtn = document.getElementById('toggle-chat-header-btn');
+            const headerContent = document.getElementById('chat-header-content');
             
+            toggleBtn?.addEventListener('click', () => {
+                const icon = toggleBtn.querySelector('i');
+                headerContent.classList.toggle('hidden');
+                if (headerContent.classList.contains('hidden')) {
+                    icon.setAttribute('data-lucide', 'chevron-down');
+                } else {
+                    icon.setAttribute('data-lucide', 'chevron-up');
+                }
+                lucide.createIcons();
+            });
+
             form?.addEventListener('submit', handleChatSubmit); 
             input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } }); 
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
-            
-            titleInput?.addEventListener('change', (e) => { 
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); 
-                updateDoc(sessionRef, { title: e.target.value }); 
-            }); 
-            
-            providerSelect?.addEventListener('change', (e) => { 
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); 
-                updateDoc(sessionRef, { providerId: e.target.value }); 
-            }); 
+            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
+            providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
             
             roleSelect?.addEventListener('change', (e) => {
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { roleId: e.target.value });
-            });
-            
-            toggleBar?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                if (!activeSession) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                const isCurrentlyCollapsed = activeSession.isHeaderCollapsed || false;
-                updateDoc(sessionRef, { isHeaderCollapsed: !isCurrentlyCollapsed });
-            });
+            });            
         }
         
         function setupNotepadViewEventListeners() {
@@ -928,7 +921,7 @@
     
             const createNewItem = async (type) => {
                  const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', isHeaderCollapsed: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
                     : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

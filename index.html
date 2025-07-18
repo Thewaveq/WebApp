@@ -160,6 +160,11 @@
             #chat-settings-icon.expanded {
                 transform: rotate(180deg);
             }
+            /* --- СТИЛЬ ДЛЯ ЗАПОЛНИТЕЛЯ СООБЩЕНИЯ --- */
+            .message-placeholder {
+                min-height: 70px; /* Примерная минимальная высота сообщения */
+                width: 100%;
+            }
     </style>
 </head>
 <body class="h-dvh w-full flex">
@@ -296,6 +301,7 @@
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
+        let chatObserver = null; // <<< НОВОЕ: Переменная для IntersectionObserver
     
         let state = {
             activeTab: 'chat',
@@ -374,6 +380,12 @@
         }
     
         function renderMainContent() {
+            // <<< ИЗМЕНЕНО: Отключаем старый наблюдатель при смене контента
+            if (chatObserver) {
+                chatObserver.disconnect();
+                chatObserver = null;
+            }
+
             mainContent.innerHTML = '';
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
@@ -385,7 +397,7 @@
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, { providerId: state.providers[0].id });
                         }
-                        renderChatMessages(activeSession);
+                        renderChatMessages(activeSession); // Эта функция теперь работает по-новому
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
                     } else {
@@ -456,63 +468,52 @@
             </div>`; 
         }
         
-        function renderChatMessages(session) {
-            const messagesContainer = document.getElementById('chat-messages');
-            if (!messagesContainer || !session || !session.messages) {
-                if (messagesContainer) messagesContainer.innerHTML = '';
-                return;
+        // <<< НОВОЕ: Вспомогательная функция для создания одного элемента сообщения
+        function createMessageElement(msg, index) {
+            const isUser = msg.role === 'user';
+            const icon = isUser ? 'user' : 'sparkles';
+            
+            const messageWrapper = document.createElement('div');
+            const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
+            const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
+            messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = `flex items-center space-x-3`;
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+            iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i>`;
+            headerDiv.appendChild(iconDiv);
+
+            if (!isUser && msg.modelName) {
+                const modelNameSpan = document.createElement('span');
+                modelNameSpan.className = 'text-xs text-text-secondary';
+                modelNameSpan.textContent = msg.modelName;
+                headerDiv.appendChild(modelNameSpan);
             }
             
-            messagesContainer.innerHTML = ''; 
-
-            session.messages.forEach((msg, index) => {
-                const isUser = msg.role === 'user';
-                const icon = isUser ? 'user' : 'sparkles';
-
-                const messageWrapper = document.createElement('div');
-                const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
-                const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
-                messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
-                
-                const headerDiv = document.createElement('div');
-                headerDiv.className = `flex items-center space-x-3`;
-
-                const iconDiv = document.createElement('div');
-                iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
-                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i>`;
-                headerDiv.appendChild(iconDiv);
-
-                if (!isUser && msg.modelName) {
-                    const modelNameSpan = document.createElement('span');
-                    modelNameSpan.className = 'text-xs text-text-secondary';
-                    modelNameSpan.textContent = msg.modelName;
-                    headerDiv.appendChild(modelNameSpan);
-                }
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
-                
-                let processedContent = (msg.content || '').replace(
-                    /<think>([\s\S]*?)<\/think>/g,
-                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                );
-                
-                const rawHtml = marked.parse(processedContent);
-                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-                
-                const deleteButton = document.createElement('button');
-                deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
-                deleteButton.dataset.messageIndex = index;
-                deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
-
-                messageWrapper.appendChild(headerDiv);
-                messageWrapper.appendChild(contentDiv);
-                messageWrapper.appendChild(deleteButton);
-                
-                messagesContainer.appendChild(messageWrapper);
-            });
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
             
-            messagesContainer.querySelectorAll('pre code').forEach((block) => {
+            let processedContent = (msg.content || '').replace(
+                /<think>([\s\S]*?)<\/think>/g,
+                `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+            );
+            
+            const rawHtml = marked.parse(processedContent);
+            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+            deleteButton.dataset.messageIndex = index;
+            deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
+
+            messageWrapper.appendChild(headerDiv);
+            messageWrapper.appendChild(contentDiv);
+            messageWrapper.appendChild(deleteButton);
+
+            messageWrapper.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
                 
@@ -532,8 +533,66 @@
                 hljs.highlightElement(block);
             });
 
-            lucide.createIcons();
+            lucide.createIcons({
+                attrs: {
+                    'stroke-width': 1.5
+                },
+                nodes: [messageWrapper]
+            });
 
+            return messageWrapper;
+        }
+
+        // <<< ИЗМЕНЕНО: Функция теперь использует IntersectionObserver
+        function renderChatMessages(session) {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer || !session || !session.messages) {
+                if (messagesContainer) messagesContainer.innerHTML = '';
+                return;
+            }
+
+            // Отключаем предыдущий наблюдатель, если он был
+            if (chatObserver) {
+                chatObserver.disconnect();
+            }
+            
+            messagesContainer.innerHTML = ''; 
+
+            const observerCallback = (entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const placeholder = entry.target;
+                        const msg = JSON.parse(placeholder.dataset.message);
+                        const index = parseInt(placeholder.dataset.messageIndex, 10);
+                        
+                        // Создаем и вставляем реальный элемент сообщения
+                        const messageElement = createMessageElement(msg, index);
+                        placeholder.parentNode.replaceChild(messageElement, placeholder);
+                        
+                        // Прекращаем наблюдение за этим элементом
+                        observer.unobserve(messageElement);
+                    }
+                });
+            };
+
+            // Создаем наблюдатель. rootMargin '200px' означает, что мы начнем загрузку
+            // за 200px до того, как элемент появится на экране.
+            chatObserver = new IntersectionObserver(observerCallback, {
+                root: messagesContainer,
+                rootMargin: '200px 0px',
+            });
+            
+            // Вместо рендеринга создаем плейсхолдеры и наблюдаем за ними
+            session.messages.forEach((msg, index) => {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'message-placeholder';
+                placeholder.dataset.message = JSON.stringify(msg);
+                placeholder.dataset.messageIndex = String(index);
+                messagesContainer.appendChild(placeholder);
+                chatObserver.observe(placeholder);
+            });
+            
+            // Прокрутка к низу по-прежнему работает, т.к. плейсхолдеры занимают место
             if(!state.isLoading) {
                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
@@ -1079,6 +1138,10 @@
     
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
+            if (chatObserver) { // <<< НОВОЕ: Очистка наблюдателя при выходе
+                chatObserver.disconnect();
+                chatObserver = null;
+            }
             userId = null;
             state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');

@@ -108,7 +108,10 @@
 
             /* --- НОВЫЙ СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
             .user-message-bg {
-                background-color: var(--bg-element);
+                background-color: var(--bg-element); /* Более темный фон для пользователя */
+            }
+            .assistant-message-bg {
+                background-color: var(--bg-sidebar); /* Слегка другой фон для AI */
             }
 
             /* --- Остальные стили без изменений --- */
@@ -442,40 +445,43 @@
             messagesContainer.innerHTML = ''; 
 
             session.messages.forEach((msg, index) => {
-                const icon = msg.role === 'user' ? 'user' : 'sparkles';
-                
+                const isUser = msg.role === 'user';
+                const icon = isUser ? 'user' : 'sparkles';
+
                 const messageWrapper = document.createElement('div');
-                // --- ЭТА СТРОКА ИЗМЕНЕНА ---
-                messageWrapper.className = `message-container group relative flex items-start space-x-4 mb-6 p-3 rounded-lg ${msg.role === 'user' ? 'user-message-bg' : ''}`;
+                
+                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Динамическое добавление классов ---
+                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl';
+                const layoutClasses = isUser 
+                    ? 'flex-row-reverse space-x-reverse space-x-4 user-message-bg'  // Для пользователя: иконка справа
+                    : 'space-x-4 assistant-message-bg';                           // Для AI: иконка слева
+
+                messageWrapper.className = `${baseClasses} ${layoutClasses}`;
                 
                 const iconDiv = document.createElement('div');
-                iconDiv.className = `w-10 h-10 rounded-full ${msg.role === 'user' ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
+                iconDiv.className = `w-10 h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
                 iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'flex-grow prose max-w-full'; 
                 
-                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
-                // 1. Заменяем <think>...</think> на <details>...</details>
                 let processedContent = (msg.content || '').replace(
                     /<think>([\s\S]*?)<\/think>/g,
                     `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
                 );
                 
-                // 2. Преобразуем Markdown в HTML
                 const rawHtml = marked.parse(processedContent);
-
-                // 3. Очищаем HTML, разрешая теги <details> и <summary>
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
-                deleteButton.className = 'delete-message-btn absolute top-1 right-1 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex'; // Скорректирован отступ
+                deleteButton.className = 'delete-message-btn absolute top-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex';
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                messageWrapper.appendChild(iconDiv);
+                // Порядок добавления важен для flex-row-reverse
                 messageWrapper.appendChild(contentDiv);
-                messageWrapper.appendChild(deleteButton);
+                messageWrapper.appendChild(iconDiv);
+                messageWrapper.appendChild(deleteButton); // Кнопка удаления с абсолютным позиционированием
                 
                 messagesContainer.appendChild(messageWrapper);
             });

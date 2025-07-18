@@ -639,7 +639,12 @@
             });
 
             form?.addEventListener('submit', handleChatSubmit); 
-            input?.addEventListener('keydown', (e) => {if (e.key === 'Enter' && e.ctrlKey) {e.preventDefault(); form.requestSubmit();}
+            input?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    form.requestSubmit();
+                }
+            });
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
             providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 

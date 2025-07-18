@@ -997,7 +997,18 @@
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
     
-            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => {
+                try {
+                    const provider = new GoogleAuthProvider();
+                    // Используем signInWithRedirect вместо signInWithPopup
+                    await signInWithRedirect(auth, provider);
+                } catch (error) {
+                    console.error("Google sign-in error", error);
+                    // Это сообщение об ошибке может не отобразиться, так как страница будет перенаправлена
+                    // Обработка ошибок для signInWithRedirect происходит иначе, после возврата на страницу
+                    showModalAlert("Не удалось инициировать вход через Google. Ошибка: " + error.message);
+                }
+            });
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
         

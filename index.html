@@ -631,7 +631,9 @@
             
             toggleBtn?.addEventListener('click', () => {
                 headerContent.classList.toggle('collapsed');
+                
                 state.isChatHeaderCollapsed = headerContent.classList.contains('collapsed');
+                
                 const iconName = state.isChatHeaderCollapsed ? 'chevron-down' : 'chevron-up';
                 toggleBtn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
                 lucide.createIcons();

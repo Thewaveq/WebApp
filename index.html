@@ -470,44 +470,36 @@
                 const icon = isUser ? 'user' : 'sparkles';
 
                 const messageWrapper = document.createElement('div');
-                
-                const baseClasses = 'message-container group relative flex flex-col sm:flex-row sm:items-start mb-6';
-                const roleSpecificClasses = isUser ? 'items-end' : 'items-start';
+                const baseClasses = 'message-container group relative flex items-start mb-6 p-4 rounded-xl space-x-2 sm:space-x-3';
+                const roleSpecificClasses = isUser ? 'flex-row-reverse space-x-reverse user-message-bg' : 'assistant-message-bg';
 
                 messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
                 
-                const messageContentWrapper = document.createElement('div');
-                const contentWrapperBaseClasses = `flex items-start rounded-xl p-4`;
-                const contentWrapperRoleClasses = isUser 
-                    ? `user-message-bg flex-row-reverse space-x-reverse`
-                    : `assistant-message-bg space-x-3 sm:space-x-4`;
-                
-                // Создаем новый контейнер для иконки и текста с фоном
-                const innerWrapper = document.createElement('div');
-                const innerWrapperBase = `flex w-full max-w-max`;
-                const innerWrapperRole = isUser ? 'flex-col items-end' : 'flex-col items-start';
-                innerWrapper.className = `${innerWrapperBase} ${innerWrapperRole}`;
-                
                 const iconDiv = document.createElement('div');
-                iconDiv.className = `w-6 h-6 sm:w-10 sm:h-10 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center mb-2 sm:mb-0 sm:mr-3`;
-                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 sm:w-6 sm:h-6 text-white"></i>`;
+                iconDiv.className = `w-7 h-7 sm:w-8 sm:h-8 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center mt-1`;
+                iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 sm:w-5 sm:h-5 text-white"></i>`;
                 
                 const contentDiv = document.createElement('div');
-                contentDiv.className = `flex-grow prose max-w-full min-w-0 p-4 rounded-xl ${isUser ? 'user-message-bg' : 'assistant-message-bg'}`;
-
-                let processedContent = (msg.content || '').replace(/<think>([\s\S]*?)<\/think>/g,`<details><summary>Показать ход мыслей</summary><div>$1</div></details>`);
+                
+                contentDiv.className = 'flex-grow prose max-w-full min-w-0';
+                
+                let processedContent = (msg.content || '').replace(
+                    /<think>([\s\S]*?)<\/think>/g,
+                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                );
                 
                 const rawHtml = marked.parse(processedContent);
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
                 
                 const deleteButton = document.createElement('button');
+                
                 deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+                
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
-                innerWrapper.appendChild(iconDiv);
-                innerWrapper.appendChild(contentDiv);
-                messageWrapper.appendChild(innerWrapper);
+                messageWrapper.appendChild(iconDiv);
+                messageWrapper.appendChild(contentDiv);
                 messageWrapper.appendChild(deleteButton);
                 
                 messagesContainer.appendChild(messageWrapper);

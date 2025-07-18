@@ -262,7 +262,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
@@ -1000,12 +1000,9 @@
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => {
                 try {
                     const provider = new GoogleAuthProvider();
-                    // Используем signInWithRedirect вместо signInWithPopup
                     await signInWithRedirect(auth, provider);
                 } catch (error) {
                     console.error("Google sign-in error", error);
-                    // Это сообщение об ошибке может не отобразиться, так как страница будет перенаправлена
-                    // Обработка ошибок для signInWithRedirect происходит иначе, после возврата на страницу
                     showModalAlert("Не удалось инициировать вход через Google. Ошибка: " + error.message);
                 }
             });

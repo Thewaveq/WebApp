@@ -262,7 +262,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
@@ -1057,7 +1057,27 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
+                // Сначала пытаемся получить результат редиректа.
+                // Это "ловит" пользователя, который только что вернулся со страницы входа.
+                try {
+                    const result = await getRedirectResult(auth);
+                    if (result) {
+                        // Пользователь успешно вошел в систему через редирект.
+                        // Данные пользователя находятся в result.user
+                        console.log("Пользователь пойман через getRedirectResult:", result.user.displayName);
+                    }
+                } catch (error) {
+                    // Обработка ошибок, которые могли произойти во время редиректа
+                    console.error("Ошибка при получении результата редиректа:", error);
+                    if (error.code !== 'auth/web-storage-unsupported') {
+                       showModalAlert("Произошла ошибка во время аутентификации. Ошибка: " + error.message);
+                    }
+                }
+
+                // Этот слушатель по-прежнему важен. Он будет обрабатывать все изменения состояния:
+                // 1. Когда пользователь входит через редирект (после getRedirectResult).
+                // 2. Когда пользователь уже был залогинен и просто открыл страницу.
+                // 3. Когда пользователь выходит из системы.
                 onAuthStateChanged(auth, (user) => {
                     const googleBtn = document.getElementById('google-signin-btn');
                     const userProfile = document.getElementById('user-profile');
@@ -1065,16 +1085,20 @@
                     authSection.classList.remove('hidden');
     
                     if (user) {
-                        userId = user.uid;
-                        googleBtn.classList.add('hidden');
-                        userProfile.classList.remove('hidden');
-                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
-                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
-                        
-                        state.isAuthReady = true;
-                        attachFirestoreListeners();
+                        if (!userId) {
+                            userId = user.uid;
+                            googleBtn.classList.add('hidden');
+                            userProfile.classList.remove('hidden');
+                            document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
+                            document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
+                            
+                            state.isAuthReady = true;
+                            attachFirestoreListeners();
+                        }
                     } else {
-                        resetState();
+                        if (userId) {
+                           resetState();
+                        }
                         googleBtn.classList.remove('hidden');
                         userProfile.classList.add('hidden');
                         state.isAuthReady = false; 

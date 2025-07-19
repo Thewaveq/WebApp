@@ -273,8 +273,8 @@
                     <textarea id="edit-provider-keys" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="4" required></textarea>
                 </div>
                 <div>
-                    <label for="edit-provider-model" class="text-sm text-text-secondary block mb-1">Название модели</label>
-                    <input type="text" id="edit-provider-model" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                    <label for="edit-provider-models" class="text-sm text-text-secondary block mb-1">Модели (каждая с новой строки)</label>
+                    <textarea id="edit-provider-models" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="4" required></textarea>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="edit-provider-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
@@ -309,7 +309,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
         const firebaseConfig = {
@@ -364,8 +364,6 @@
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
         function loadUserPreferences() {
             const savedCompactMode = localStorage.getItem('chatViewCompact');
-            // Если в хранилище есть сохраненное значение, используем его.
-            // Иначе останется значение по умолчанию 'true', заданное в state.
             if (savedCompactMode !== null) {
                 state.isChatWidthCompact = (savedCompactMode === 'true');
             }
@@ -424,10 +422,30 @@
                 case 'chat':
                     if (activeSession) {
                         mainContent.innerHTML = getChatViewHTML(activeSession);
-                        if (!activeSession.providerId && state.providers.length > 0) {
-                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { providerId: state.providers[0].id });
+                        
+                        const provider = state.providers.find(p => p.id === activeSession.providerId);
+                        let needsUpdate = false;
+                        const updatePayload = {};
+
+                        if (!provider && state.providers.length > 0) {
+                            const firstProvider = state.providers[0];
+                            const models = firstProvider.models || [];
+                            updatePayload.providerId = firstProvider.id;
+                            updatePayload.modelName = models.length > 0 ? models[0] : null;
+                            needsUpdate = true;
+                        } else if (provider && !activeSession.modelName) {
+                            const models = provider.models || [];
+                            if (models.length > 0) {
+                                updatePayload.modelName = models[0];
+                                needsUpdate = true;
+                            }
                         }
+
+                        if (needsUpdate) {
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            updateDoc(sessionRef, updatePayload);
+                        }
+                        
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
@@ -469,9 +487,22 @@
         function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
         
         function getChatViewHTML(activeSession) { 
-            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name} (${p.model})</option>`).join('');
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-    
+        
+            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
+        
+            let modelOptions = '<option disabled>Выберите провайдера</option>';
+            const selectedProvider = state.providers.find(p => p.id === activeSession.providerId);
+            
+            if (selectedProvider) {
+                const models = selectedProvider.models || [];
+                if (models.length > 0) {
+                   modelOptions = models.map(m => `<option value="${m}" ${m === activeSession.modelName ? 'selected' : ''}>${m}</option>`).join('');
+                } else {
+                   modelOptions = '<option disabled>Нет моделей</option>';
+                }
+            }
+
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
@@ -490,8 +521,11 @@
                                 <option value="">Без роли</option>
                                 ${roleOptions}
                                 </select>
-                                <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                                ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                                <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-grow sm:flex-grow-0">
+                                    ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
+                                </select>
+                                <select id="model-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-grow sm:flex-grow-0">
+                                    ${modelOptions}
                                 </select>
                             </div>
                         </div>
@@ -648,7 +682,6 @@
     
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
-        // <<< ИЗМЕНЕНО: HTML-структура для страницы Ролей
         function getRolesViewHTML() {
             return `<div class="p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -661,12 +694,10 @@
                     </button>
                 </div>
                 <div id="roles-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    <!-- Карточки ролей будут здесь -->
                 </div>
             </div>`;
         }
         
-        // <<< ИЗМЕНЕНО: Рендеринг карточек для Ролей
         function renderRoles() {
             const list = document.getElementById('roles-list');
             if (!list) return;
@@ -688,11 +719,9 @@
                     </div>
                 </div>
             `).join('');
-             // Используем line-clamp для обрезки длинного текста. Убедитесь, что плагин TailwindCSS для этого включен, если он не работает.
             lucide.createIcons();
         }
         
-        // <<< ИЗМЕНЕНО: HTML-структура для страницы Настроек
         function getSettingsViewHTML() { 
             return `<div class="p-4 sm:p-6">
                  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -705,12 +734,10 @@
                     </button>
                 </div>
                 <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                   <!-- Карточки провайдеров будут здесь -->
                 </div>
             </div>`; 
         }
     
-        // <<< ИЗМЕНЕНО: Рендеринг карточек для Провайдеров
         function renderProviders() { 
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
@@ -719,7 +746,10 @@
                 return; 
             } 
             list.innerHTML = state.providers.map(p => {
-                const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0);
+                const keyCount = (p.apiKeys && p.apiKeys.length) > 0 ? p.apiKeys.length : 0;
+                const models = p.models || (p.model ? [p.model] : []);
+                const modelCount = models.length;
+
                 return `
                 <div class="bg-bg-sidebar rounded-lg border border-border-color p-4 flex flex-col justify-between h-full transition-shadow hover:shadow-lg hover:border-accent/50">
                     <div>
@@ -731,7 +761,7 @@
                             </div>
                         </div>
                         <div class="space-y-2 text-sm">
-                            <div class="flex items-center text-text-secondary"><i data-lucide="cpu" class="w-4 h-4 mr-2 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">Модель:</span> <span class="truncate">${p.model}</span></div>
+                            <div class="flex items-center text-text-secondary"><i data-lucide="cpu" class="w-4 h-4 mr-2 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">Моделей:</span> ${modelCount}</div>
                             <div class="flex items-center text-text-secondary"><i data-lucide="key-round" class="w-4 h-4 mr-2 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">Ключей:</span> ${keyCount}</div>
                             <div class="flex items-start text-text-secondary"><i data-lucide="globe" class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">URL:</span> <span class="break-all">${p.baseUrl}${p.path}</span></div>
                         </div>
@@ -746,7 +776,8 @@
             const form = document.getElementById('chat-form'); 
             const input = document.getElementById('chat-input'); 
             const titleInput = document.getElementById('chat-title-input'); 
-            const providerSelect = document.getElementById('provider-select'); 
+            const providerSelect = document.getElementById('provider-select');
+            const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select'); 
             const messagesContainer = document.getElementById('chat-messages'); 
             
@@ -787,12 +818,39 @@
             });
             input?.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px'; }); 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 
-            providerSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { providerId: e.target.value }); }); 
-            
+
             roleSelect?.addEventListener('change', (e) => {
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { roleId: e.target.value });
-            });            
+            });
+            
+            providerSelect?.addEventListener('change', (e) => {
+                const newProviderId = e.target.value;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                const selectedProvider = state.providers.find(p => p.id === newProviderId);
+                let newModelName = null;
+
+                if (selectedProvider) {
+                    const models = selectedProvider.models || [];
+                    if (models.length > 0) {
+                        newModelName = models[0];
+                        if (modelSelect) {
+                           modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+                        }
+                    } else {
+                        if (modelSelect) {
+                            modelSelect.innerHTML = '<option disabled>Нет моделей</option>';
+                        }
+                    }
+                }
+                updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
+            });
+
+            modelSelect?.addEventListener('change', (e) => {
+                const newModelName = e.target.value;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, { modelName: newModelName });
+            });
         }
         
         function setupNotepadViewEventListeners() {
@@ -829,12 +887,18 @@
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+            const modelName = activeSession.modelName;
 
             if (!provider) {
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
                 return;
             }
-            const apiKeys = provider.apiKeys && provider.apiKeys.length > 0 ? provider.apiKeys : (provider.apiKey ? [provider.apiKey] : []);
+            if (!modelName) {
+                showModalAlert("Пожалуйста, выберите модель для этого провайдера.");
+                return;
+            }
+
+            const apiKeys = provider.apiKeys || [];
             if (apiKeys.length === 0) {
                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
                 return;
@@ -879,7 +943,7 @@
                     const proxyRequestBody = {
                         targetUrl: fullUrl,
                         apiKey: currentKey,
-                        payload: { model: provider.model, messages: apiMessagesPayload }
+                        payload: { model: modelName, messages: apiMessagesPayload }
                     };
                     const response = await fetch('/api/proxy', { 
                         method: 'POST', 
@@ -908,8 +972,8 @@
             }
             
             const assistantMessage = isSuccess
-                ? { role: 'assistant', content: assistantMessageContent, modelName: provider.model }
-                : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: provider.model };
+                ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
+                : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: modelName };
             
             const finalMessages = [...newMessages, assistantMessage];
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
@@ -963,7 +1027,7 @@
                     baseUrl: 'https://api.openai.com',
                     path: '/v1/chat/completions',
                     apiKeys: [],
-                    model: 'gpt-4o',
+                    models: ['gpt-4o', 'gpt-3.5-turbo'],
                     currentKeyIndex: 0
                 };
                 const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), newProviderData);
@@ -998,13 +1062,17 @@
         function handleOpenEditProviderModal(providerId) {
             const providerToEdit = state.providers.find(p => p.id === providerId);
             if (!providerToEdit) return;
-            const apiKeysArray = providerToEdit.apiKeys || (providerToEdit.apiKey ? [providerToEdit.apiKey] : []);
+            
+            const apiKeysArray = providerToEdit.apiKeys || [];
+            const modelsArray = providerToEdit.models || (providerToEdit.model ? [providerToEdit.model] : []);
+            
             document.getElementById('edit-provider-id').value = providerToEdit.id;
             document.getElementById('edit-provider-name').value = providerToEdit.name;
             document.getElementById('edit-provider-url').value = providerToEdit.baseUrl;
             document.getElementById('edit-provider-path').value = providerToEdit.path;
             document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n');
-            document.getElementById('edit-provider-model').value = providerToEdit.model;
+            document.getElementById('edit-provider-models').value = modelsArray.join('\n');
+            
             editProviderModal.classList.remove('hidden');
         }
     
@@ -1028,20 +1096,28 @@
             const baseUrl = document.getElementById('edit-provider-url').value;
             const path = document.getElementById('edit-provider-path').value;
             const keysRaw = document.getElementById('edit-provider-keys').value;
-            const model = document.getElementById('edit-provider-model').value;
+            const modelsRaw = document.getElementById('edit-provider-models').value;
     
             const apiKeys = keysRaw.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0);
             if (apiKeys.length === 0) {
                 showModalAlert("Пожалуйста, введите хотя бы один API ключ.");
                 return;
             }
-    
+            
+            const models = modelsRaw.split(/\r?\n/).map(m => m.trim()).filter(m => m.length > 0);
+            if (models.length === 0) {
+                showModalAlert("Пожалуйста, введите хотя бы одну модель.");
+                return;
+            }
+
             const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, providerId);
             const originalProvider = state.providers.find(p => p.id === providerId);
-            const originalKeys = originalProvider.apiKeys || (originalProvider.apiKey ? [originalProvider.apiKey] : []);
+            const originalKeys = originalProvider.apiKeys || [];
             const keysChanged = JSON.stringify(originalKeys.sort()) !== JSON.stringify(apiKeys.sort());
-            const updatedData = { name, baseUrl, path, apiKeys, model };
+
+            const updatedData = { name, baseUrl, path, apiKeys, models, model: deleteField() };
             if (keysChanged) { updatedData.currentKeyIndex = 0; }
+
             await updateDoc(providerRef, updatedData);
             editProviderModal.classList.add('hidden');
         }
@@ -1094,9 +1170,22 @@
             });
     
             const createNewItem = async (type) => {
-                 const newSessionData = type === 'chat'
-                    ? { type: 'chat', title: 'Новый чат', messages: [], providerId: state.providers.length > 0 ? state.providers[0].id : null, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
-                    : { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                let newSessionData;
+                if (type === 'chat') {
+                    let providerId = null;
+                    let modelName = null;
+                    if (state.providers.length > 0) {
+                        const firstProvider = state.providers[0];
+                        providerId = firstProvider.id;
+                        const models = firstProvider.models || [];
+                        if (models.length > 0) {
+                            modelName = models[0];
+                        }
+                    }
+                    newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                } else { // notepad
+                    newSessionData = { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                 state.activeSessionId = newSessionRef.id;
@@ -1133,8 +1222,6 @@
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
-                        // ИЗМЕНЕНИЕ: Удалена логика выбора следующего элемента.
-                        // Просто удаляем документ, а onSnapshot сам обновит интерфейс.
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                     });
                 }
@@ -1202,8 +1289,6 @@
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
-                    // ИЗМЕНЕНИЕ: Просто сбрасываем activeSessionId, если текущий элемент не найден.
-                    // Больше не выбираем первый элемент автоматически.
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {

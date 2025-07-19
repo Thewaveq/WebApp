@@ -551,7 +551,10 @@
                 return;
             }
 
-            // Отключаем предыдущий наблюдатель, если он был
+            // Перед перерисовкой проверяем, был ли пользователь внизу чата
+            // +1 пиксель - это небольшой допуск на случай неточных вычислений
+            const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 1;
+
             if (chatObserver) {
                 chatObserver.disconnect();
             }
@@ -565,24 +568,19 @@
                         const msg = JSON.parse(placeholder.dataset.message);
                         const index = parseInt(placeholder.dataset.messageIndex, 10);
                         
-                        // Создаем и вставляем реальный элемент сообщения
                         const messageElement = createMessageElement(msg, index);
                         placeholder.parentNode.replaceChild(messageElement, placeholder);
                         
-                        // Прекращаем наблюдение за этим элементом
                         observer.unobserve(messageElement);
                     }
                 });
             };
 
-            // Создаем наблюдатель. rootMargin '200px' означает, что мы начнем загрузку
-            // за 200px до того, как элемент появится на экране.
             chatObserver = new IntersectionObserver(observerCallback, {
                 root: messagesContainer,
                 rootMargin: '200px 0px',
             });
             
-            // Вместо рендеринга создаем плейсхолдеры и наблюдаем за ними
             session.messages.forEach((msg, index) => {
                 const placeholder = document.createElement('div');
                 placeholder.className = 'message-placeholder';
@@ -592,8 +590,8 @@
                 chatObserver.observe(placeholder);
             });
             
-            // Прокрутка к низу по-прежнему работает, т.к. плейсхолдеры занимают место
-            if(!state.isLoading) {
+            // После перерисовки, если пользователь был внизу, прокручиваем его снова вниз
+            if (isScrolledToBottom) {
                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
@@ -741,14 +739,14 @@
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message || state.isLoading) return;
-        
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageContent = input.value.trim();
+            if (!messageContent || state.isLoading) return;
+
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-        
+
             if (!provider) {
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
                 return;
@@ -758,18 +756,32 @@
                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
                 return;
             }
-        
-            const newMessages = [...(activeSession.messages || []), { role: 'user', content: message }];
-            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
-        
+
+            // 1. Создаем и добавляем сообщение пользователя локально
+            const userMessage = { role: 'user', content: messageContent };
+            const currentMessages = activeSession.messages || [];
+            const userMessageElement = createMessageElement(userMessage, currentMessages.length);
+            // Удаляем плейсхолдеры, если они есть, чтобы вставить реальный элемент
+            messagesContainer.querySelectorAll('.message-placeholder').forEach(p => p.remove());
+            messagesContainer.appendChild(userMessageElement);
+
             input.value = '';
             input.style.height = 'auto';
-            
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // 2. Обновляем состояние и показываем индикатор загрузки
             state.isLoading = true;
             updateLoadingIndicator();
-            showTypingIndicatorInChat();
-        
-            let assistantMessage = '';
+            showTypingIndicatorInChat(); // Это добавит индикатор в конец чата
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // 3. Обновляем Firestore в фоне
+            const newMessages = [...currentMessages, userMessage];
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
+
+            // 4. Отправляем запрос к API
+            let assistantMessageContent = '';
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
             
@@ -778,7 +790,7 @@
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
             }
             apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
-        
+
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
@@ -806,8 +818,7 @@
                         throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
 
-                    assistantMessage = data.choices[0].message.content;
-                    
+                    assistantMessageContent = data.choices[0].message.content;
                     isSuccess = true;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
@@ -818,15 +829,21 @@
                 }
             }
             
-            const finalMessages = isSuccess
-                ? [...newMessages, { role: 'assistant', content: assistantMessage, modelName: provider.model }]
-                : [...newMessages, { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: provider.model }];
-        
-            state.isLoading = false;
+            // 5. Формируем финальное сообщение и обновляем Firestore
+            const assistantMessage = isSuccess
+                ? { role: 'assistant', content: assistantMessageContent, modelName: provider.model }
+                : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: provider.model };
             
+            const finalMessages = [...newMessages, assistantMessage];
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
-            render(); 
+            // 6. Убираем индикатор загрузки и сбрасываем состояние
+            state.isLoading = false;
+            updateLoadingIndicator();
+            const loadingPlaceholder = document.getElementById('loading-message-placeholder');
+            if (loadingPlaceholder) {
+                loadingPlaceholder.remove();
+            }
         }
         
         function showTypingIndicatorInChat() {

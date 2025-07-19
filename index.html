@@ -1189,7 +1189,23 @@
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
     
-            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => {
+                try {
+                    const provider = new GoogleAuthProvider();
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+                    if (isMobile) {
+                        // Использовать перенаправление на мобильных устройствах
+                        await signInWithRedirect(auth, provider);
+                    } else {
+                        // Использовать всплывающее окно на компьютерах
+                        await signInWithPopup(auth, provider);
+                    }
+                } catch (error) {
+                    console.error("Google sign-in error", error);
+                    showModalAlert("Не удалось войти через Google. Ошибка: " + error.message);
+                }
+            });
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
         
@@ -1273,7 +1289,7 @@
                     renderMainNav(); 
                     updateSidebarView();
                 });
-                
+                await getRedirectResult(auth);
                 setupGlobalEventListeners();
     
             } catch (error) {

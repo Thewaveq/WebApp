@@ -1231,14 +1231,29 @@
                     const googleBtn = document.getElementById('google-signin-btn');
                     const userProfile = document.getElementById('user-profile');
                     const authSection = document.getElementById('auth-section');
+                    const userNameEl = document.getElementById('user-name');
+                    const userAvatarEl = document.getElementById('user-avatar');
+        
                     authSection.classList.remove('hidden');
-    
+        
                     if (user) {
                         userId = user.uid;
                         googleBtn.classList.add('hidden');
                         userProfile.classList.remove('hidden');
-                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
-                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
+                        
+                        // Устанавливаем имя пользователя рядом с иконкой
+                        userNameEl.textContent = user.displayName || 'Пользователь';
+                        
+                        // Устанавливаем аватар пользователя
+                        if (user.photoURL) {
+                            // Если фото профиля доступно в аккаунте Google, используем его
+                            userAvatarEl.src = user.photoURL;
+                        } else {
+                            // Иначе, генерируем аватар с инициалами на основе имени или email
+                            // Используется постоянный, не-случайный фон для консистентности
+                            const nameForAvatar = user.displayName || user.email || 'U';
+                            userAvatarEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=34568B&color=ffffff&bold=true`;
+                        }
                         
                         state.isAuthReady = true;
                         attachFirestoreListeners();
@@ -1254,7 +1269,7 @@
                 });
                 
                 setupGlobalEventListeners();
-    
+        
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
                 mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;

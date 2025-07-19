@@ -499,7 +499,6 @@
         
         function createMessageElement(msg, index) {
             const isUser = msg.role === 'user';
-            const icon = isUser ? 'user' : 'sparkles';
             
             const messageWrapper = document.createElement('div');
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
@@ -510,15 +509,32 @@
             headerDiv.className = `flex items-center space-x-3`;
 
             const iconDiv = document.createElement('div');
-            iconDiv.className = `w-7 h-7 rounded-full ${isUser ? 'bg-blue-600' : 'bg-accent'} flex-shrink-0 flex items-center justify-center`;
-            iconDiv.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i>`;
-            headerDiv.appendChild(iconDiv);
+            iconDiv.className = `w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden`;
 
-            if (!isUser && msg.modelName) {
-                const modelNameSpan = document.createElement('span');
-                modelNameSpan.className = 'text-xs text-text-secondary';
-                modelNameSpan.textContent = msg.modelName;
-                headerDiv.appendChild(modelNameSpan);
+            // Логика добавления элементов в заголовок отличается для пользователя и ассистента
+            if (isUser) {
+                const user = auth.currentUser;
+
+                const userNameSpan = document.createElement('span');
+                userNameSpan.className = 'text-sm font-semibold';
+                userNameSpan.textContent = user?.displayName || 'Вы';
+                headerDiv.appendChild(userNameSpan);
+
+                const avatarSrc = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=4285F4&color=fff`;
+                iconDiv.innerHTML = `<img src="${avatarSrc}" alt="Аватар пользователя" class="w-full h-full object-cover">`;
+                headerDiv.appendChild(iconDiv);
+                
+            } else {
+                iconDiv.classList.add('bg-accent');
+                iconDiv.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-white"></i>`;
+                headerDiv.appendChild(iconDiv);
+                
+                if (msg.modelName) {
+                    const modelNameSpan = document.createElement('span');
+                    modelNameSpan.className = 'text-xs text-text-secondary';
+                    modelNameSpan.textContent = msg.modelName;
+                    headerDiv.appendChild(modelNameSpan);
+                }
             }
             
             const contentDiv = document.createElement('div');
@@ -533,7 +549,8 @@
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
             
             const deleteButton = document.createElement('button');
-            deleteButton.className = `delete-message-btn absolute bottom-1 right-2 p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+            const deleteButtonPosition = isUser ? 'left-2' : 'right-2';
+            deleteButton.className = `delete-message-btn absolute bottom-1 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
             deleteButton.dataset.messageIndex = index;
             deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
 
@@ -1231,29 +1248,14 @@
                     const googleBtn = document.getElementById('google-signin-btn');
                     const userProfile = document.getElementById('user-profile');
                     const authSection = document.getElementById('auth-section');
-                    const userNameEl = document.getElementById('user-name');
-                    const userAvatarEl = document.getElementById('user-avatar');
-        
                     authSection.classList.remove('hidden');
-        
+    
                     if (user) {
                         userId = user.uid;
                         googleBtn.classList.add('hidden');
                         userProfile.classList.remove('hidden');
-                        
-                        // Устанавливаем имя пользователя рядом с иконкой
-                        userNameEl.textContent = user.displayName || 'Пользователь';
-                        
-                        // Устанавливаем аватар пользователя
-                        if (user.photoURL) {
-                            // Если фото профиля доступно в аккаунте Google, используем его
-                            userAvatarEl.src = user.photoURL;
-                        } else {
-                            // Иначе, генерируем аватар с инициалами на основе имени или email
-                            // Используется постоянный, не-случайный фон для консистентности
-                            const nameForAvatar = user.displayName || user.email || 'U';
-                            userAvatarEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=34568B&color=ffffff&bold=true`;
-                        }
+                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
+                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
                         
                         state.isAuthReady = true;
                         attachFirestoreListeners();
@@ -1269,7 +1271,7 @@
                 });
                 
                 setupGlobalEventListeners();
-        
+    
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
                 mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;

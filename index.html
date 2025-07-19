@@ -456,6 +456,10 @@
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
+                        {/* Кнопка перенесена сюда и будет видна только на ПК */}
+                        <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
+                            <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                        </button>
                         <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название чата">
                         <button id="chat-settings-toggle" class="p-1 rounded-full hover:bg-bg-element transition-colors flex-shrink-0">
                             <i data-lucide="chevron-down" id="chat-settings-icon" class="w-5 h-5 transition-transform"></i>
@@ -463,20 +467,15 @@
                     </div>
                     <div id="chat-settings-collapsible" class="collapsible-panel">
                         <div>
+                            {/* Кнопка отсюда удалена */}
                             <div class="flex flex-col sm:flex-row items-center gap-3 w-full pt-3 flex-wrap">
                                 <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
                                 <option value="">Без роли</option>
                                 ${roleOptions}
                                 </select>
-                                
-                                <div class="flex items-center gap-2 w-full sm:w-auto">
-                                    <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
-                                        <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
-                                    </button>
-                                    <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full">
-                                    ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
-                                    </select>
-                                </div>
+                                <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
+                                ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                                </select>
                             </div>
                         </div>
                     </div>

@@ -383,10 +383,6 @@
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
                         render(); 
-                        //if (window.innerWidth < 1024) {
-                        //   sidebar.classList.remove('open');
-                        //   sidebarBackdrop.classList.add('hidden');
-                        //}
                     });
                     item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
                     item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
@@ -418,7 +414,7 @@
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, { providerId: state.providers[0].id });
                         }
-                        renderChatMessages(activeSession); // Эта функция теперь работает по-новому
+                        renderChatMessages(activeSession);
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
                     } else {
@@ -492,7 +488,6 @@
             </div>`; 
         }
         
-        // <<< НОВОЕ: Вспомогательная функция для создания одного элемента сообщения
         function createMessageElement(msg, index) {
             const isUser = msg.role === 'user';
             const icon = isUser ? 'user' : 'sparkles';
@@ -567,22 +562,15 @@
             return messageWrapper;
         }
 
-        // <<< ИЗМЕНЕНО: Функция теперь использует IntersectionObserver
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
             
             const sessionMessages = session.messages || [];
-
-            // 1. Проверяем, был ли пользователь внизу чата перед обновлением.
-            const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5; // Увеличим допуск
-
-            // 2. Получаем текущие элементы сообщений из DOM
+            const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5;
             const existingMessageElements = messagesContainer.querySelectorAll('.message-placeholder, .message-container');
 
-            // 3. Сравниваем количество. Если в сессии сообщений меньше (удалили), то проще перерисовать всё.
             if (sessionMessages.length < existingMessageElements.length) {
-                // Полная перерисовка (редкий случай, например, при удалении сообщения)
                 if (chatObserver) chatObserver.disconnect();
                 messagesContainer.innerHTML = '';
                 
@@ -610,10 +598,8 @@
                 });
 
             } else {
-                // "Умное" добавление: добавляем только новые сообщения в конец
                 const messagesToAdd = sessionMessages.slice(existingMessageElements.length);
                 if (messagesToAdd.length > 0) {
-                     // Удаляем индикатор загрузки, если он есть, перед добавлением реального сообщения
                     const loadingIndicator = document.getElementById('loading-message-placeholder');
                     if(loadingIndicator) loadingIndicator.remove();
 
@@ -625,7 +611,6 @@
                 }
             }
 
-            // 4. Прокручиваем вниз, ТОЛЬКО если пользователь уже был внизу.
             if (isScrolledToBottom) {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
@@ -633,82 +618,98 @@
     
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
+        // <<< ИЗМЕНЕНО: HTML-структура для страницы Ролей
         function getRolesViewHTML() {
-            return `<div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Управление ролями</h2>
-                    <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">
+            return `<div class="p-4 sm:p-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold">Управление ролями</h2>
+                        <p class="text-text-secondary mt-1">Создавайте и управляйте системными промптами для AI.</p>
+                    </div>
+                    <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
                         <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
                         Добавить роль
                     </button>
                 </div>
-                <div class="bg-bg-sidebar p-6 rounded-lg">
-                    <div id="roles-list" class="space-y-4"></div>
+                <div id="roles-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <!-- Карточки ролей будут здесь -->
                 </div>
             </div>`;
         }
         
+        // <<< ИЗМЕНЕНО: Рендеринг карточек для Ролей
         function renderRoles() {
             const list = document.getElementById('roles-list');
             if (!list) return;
             if (state.roles.length === 0) {
-                list.innerHTML = `<p class="text-text-secondary">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`;
+                list.innerHTML = `<p class="text-text-secondary md:col-span-2 xl:col-span-3 text-center py-10">Нет добавленных ролей. Нажмите "Добавить роль", чтобы создать новую.</p>`;
                 return;
             }
             list.innerHTML = state.roles.map(r => `
-                <div class="bg-bg-element p-3 rounded-md">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="font-bold">${r.name}</p>
-                        <div class="flex items-center space-x-2">
-                            <button class="edit-role-btn text-text-secondary hover:text-accent transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-5 h-5"></i></button>
-                            <button class="delete-role-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                <div class="bg-bg-sidebar rounded-lg border border-border-color p-4 flex flex-col justify-between h-full transition-shadow hover:shadow-lg hover:border-accent/50">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg pr-2">${r.name}</h3>
+                            <div class="flex items-center space-x-1 flex-shrink-0">
+                                <button class="edit-role-btn p-1.5 text-text-secondary hover:text-accent transition-colors" data-id="${r.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                                <button class="delete-role-btn p-1.5 text-text-secondary hover:text-red-400 transition-colors" data-id="${r.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
                         </div>
+                        <p class="text-sm text-text-secondary bg-bg-input p-3 rounded-md line-clamp-3">${r.content}</p>
                     </div>
-                    <p class="text-sm text-text-secondary bg-bg-input p-2 rounded truncate">${r.content}</p>
                 </div>
             `).join('');
+             // Используем line-clamp для обрезки длинного текста. Убедитесь, что плагин TailwindCSS для этого включен, если он не работает.
             lucide.createIcons();
         }
         
+        // <<< ИЗМЕНЕНО: HTML-структура для страницы Настроек
         function getSettingsViewHTML() { 
-            return `<div class="p-6">
-                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Настройки</h2>
-                     <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors">
+            return `<div class="p-4 sm:p-6">
+                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold">Провайдеры API</h2>
+                        <p class="text-text-secondary mt-1">Добавляйте и настраивайте подключения к языковым моделям.</p>
+                    </div>
+                     <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
                         <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
                         Добавить провайдера
                     </button>
                 </div>
-                <div class="bg-bg-sidebar p-6 rounded-lg">
-                    <h3 class="text-xl font-semibold mb-4">Провайдеры API</h3>
-                    <div id="providers-list" class="space-y-4"></div>
+                <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                   <!-- Карточки провайдеров будут здесь -->
                 </div>
             </div>`; 
         }
     
+        // <<< ИЗМЕНЕНО: Рендеринг карточек для Провайдеров
         function renderProviders() { 
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
             if (state.providers.length === 0) { 
-                list.innerHTML = `<p class="text-text-secondary">Нет добавленных провайдеров. Нажмите "Добавить провайдера", чтобы создать новый.</p>`; 
+                list.innerHTML = `<p class="text-text-secondary md:col-span-2 xl:col-span-3 text-center py-10">Нет добавленных провайдеров. Нажмите "Добавить провайдера", чтобы создать нового.</p>`; 
                 return; 
             } 
             list.innerHTML = state.providers.map(p => {
                 const keyCount = (p.apiKeys && p.apiKeys.length) || (p.apiKey ? 1 : 0);
-                return `<div class="bg-bg-element p-3 rounded-md flex items-center justify-between">
+                return `
+                <div class="bg-bg-sidebar rounded-lg border border-border-color p-4 flex flex-col justify-between h-full transition-shadow hover:shadow-lg hover:border-accent/50">
                     <div>
-                        <p class="font-bold">${p.name}</p>
-                        <p class="text-sm text-text-secondary">${p.model} • ${p.baseUrl}${p.path} • (ключей: ${keyCount})</p>
+                        <div class="flex justify-between items-start mb-3">
+                             <h3 class="font-bold text-lg pr-2">${p.name}</h3>
+                             <div class="flex items-center space-x-1 flex-shrink-0">
+                                <button class="edit-provider-btn p-1.5 text-text-secondary hover:text-accent transition-colors" data-id="${p.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                                <button class="delete-provider-btn p-1.5 text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center text-text-secondary"><i data-lucide="cpu" class="w-4 h-4 mr-2 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">Модель:</span> <span class="truncate">${p.model}</span></div>
+                            <div class="flex items-center text-text-secondary"><i data-lucide="key-round" class="w-4 h-4 mr-2 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">Ключей:</span> ${keyCount}</div>
+                            <div class="flex items-start text-text-secondary"><i data-lucide="globe" class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">URL:</span> <span class="break-all">${p.baseUrl}${p.path}</span></div>
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <button class="edit-provider-btn text-text-secondary hover:text-accent transition-colors" data-id="${p.id}">
-                            <i data-lucide="edit" class="w-5 h-5"></i>
-                        </button>
-                        <button class="delete-provider-btn text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>`
+                </div>
+                `
             }).join(''); 
             lucide.createIcons(); 
         }
@@ -803,11 +804,9 @@
                 return;
             }
 
-            // 1. Создаем и добавляем сообщение пользователя локально
             const userMessage = { role: 'user', content: messageContent };
             const currentMessages = activeSession.messages || [];
             const userMessageElement = createMessageElement(userMessage, currentMessages.length);
-            // Удаляем плейсхолдеры, если они есть, чтобы вставить реальный элемент
             messagesContainer.querySelectorAll('.message-placeholder').forEach(p => p.remove());
             messagesContainer.appendChild(userMessageElement);
 
@@ -815,18 +814,15 @@
             input.style.height = 'auto';
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // 2. Обновляем состояние и показываем индикатор загрузки
             state.isLoading = true;
             updateLoadingIndicator();
-            showTypingIndicatorInChat(); // Это добавит индикатор в конец чата
+            showTypingIndicatorInChat();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // 3. Обновляем Firestore в фоне
             const newMessages = [...currentMessages, userMessage];
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
 
-            // 4. Отправляем запрос к API
             let assistantMessageContent = '';
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
@@ -875,7 +871,6 @@
                 }
             }
             
-            // 5. Формируем финальное сообщение и обновляем Firestore
             const assistantMessage = isSuccess
                 ? { role: 'assistant', content: assistantMessageContent, modelName: provider.model }
                 : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: provider.model };
@@ -883,7 +878,6 @@
             const finalMessages = [...newMessages, assistantMessage];
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
-            // 6. Убираем индикатор загрузки и сбрасываем состояние
             state.isLoading = false;
             updateLoadingIndicator();
             const loadingPlaceholder = document.getElementById('loading-message-placeholder');
@@ -1201,7 +1195,7 @@
     
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
-            if (chatObserver) { // <<< НОВОЕ: Очистка наблюдателя при выходе
+            if (chatObserver) {
                 chatObserver.disconnect();
                 chatObserver = null;
             }

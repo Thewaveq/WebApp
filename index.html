@@ -1257,43 +1257,54 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // --- ИЗМЕНЕНИЕ 3: Обработка результата перенаправления при загрузке страницы ---
-                // Это "ловит" пользователя после возвращения со страницы входа Google
-                try {
-                    await getRedirectResult(auth);
-                } catch (error) {
-                    console.error("Error getting redirect result:", error);
-                    showModalAlert("Ошибка при обработке входа через Google: " + error.message);
-                }
-
-                onAuthStateChanged(auth, (user) => {
-                    const googleBtn = document.getElementById('google-signin-btn');
-                    const userProfile = document.getElementById('user-profile');
-                    const authSection = document.getElementById('auth-section');
-                    authSection.classList.remove('hidden');
-    
-                    if (user) {
-                        userId = user.uid;
-                        googleBtn.classList.add('hidden');
-                        userProfile.classList.remove('hidden');
-                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
-                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
-                        
-                        state.isAuthReady = true;
-                        attachFirestoreListeners();
-                    } else {
-                        resetState();
-                        googleBtn.classList.remove('hidden');
-                        userProfile.classList.add('hidden');
-                        state.isAuthReady = false; 
-                        render();
-                    }
-                    renderMainNav(); 
-                    updateSidebarView();
-                });
+                // Показываем секцию авторизации сразу, чтобы кнопка была видна
+                const authSection = document.getElementById('auth-section');
+                authSection.classList.remove('hidden');
+        
+                // Сначала ЖДЕМ результат переадресации. Это асинхронная операция.
+                // `getRedirectResult` вернет данные пользователя, если мы пришли с переадресации,
+                // или `null`, если просто зашли на страницу.
+                getRedirectResult(auth)
+                    .then(() => {
+                        // И ТОЛЬКО ПОСЛЕ того, как результат редиректа обработан,
+                        // мы устанавливаем постоянный слушатель `onAuthStateChanged`.
+                        // Теперь он сработает с уже актуальными данными о пользователе.
+                        onAuthStateChanged(auth, (user) => {
+                            const googleBtn = document.getElementById('google-signin-btn');
+                            const userProfile = document.getElementById('user-profile');
+                            
+                            if (user) {
+                                // Пользователь вошел в систему
+                                userId = user.uid;
+                                googleBtn.classList.add('hidden');
+                                userProfile.classList.remove('hidden');
+                                document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
+                                document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
+                                
+                                if (!state.isAuthReady) {
+                                   state.isAuthReady = true;
+                                   attachFirestoreListeners(); // Подключаем слушатели к базе данных
+                                }
+                            } else {
+                                // Пользователь не вошел в систему или вышел
+                                resetState(); // Сбрасываем состояние
+                                googleBtn.classList.remove('hidden');
+                                userProfile.classList.add('hidden');
+                                state.isAuthReady = true; // Готовность к работе (в режиме "гостя")
+                                render();
+                            }
+                            renderMainNav(); 
+                            updateSidebarView();
+                        });
+                    })
+                    .catch((error) => {
+                        console.error("Ошибка при обработке результата переадресации:", error);
+                        showModalAlert("Не удалось завершить вход через Google. Ошибка: " + error.code);
+                    });
                 
+                // Глобальные слушатели событий (кнопки и т.д.) устанавливаем один раз
                 setupGlobalEventListeners();
-    
+        
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
                 mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;

@@ -309,7 +309,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         // --- ИЗМЕНЕНИЕ 1: Добавлены signInWithRedirect и getRedirectResult ---
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
@@ -1256,58 +1256,63 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
-                // Показываем секцию авторизации сразу, чтобы кнопка была видна
-                const authSection = document.getElementById('auth-section');
-                authSection.classList.remove('hidden');
         
-                // Сначала ЖДЕМ результат переадресации. Это асинхронная операция.
-                // `getRedirectResult` вернет данные пользователя, если мы пришли с переадресации,
-                // или `null`, если просто зашли на страницу.
-                getRedirectResult(auth)
-                    .then(() => {
-                        // И ТОЛЬКО ПОСЛЕ того, как результат редиректа обработан,
-                        // мы устанавливаем постоянный слушатель `onAuthStateChanged`.
-                        // Теперь он сработает с уже актуальными данными о пользователе.
-                        onAuthStateChanged(auth, (user) => {
-                            const googleBtn = document.getElementById('google-signin-btn');
-                            const userProfile = document.getElementById('user-profile');
-                            
-                            if (user) {
-                                // Пользователь вошел в систему
-                                userId = user.uid;
-                                googleBtn.classList.add('hidden');
-                                userProfile.classList.remove('hidden');
-                                document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
-                                document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
-                                
-                                if (!state.isAuthReady) {
-                                   state.isAuthReady = true;
-                                   attachFirestoreListeners(); // Подключаем слушатели к базе данных
-                                }
-                            } else {
-                                // Пользователь не вошел в систему или вышел
-                                resetState(); // Сбрасываем состояние
-                                googleBtn.classList.remove('hidden');
-                                userProfile.classList.add('hidden');
-                                state.isAuthReady = true; // Готовность к работе (в режиме "гостя")
-                                render();
-                            }
-                            renderMainNav(); 
-                            updateSidebarView();
-                        });
-                    })
-                    .catch((error) => {
-                        console.error("Ошибка при обработке результата переадресации:", error);
-                        showModalAlert("Не удалось завершить вход через Google. Ошибка: " + error.code);
-                    });
+                // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
+                // Явно и принудительно устанавливаем, что сессия должна сохраняться в браузере.
+                // Это решает 99% проблем с signInWithRedirect на мобильных устройствах.
+                // Мы делаем это ДО всех остальных операций с аутентификацией.
+                await setPersistence(auth, browserLocalPersistence);
+        
+                // Устанавливаем единый слушатель состояния. Он будет источником правды.
+                // Он сработает и при первой загрузке, и после редиректа, и при выходе из аккаунта.
+                onAuthStateChanged(auth, (user) => {
+                    const googleBtn = document.getElementById('google-signin-btn');
+                    const userProfile = document.getElementById('user-profile');
+                    const authSection = document.getElementById('auth-section');
+                    authSection.classList.remove('hidden');
+        
+                    if (user) {
+                        // Пользователь успешно вошел
+                        userId = user.uid;
+                        googleBtn.classList.add('hidden');
+                        userProfile.classList.remove('hidden');
+                        document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
+                        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
+                        
+                        if (!state.isAuthReady) {
+                            state.isAuthReady = true;
+                            attachFirestoreListeners();
+                        } else {
+                            render(); // Перерисовываем на случай, если данные обновились
+                        }
+                    } else {
+                        // Пользователь не вошел
+                        resetState();
+                        googleBtn.classList.remove('hidden');
+                        userProfile.classList.add('hidden');
+                        state.isAuthReady = true; // Приложение готово к работе в режиме гостя
+                        render();
+                    }
+                    renderMainNav(); 
+                    updateSidebarView();
+                });
+        
+                // Пытаемся получить результат редиректа.
+                // Успешный результат будет обработан слушателем onAuthStateChanged выше.
+                // Нам нужно только отловить возможную ошибку.
+                getRedirectResult(auth).catch((error) => {
+                    console.error("Ошибка при обработке результата переадресации:", error);
+                    // Не показываем ошибку, если пользователь просто закрыл окно входа
+                    if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/redirect-cancelled-by-user') {
+                       showModalAlert("Не удалось завершить вход. Ошибка: " + error.code);
+                    }
+                });
                 
-                // Глобальные слушатели событий (кнопки и т.д.) устанавливаем один раз
                 setupGlobalEventListeners();
         
             } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
+                console.error("Ошибка инициализации Firebase:", error);
+                mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации:</strong> ${error.message}.</div>`;
             }
         }
         

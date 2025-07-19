@@ -333,7 +333,7 @@
             isLoading: false,
             isAuthReady: false,
             isSidebarCollapsed: false,
-            isChatWidthCompact: false,
+            isChatWidthCompact: true,
         };
         
         let confirmModalCallback = null;
@@ -355,7 +355,16 @@
         const editRoleModal = document.getElementById('edit-role-modal');
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
-    
+
+        // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
+        function loadUserPreferences() {
+            const savedCompactMode = localStorage.getItem('chatViewCompact');
+            // Если в хранилище есть сохраненное значение, используем его.
+            // Иначе останется значение по умолчанию 'true', заданное в state.
+            if (savedCompactMode !== null) {
+                state.isChatWidthCompact = (savedCompactMode === 'true');
+            }
+        }
     
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
         function render() {
@@ -723,15 +732,23 @@
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-collapsible');
             const settingsIcon = document.getElementById('chat-settings-icon');
-
             const widthToggleBtn = document.getElementById('chat-width-toggle');
+            
             if(widthToggleBtn) {
-                widthToggleBtn.classList.toggle('active', state.isChatWidthCompact);
-
+                const isExpanded = !state.isChatWidthCompact;
+                widthToggleBtn.classList.toggle('active', isExpanded);
+                widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
+        
                 widthToggleBtn.addEventListener('click', () => {
                     state.isChatWidthCompact = !state.isChatWidthCompact;
+                    const isNowExpanded = !state.isChatWidthCompact;
+        
+                    localStorage.setItem('chatViewCompact', state.isChatWidthCompact);
+        
                     messagesContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
-                    widthToggleBtn.classList.toggle('active', state.isChatWidthCompact);
+                    widthToggleBtn.classList.toggle('active', isNowExpanded);
+        
+                    widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
                 });
             }
 
@@ -1204,6 +1221,7 @@
         }
     
         async function init() {
+            loadUserPreferences();
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);

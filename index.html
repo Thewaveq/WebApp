@@ -553,7 +553,7 @@
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
             
             const deleteButton = document.createElement('button');
-            const deleteButtonPosition = isUser ? 'left-2' : 'right-2';
+            const deleteButtonPosition = 'right-2'; 
             deleteButton.className = `delete-message-btn absolute bottom-1 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
             deleteButton.dataset.messageIndex = index;
             deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
@@ -591,7 +591,7 @@
 
             return messageWrapper;
         }
-
+        
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;

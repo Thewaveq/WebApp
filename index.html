@@ -308,7 +308,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // --- ИЗМЕНЕНИЕ 1: Добавлены signInWithRedirect и getRedirectResult ---
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
@@ -648,7 +649,6 @@
     
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
-        // <<< ИЗМЕНЕНО: HTML-структура для страницы Ролей
         function getRolesViewHTML() {
             return `<div class="p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -661,12 +661,10 @@
                     </button>
                 </div>
                 <div id="roles-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    <!-- Карточки ролей будут здесь -->
                 </div>
             </div>`;
         }
         
-        // <<< ИЗМЕНЕНО: Рендеринг карточек для Ролей
         function renderRoles() {
             const list = document.getElementById('roles-list');
             if (!list) return;
@@ -688,11 +686,9 @@
                     </div>
                 </div>
             `).join('');
-             // Используем line-clamp для обрезки длинного текста. Убедитесь, что плагин TailwindCSS для этого включен, если он не работает.
             lucide.createIcons();
         }
         
-        // <<< ИЗМЕНЕНО: HTML-структура для страницы Настроек
         function getSettingsViewHTML() { 
             return `<div class="p-4 sm:p-6">
                  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -705,12 +701,10 @@
                     </button>
                 </div>
                 <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                   <!-- Карточки провайдеров будут здесь -->
                 </div>
             </div>`; 
         }
     
-        // <<< ИЗМЕНЕНО: Рендеринг карточек для Провайдеров
         function renderProviders() { 
             const list = document.getElementById('providers-list'); 
             if (!list) return; 
@@ -1133,8 +1127,6 @@
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
-                        // ИЗМЕНЕНИЕ: Удалена логика выбора следующего элемента.
-                        // Просто удаляем документ, а onSnapshot сам обновит интерфейс.
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                     });
                 }
@@ -1189,7 +1181,26 @@
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
     
-            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
+            // --- ИЗМЕНЕНИЕ 2: Обновленная логика входа в систему ---
+            document.getElementById('google-signin-btn')?.addEventListener('click', async () => { 
+                try { 
+                    const provider = new GoogleAuthProvider();
+                    // Проверяем, мобильное ли устройство
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    
+                    if (isMobile) {
+                        // Для мобильных используем перенаправление
+                        await signInWithRedirect(auth, provider);
+                    } else {
+                        // Для ПК используем всплывающее окно
+                        await signInWithPopup(auth, provider); 
+                    }
+                } catch (error) { 
+                    console.error("Google sign-in error", error); 
+                    showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); 
+                }
+            });
+
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
         
@@ -1202,8 +1213,6 @@
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
-                    // ИЗМЕНЕНИЕ: Просто сбрасываем activeSessionId, если текущий элемент не найден.
-                    // Больше не выбираем первый элемент автоматически.
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
@@ -1248,6 +1257,15 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
+                // --- ИЗМЕНЕНИЕ 3: Обработка результата перенаправления при загрузке страницы ---
+                // Это "ловит" пользователя после возвращения со страницы входа Google
+                try {
+                    await getRedirectResult(auth);
+                } catch (error) {
+                    console.error("Error getting redirect result:", error);
+                    showModalAlert("Ошибка при обработке входа через Google: " + error.message);
+                }
+
                 onAuthStateChanged(auth, (user) => {
                     const googleBtn = document.getElementById('google-signin-btn');
                     const userProfile = document.getElementById('user-profile');

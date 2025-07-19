@@ -1095,11 +1095,9 @@
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
                     showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                        // ИЗМЕНЕНИЕ: Удалена логика выбора следующего элемента.
+                        // Просто удаляем документ, а onSnapshot сам обновит интерфейс.
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
-                        if (state.activeSessionId === idToDelete) { 
-                           const firstSession = state.sessions.find(s => s.id !== idToDelete && s.type === state.activeTab);
-                           state.activeSessionId = firstSession ? firstSession.id : null;
-                        }
                     });
                 }
                 
@@ -1166,8 +1164,9 @@
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
-                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
-                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
+                    // ИЗМЕНЕНИЕ: Просто сбрасываем activeSessionId, если текущий элемент не найден.
+                    // Больше не выбираем первый элемент автоматически.
+                    state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
                     render();

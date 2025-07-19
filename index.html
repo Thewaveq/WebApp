@@ -511,12 +511,11 @@
             const iconDiv = document.createElement('div');
             iconDiv.className = `w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden`;
 
-            // Логика добавления элементов в заголовок отличается для пользователя и ассистента
             if (isUser) {
                 const user = auth.currentUser;
 
                 const userNameSpan = document.createElement('span');
-                userNameSpan.className = 'text-sm font-semibold';
+                userNameSpan.className = 'text-sm text-text-secondary'; 
                 userNameSpan.textContent = user?.displayName || 'Вы';
                 headerDiv.appendChild(userNameSpan);
 
@@ -531,7 +530,7 @@
                 
                 if (msg.modelName) {
                     const modelNameSpan = document.createElement('span');
-                    modelNameSpan.className = 'text-xs text-text-secondary';
+                    modelNameSpan.className = 'text-sm text-text-secondary';
                     modelNameSpan.textContent = msg.modelName;
                     headerDiv.appendChild(modelNameSpan);
                 }

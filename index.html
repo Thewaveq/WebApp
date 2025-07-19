@@ -162,17 +162,27 @@
             }
             /* --- СТИЛЬ ДЛЯ ЗАПОЛНИТЕЛЯ СООБЩЕНИЯ --- */
             .message-placeholder {
-                min-height: 70px; /* Примерная минимальная высота сообщения */
+                min-height: 70px;
                 width: 100%;
             }
-
+            
+            /* --- СТИЛИ ДЛЯ КОМПАКТНОГО РЕЖИМА ЧАТА --- */
             .chat-view-compact .message-container {
-                max-width: 896px; /* аналог max-w-5xl в Tailwind */
+                max-width: 896px;
                 margin-left: auto;
                 margin-right: auto;
             }
+
             .message-container {
+                max-width: 100%; 
                 transition: max-width 0.4s ease-in-out;
+            }
+            
+        
+            .chat-view-compact .message-container {
+                max-width: 896px;
+                margin-left: auto;
+                margin-right: auto;
             }
             
             #chat-width-toggle {
@@ -319,7 +329,7 @@
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
-        let chatObserver = null; // <<< НОВОЕ: Переменная для IntersectionObserver
+        let chatObserver = null;
     
         let state = {
             activeTab: 'chat',
@@ -399,7 +409,6 @@
         }
     
         function renderMainContent() {
-            // <<< ИЗМЕНЕНО: Отключаем старый наблюдатель при смене контента
             if (chatObserver) {
                 chatObserver.disconnect();
                 chatObserver = null;
@@ -463,7 +472,7 @@
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
-                        <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
+                        <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md hover:bg-bg-input hidden lg:flex flex-shrink-0">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
                         </button>
                         <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название чата">

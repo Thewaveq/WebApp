@@ -546,53 +546,64 @@
         // <<< ИЗМЕНЕНО: Функция теперь использует IntersectionObserver
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
-            if (!messagesContainer || !session || !session.messages) {
-                if (messagesContainer) messagesContainer.innerHTML = '';
-                return;
-            }
-
-            // Перед перерисовкой проверяем, был ли пользователь внизу чата
-            // +1 пиксель - это небольшой допуск на случай неточных вычислений
-            const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 1;
-
-            if (chatObserver) {
-                chatObserver.disconnect();
-            }
+            if (!messagesContainer) return;
             
-            messagesContainer.innerHTML = ''; 
+            const sessionMessages = session.messages || [];
 
-            const observerCallback = (entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const placeholder = entry.target;
-                        const msg = JSON.parse(placeholder.dataset.message);
-                        const index = parseInt(placeholder.dataset.messageIndex, 10);
-                        
-                        const messageElement = createMessageElement(msg, index);
-                        placeholder.parentNode.replaceChild(messageElement, placeholder);
-                        
-                        observer.unobserve(messageElement);
-                    }
+            // 1. Проверяем, был ли пользователь внизу чата перед обновлением.
+            const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5; // Увеличим допуск
+
+            // 2. Получаем текущие элементы сообщений из DOM
+            const existingMessageElements = messagesContainer.querySelectorAll('.message-placeholder, .message-container');
+
+            // 3. Сравниваем количество. Если в сессии сообщений меньше (удалили), то проще перерисовать всё.
+            if (sessionMessages.length < existingMessageElements.length) {
+                // Полная перерисовка (редкий случай, например, при удалении сообщения)
+                if (chatObserver) chatObserver.disconnect();
+                messagesContainer.innerHTML = '';
+                
+                const observerCallback = (entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const placeholder = entry.target;
+                            const msg = JSON.parse(placeholder.dataset.message);
+                            const index = parseInt(placeholder.dataset.messageIndex, 10);
+                            const messageElement = createMessageElement(msg, index);
+                            placeholder.parentNode.replaceChild(messageElement, placeholder);
+                            observer.unobserve(messageElement);
+                        }
+                    });
+                };
+                chatObserver = new IntersectionObserver(observerCallback, { root: messagesContainer, rootMargin: '200px 0px' });
+
+                sessionMessages.forEach((msg, index) => {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'message-placeholder';
+                    placeholder.dataset.message = JSON.stringify(msg);
+                    placeholder.dataset.messageIndex = String(index);
+                    messagesContainer.appendChild(placeholder);
+                    chatObserver.observe(placeholder);
                 });
-            };
 
-            chatObserver = new IntersectionObserver(observerCallback, {
-                root: messagesContainer,
-                rootMargin: '200px 0px',
-            });
-            
-            session.messages.forEach((msg, index) => {
-                const placeholder = document.createElement('div');
-                placeholder.className = 'message-placeholder';
-                placeholder.dataset.message = JSON.stringify(msg);
-                placeholder.dataset.messageIndex = String(index);
-                messagesContainer.appendChild(placeholder);
-                chatObserver.observe(placeholder);
-            });
-            
-            // После перерисовки, если пользователь был внизу, прокручиваем его снова вниз
+            } else {
+                // "Умное" добавление: добавляем только новые сообщения в конец
+                const messagesToAdd = sessionMessages.slice(existingMessageElements.length);
+                if (messagesToAdd.length > 0) {
+                     // Удаляем индикатор загрузки, если он есть, перед добавлением реального сообщения
+                    const loadingIndicator = document.getElementById('loading-message-placeholder');
+                    if(loadingIndicator) loadingIndicator.remove();
+
+                    messagesToAdd.forEach((msg, i) => {
+                        const newIndex = existingMessageElements.length + i;
+                        const messageElement = createMessageElement(msg, newIndex);
+                        messagesContainer.appendChild(messageElement);
+                    });
+                }
+            }
+
+            // 4. Прокручиваем вниз, ТОЛЬКО если пользователь уже был внизу.
             if (isScrolledToBottom) {
-                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
     

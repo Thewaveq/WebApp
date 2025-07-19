@@ -274,7 +274,13 @@
                 </div>
                 <div>
                     <label for="edit-provider-model" class="text-sm text-text-secondary block mb-1">Название модели</label>
-                    <input type="text" id="edit-provider-model" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                    <div class="relative">
+                        <input type="text" id="edit-provider-model" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                        <button type="button" id="fetch-models-btn" title="Загрузить список доступных моделей" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-text-secondary hover:text-accent disabled:text-gray-600 disabled:cursor-not-allowed transition-colors" disabled>
+                            <i data-lucide="download-cloud" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div id="models-list-container" class="mt-1"></div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="edit-provider-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
@@ -360,7 +366,9 @@
         const editRoleModal = document.getElementById('edit-role-modal');
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
-
+        const fetchModelsBtn = document.getElementById('fetch-models-btn');
+        const modelsListContainer = document.getElementById('models-list-container');
+        
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
         function loadUserPreferences() {
             const savedCompactMode = localStorage.getItem('chatViewCompact');
@@ -741,6 +749,101 @@
             }).join(''); 
             lucide.createIcons(); 
         }
+
+        function displayAvailableModels(models) {
+            modelsListContainer.innerHTML = ''; // Очищаем предыдущие результаты
+            if (!models || models.length === 0) {
+                modelsListContainer.innerHTML = `<p class="text-text-secondary text-xs p-2">Модели не найдены или API не вернул список.</p>`;
+                return;
+            }
+        
+            const listWrapper = document.createElement('div');
+            listWrapper.className = 'mt-2 p-2 bg-bg-input rounded-md border border-border-color max-h-48 overflow-y-auto';
+            listWrapper.innerHTML = `<p class="text-xs text-text-secondary mb-2">Нажмите на модель, чтобы выбрать:</p>`;
+        
+            models.forEach(modelId => {
+                const modelButton = document.createElement('button');
+                modelButton.type = 'button'; // Важно, чтобы не отправлять форму
+                modelButton.textContent = modelId;
+                modelButton.className = 'block w-full text-left p-1.5 rounded hover:bg-accent text-sm transition-colors';
+                modelButton.addEventListener('click', () => {
+                    document.getElementById('edit-provider-model').value = modelId;
+                    modelsListContainer.innerHTML = ''; // Скрываем список после выбора
+                });
+                listWrapper.appendChild(modelButton);
+            });
+        
+            modelsListContainer.appendChild(listWrapper);
+        }
+
+        function updateFetchModelsButtonState() {
+            if (!fetchModelsBtn) return; // Кнопка существует только в модальном окне
+        
+            const url = document.getElementById('edit-provider-url').value.trim();
+            const path = document.getElementById('edit-provider-path').value.trim();
+            const keys = document.getElementById('edit-provider-keys').value.trim();
+        
+            const areFieldsReady = url && path && keys;
+            fetchModelsBtn.disabled = !areFieldsReady;
+        }
+
+        async function handleFetchModelsClick() {
+            const baseUrl = document.getElementById('edit-provider-url').value.trim();
+            const apiKey = document.getElementById('edit-provider-keys').value.split(/\r?\n/)[0].trim();
+            
+            if (!baseUrl || !apiKey) {
+                alert("Пожалуйста, сначала заполните URL и API Ключ.");
+                return;
+            }
+        
+            fetchModelsBtn.disabled = true;
+            const originalIcon = fetchModelsBtn.innerHTML;
+            fetchModelsBtn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>`;
+            lucide.createIcons();
+            modelsListContainer.innerHTML = `<p class="text-xs text-text-secondary p-2">Загрузка...</p>`;
+        
+            try {
+                // Стандартный эндпоинт для получения моделей в OpenAI-совместимых API
+                const modelsPath = '/v1/models';
+                const fullUrl = new URL(modelsPath, baseUrl).href;
+                
+                // Формируем запрос для нашего прокси
+                const proxyRequestBody = {
+                    targetUrl: fullUrl,
+                    apiKey: apiKey,
+                    method: 'GET' // Указываем, что нужен GET-запрос
+                };
+        
+                const response = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(proxyRequestBody)
+                });
+        
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: `HTTP ошибка: ${response.statusText}` }));
+                    throw new Error(`Ошибка от прокси: ${errorData.message || 'Неизвестная ошибка'}`);
+                }
+        
+                const result = await response.json();
+        
+                if (result.error) {
+                    throw new Error(`Ошибка от API провайдера: ${result.error.message}`);
+                }
+        
+                // Обычно модели находятся в поле 'data', и каждая имеет 'id'
+                const modelIds = result.data.map(m => m.id).sort();
+                displayAvailableModels(modelIds);
+        
+            } catch (error) {
+                console.error("Не удалось загрузить модели:", error);
+                modelsListContainer.innerHTML = `<p class="text-red-400 text-xs p-2"><b>Ошибка:</b> ${error.message}</p>`;
+            } finally {
+                fetchModelsBtn.innerHTML = originalIcon;
+                lucide.createIcons();
+                updateFetchModelsButtonState();
+            }
+        }
         
         function setupChatViewEventListeners() { 
             const form = document.getElementById('chat-form'); 
@@ -1006,6 +1109,10 @@
             document.getElementById('edit-provider-keys').value = apiKeysArray.join('\n');
             document.getElementById('edit-provider-model').value = providerToEdit.model;
             editProviderModal.classList.remove('hidden');
+
+            modelsListContainer.innerHTML = ''; // Очищаем при открытии
+            updateFetchModelsButtonState(); // Проверяем состояние полей при открытии
+            lucide.createIcons(); // Перерисовываем иконки (для кнопки загрузки)
         }
     
         function handleOpenEditRoleModal(roleId) {
@@ -1191,6 +1298,14 @@
     
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
+
+            // Слушатели для активации кнопки "Загрузить модели"
+            document.getElementById('edit-provider-url')?.addEventListener('input', updateFetchModelsButtonState);
+            document.getElementById('edit-provider-path')?.addEventListener('input', updateFetchModelsButtonState);
+            document.getElementById('edit-provider-keys')?.addEventListener('input', updateFetchModelsButtonState);
+            
+            // Слушатель для самой кнопки
+            fetchModelsBtn?.addEventListener('click', handleFetchModelsClick);
         }
         
         function attachFirestoreListeners() {

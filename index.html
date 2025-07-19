@@ -468,12 +468,15 @@
                                 <option value="">Без роли</option>
                                 ${roleOptions}
                                 </select>
-                                <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                                ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
-                                </select>
-                                <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md hover:bg-bg-input transition-colors hidden lg:flex">
-                                    <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
-                                </button>
+                                
+                                <div class="flex items-center gap-2 w-full sm:w-auto">
+                                    <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
+                                        <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                                    </button>
+                                    <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full">
+                                    ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера в настройках</option>'}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>

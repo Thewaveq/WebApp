@@ -49,7 +49,7 @@
             
             .sidebar-item.active { background-color: var(--accent); color: white; }
             .sidebar-item:hover { background-color: var(--bg-element); }
-            .main-nav-item.active { border-bottom: 2px solid var(--accent); color: white; }
+            .main-nav-item.active { background-color: var(--accent); color: white; }
             ::-webkit-scrollbar { width: 8px; }
             ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
             ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -230,11 +230,16 @@
             <button id="sidebar-toggle-btn" class="p-3 hover:bg-bg-element transition-colors border-r border-border-color">
                 <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-5 h-5"></i>
             </button>
-            <div class="flex space-x-4 px-4 overflow-x-auto">
-                <button data-tab="chat" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors active">Чат</button>
-                <button data-tab="notepad" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Блокнот</button>
-                <button data-tab="roles" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Роли</button>
-                <button data-tab="settings" class="main-nav-item py-3 px-2 text-text-secondary hover:text-white transition-colors">Настройки</button>
+            <div class="flex space-x-2 px-4">
+                <button data-tab="chat" title="Чат" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors active">
+                    <i data-lucide="message-square" class="w-5 h-5"></i>
+                </button>
+                <button data-tab="notepad" title="Блокнот" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
+                    <i data-lucide="notebook" class="w-5 h-5"></i>
+                </button>
+                <button data-tab="settings" title="Настройки" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
             </div>
         </nav>
         <div id="main-content" class="flex-grow overflow-y-auto">
@@ -415,7 +420,7 @@
                 chatObserver.disconnect();
                 chatObserver = null;
             }
-
+        
             mainContent.innerHTML = '';
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
@@ -427,7 +432,7 @@
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         let needsUpdate = false;
                         const updatePayload = {};
-
+        
                         if (!provider && state.providers.length > 0) {
                             const firstProvider = state.providers[0];
                             const models = firstProvider.models || [];
@@ -441,7 +446,7 @@
                                 needsUpdate = true;
                             }
                         }
-
+        
                         if (needsUpdate) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, updatePayload);
@@ -462,14 +467,10 @@
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
-                case 'roles': 
-                    mainContent.innerHTML = getRolesViewHTML();
-                    renderRoles();
-                    setupRolesViewEventListeners();
-                    break;
                 case 'settings':
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
+                    renderRoles();
                     setupSettingsViewEventListeners();
                     break;
             }
@@ -687,22 +688,6 @@
     
         function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
-        function getRolesViewHTML() {
-            return `<div class="p-4 sm:p-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <div>
-                        <h2 class="text-2xl font-bold">Управление ролями</h2>
-                    </div>
-                    <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
-                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
-                        Добавить роль
-                    </button>
-                </div>
-                <div id="roles-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                </div>
-            </div>`;
-        }
-        
         function renderRoles() {
             const list = document.getElementById('roles-list');
             if (!list) return;
@@ -727,20 +712,40 @@
             lucide.createIcons();
         }
         
-        function getSettingsViewHTML() { 
-            return `<div class="p-4 sm:p-6">
-                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <div>
-                        <h2 class="text-2xl font-bold">Провайдеры API</h2>
+        function getSettingsViewHTML() {
+            return `<div class="p-4 sm:p-6 space-y-8">
+                <div>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold">Провайдеры API</h2>
+                            <p class="text-sm text-text-secondary mt-1">Управление API-провайдерами и ключами для моделей.</p>
+                        </div>
+                         <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
+                            <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                            Добавить провайдера
+                        </button>
                     </div>
-                     <button id="add-new-provider-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
-                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
-                        Добавить провайдера
-                    </button>
+                    <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    </div>
                 </div>
-                <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        
+                <div class="border-t border-border-color my-8"></div>
+        
+                <div>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                         <div>
+                            <h2 class="text-2xl font-bold">Управление ролями</h2>
+                            <p class="text-sm text-text-secondary mt-1">Создание и редактирование системных промптов (ролей) для ассистента.</p>
+                        </div>
+                        <button id="add-new-role-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
+                            <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                            Добавить роль
+                        </button>
+                    </div>
+                    <div id="roles-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    </div>
                 </div>
-            </div>`; 
+            </div>`;
         }
     
         function renderProviders() { 
@@ -875,12 +880,9 @@
             contentTextarea?.addEventListener('blur', saveNote);
         }
     
-        function setupRolesViewEventListeners() {
-            document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
-        }
-    
         function setupSettingsViewEventListeners() { 
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
+            document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
         }
         
         async function handleChatSubmit(e) {
@@ -1289,7 +1291,7 @@
         function attachFirestoreListeners() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             if (!userId) return;
-    
+        
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
@@ -1301,7 +1303,7 @@
                     render();
                 }
             }, error => console.error("Session listener error: ", error));
-    
+        
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -1309,11 +1311,11 @@
                      if (!state.isLoading) render();
                 }
             }, error => console.error("Providers listener error: ", error));
-    
+        
             const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
             unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
                 state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                if (state.activeTab === 'roles' || state.activeTab === 'chat') {
+                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
                     if (!state.isLoading) render();
                 }
             }, error => console.error("Roles listener error: ", error));

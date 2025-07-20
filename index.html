@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Multi-Tool V23</title>
+    <title>AI Multi-Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -289,7 +289,10 @@
                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новый чат
             </button>
              <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
-                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая папка заметок
+            </button>
+            <button id="new-simplenote-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая простая заметка
             </button>
         </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
@@ -319,8 +322,11 @@
             <button data-tab="chat" title="Чат" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors active ml-2">
                 <i data-lucide="message-square" class="w-5 h-5"></i>
             </button>
-            <button data-tab="notepad" title="Блокнот" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
+            <button data-tab="notepad" title="Заметки-карточки" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
                 <i data-lucide="notebook" class="w-5 h-5"></i>
+            </button>
+             <button data-tab="simplenote" title="Простые заметки" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
+                <i data-lucide="file-text" class="w-5 h-5"></i>
             </button>
         
             <!-- Кнопка справа с автоматическим отступом слева -->
@@ -440,6 +446,7 @@
         const mainNavItems = document.querySelectorAll('.main-nav-item');
         const newChatBtn = document.getElementById('new-chat-btn');
         const newNoteBtn = document.getElementById('new-note-btn');
+        const newSimpleNoteBtn = document.getElementById('new-simplenote-btn');
         const confirmModal = document.getElementById('confirm-modal');
         const confirmModalText = document.getElementById('confirm-modal-text');
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
@@ -492,8 +499,13 @@
                     
                     sidebarList.appendChild(item);
                 });
-            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
-                 sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${state.activeTab === 'chat' ? 'чатов' : 'заметок'}.</div>`;
+            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad' || state.activeTab === 'simplenote') {
+                 const typeTextMap = {
+                     chat: 'чатов',
+                     notepad: 'папок с заметками',
+                     simplenote: 'простых заметок'
+                 };
+                 sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${typeTextMap[state.activeTab] || 'элементов'}.</div>`;
             } else {
                  sidebarList.innerHTML = ''; 
             }
@@ -552,6 +564,14 @@
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
+                case 'simplenote':
+                     if (activeSession) {
+                        mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
+                        setupSimpleNotepadViewEventListeners();
+                    } else {
+                        mainContent.innerHTML = getEmptyStateHTML('simplenote');
+                    }
+                    break;
                 case 'settings':
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
@@ -568,10 +588,25 @@
             });
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+            newSimpleNoteBtn.classList.toggle('hidden', state.activeTab !== 'simplenote');
         }
     
         // --- ШАБЛОНЫ HTML ---
-        function getEmptyStateHTML(type) { const icon = type === 'chat' ? 'message-square' : 'notebook'; const text = type === 'chat' ? 'Выберите чат или создайте новый' : 'Выберите заметку или создайте новую'; return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`; }
+        function getEmptyStateHTML(type) {
+            const iconMap = {
+                'chat': 'message-square',
+                'notepad': 'notebook',
+                'simplenote': 'file-text'
+            };
+            const textMap = {
+                'chat': 'Выберите чат или создайте новый',
+                'notepad': 'Выберите папку с заметками-карточками или создайте новую',
+                'simplenote': 'Выберите простую заметку или создайте новую'
+            };
+            const icon = iconMap[type] || 'alert-circle';
+            const text = textMap[type] || 'Выберите элемент';
+            return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`;
+        }
         
         function getChatViewHTML(activeSession) { 
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
@@ -800,6 +835,10 @@
                 </div>
             `;
         }
+
+        function getSimpleNotepadViewHTML(activeSession) {
+            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
+        }
         
         function renderRoles() {
             const list = document.getElementById('roles-list');
@@ -986,34 +1025,28 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             
-            // Если сессия не активна, ничего не делаем
             if (!state.activeSessionId) return;
             
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
         
-            // Сохранение названия всей "папки" заметок
             titleInput?.addEventListener('change', () => {
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
         
-            // Добавление новой карточки
             addNewCardBtn?.addEventListener('click', async () => {
                 const newCard = {
-                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), // Более надежный ID
+                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
                     title: '',
                     content: '',
                     createdAt: new Date().toISOString()
                 };
                 
-                // ИСПРАВЛЕНО: Используем 'arrayUnion' напрямую
                 await updateDoc(sessionRef, {
                     cards: arrayUnion(newCard),
                     updatedAt: serverTimestamp()
                 });
-                // Перерисовка произойдет автоматически благодаря onSnapshot
             });
         
-            // Обработка событий внутри сетки с карточками (обновление и удаление)
             cardsGrid?.addEventListener('focusout', async (e) => {
                 const cardEl = e.target.closest('.note-card');
                 if (!cardEl || !e.target.matches('.note-card-title, .note-card-content')) return;
@@ -1022,12 +1055,10 @@
                 const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                 if (!activeSession || !activeSession.cards) return;
         
-                // Находим текущую карточку и создаем обновленную версию
                 const updatedCards = activeSession.cards.map(card => {
                     if (card.id === cardId) {
                         const newTitle = cardEl.querySelector('.note-card-title').value;
                         const newContent = cardEl.querySelector('.note-card-content').value;
-                        // Сохраняем только если что-то изменилось
                         if (card.title !== newTitle || card.content !== newContent) {
                            return { ...card, title: newTitle, content: newContent };
                         }
@@ -1035,7 +1066,6 @@
                     return card;
                 });
         
-                // Обновляем весь массив карточек в базе данных
                 await updateDoc(sessionRef, { cards: updatedCards, updatedAt: serverTimestamp() });
             });
         
@@ -1049,11 +1079,9 @@
                 showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const cards = activeSession.cards || [];
-                    // Важно: для arrayRemove нужно передать точную копию объекта, который нужно удалить
                     const cardToDelete = cards.find(c => c.id === cardId);
         
                     if (cardToDelete) {
-                        // ИСПРАВЛЕНО: Используем 'arrayRemove' напрямую
                         await updateDoc(sessionRef, {
                             cards: arrayRemove(cardToDelete),
                             updatedAt: serverTimestamp()
@@ -1062,8 +1090,23 @@
                 });
             });
         
-            // Перерисовываем иконки Lucide после того, как карточки будут отрендерены
             lucide.createIcons();
+        }
+
+        function setupSimpleNotepadViewEventListeners() {
+            const titleInput = document.getElementById('simple-note-title-input');
+            const contentTextarea = document.getElementById('simple-note-content-textarea');
+            const saveNote = () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
+                    updatedAt: serverTimestamp()
+                });
+            };
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1353,7 +1396,7 @@
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
-                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
+                    if (state.activeTab === 'chat' || state.activeTab === 'notepad' || state.activeTab === 'simplenote') {
                         const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                         state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                     } else {
@@ -1366,7 +1409,6 @@
             const createNewItem = async (type) => {
                 let newSessionData;
                 if (type === 'chat') {
-                    // ... (код для чата остается без изменений)
                     let providerId = null;
                     let modelName = null;
                     if (state.providers.length > 0) {
@@ -1378,16 +1420,22 @@
                         }
                     }
                     newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                } else { // notepad
-                    // --- ЭТА ЧАСТЬ ИЗМЕНИЛАСЬ ---
+                } else if (type === 'notepad') {
                     newSessionData = { 
                         type: 'notepad', 
                         title: 'Новая папка', 
-                        cards: [], // Вместо content: ''
+                        cards: [],
                         createdAt: serverTimestamp(), 
                         updatedAt: serverTimestamp() 
                     };
-                    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+                } else if (type === 'simplenote') {
+                    newSessionData = {
+                        type: 'simplenote',
+                        title: 'Новая простая заметка',
+                        content: '',
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    };
                 }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -1402,6 +1450,7 @@
     
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+            newSimpleNoteBtn.addEventListener('click', () => createNewItem('simplenote'));
             
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {

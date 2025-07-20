@@ -8,6 +8,14 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/table@latest"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -344,6 +352,7 @@
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
         let chatObserver = null;
+        let editor = null;
     
         let state = {
             activeTab: 'chat',
@@ -697,7 +706,20 @@
             }
         }
     
-        function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
+        function getNotepadViewHTML(activeSession) {
+            return `
+                <div class="flex flex-col h-full p-4">
+                    <input 
+                        type="text" 
+                        id="note-title-input" 
+                        class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" 
+                        value="${activeSession.title || ''}" 
+                        placeholder="Название заметки"
+                    >
+                    <div id="editorjs-container" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 overflow-y-auto"></div>
+                </div>
+            `;
+        }
         
         function renderRoles() {
             const list = document.getElementById('roles-list');
@@ -881,18 +903,95 @@
         
         function setupNotepadViewEventListeners() {
             const titleInput = document.getElementById('note-title-input');
-            const contentTextarea = document.getElementById('note-content-textarea');
-            const saveNote = () => {
+            const editorContainer = document.getElementById('editorjs-container');
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+        
+            if (!editorContainer || !activeSession) return;
+        
+            // Уничтожаем предыдущий экземпляр редактора, если он существует
+            if (editor) {
+                editor.destroy();
+                editor = null;
+            }
+        
+            // Пытаемся распарсить контент. Если не получается, используем пустой объект.
+            let editorData;
+            try {
+                editorData = activeSession.content ? JSON.parse(activeSession.content) : {};
+            } catch (e) {
+                console.error("Ошибка парсинга контента заметки:", e);
+                editorData = {};
+            }
+        
+            editor = new EditorJS({
+                holder: 'editorjs-container',
+                placeholder: 'Начните вводить текст или нажмите + для выбора блока',
+                data: editorData,
+        
+                tools: {
+                    header: {
+                        class: Header,
+                        inlineToolbar: true,
+                        config: {
+                            placeholder: 'Заголовок',
+                            levels: [2, 3, 4],
+                            defaultLevel: 2
+                        }
+                    },
+                    list: {
+                        class: List,
+                        inlineToolbar: true,
+                    },
+                    checklist: {
+                        class: Checklist,
+                        inlineToolbar: true,
+                    },
+                    code: {
+                        class: CodeTool,
+                        shortcut: 'CMD+SHIFT+C',
+                    },
+                    delimiter: Delimiter,
+                    table: {
+                        class: Table,
+                        inlineToolbar: true,
+                    },
+                },
+        
+                // Вызывается при готовности редактора
+                onReady: () => {
+                    console.log('Editor.js готов к работе');
+                },
+        
+                // Вызывается при любом изменении в редакторе
+                onChange: (api, event) => {
+                    saveNoteContent();
+                }
+            });
+        
+            const saveNoteContent = async () => {
+                if (!editor) return;
+                try {
+                    const updatedData = await editor.save();
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                    await updateDoc(sessionRef, {
+                        content: JSON.stringify(updatedData),
+                        updatedAt: serverTimestamp()
+                    });
+                } catch (error) {
+                    console.error('Ошибка сохранения данных Editor.js:', error);
+                }
+            };
+        
+            const saveNoteTitle = () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, {
                     title: titleInput.value,
-                    content: contentTextarea.value,
                     updatedAt: serverTimestamp()
                 });
             };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
+        
+            titleInput?.addEventListener('change', saveNoteTitle);
         }
     
         function setupSettingsViewEventListeners() { 

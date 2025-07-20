@@ -910,85 +910,105 @@
         
             // Безопасно уничтожаем предыдущий экземпляр редактора
             if (editor) {
-                editor.destroy().catch(err => console.error("Ошибка при уничтожении предыдущего редактора:", err));
-                editor = null;
-            }
-        
-            // --- 1. Проверка на наличие Editor.js и его плагинов ---
-            const requiredTools = ['Header', 'List', 'Checklist', 'CodeTool', 'Delimiter', 'Table'];
-            const missingTools = requiredTools.filter(tool => typeof window[tool] === 'undefined');
-        
-            if (typeof window.EditorJS === 'undefined' || missingTools.length > 0) {
-                let errorMessage = '<b>Ошибка конфигурации редактора:</b><br>';
-                if (typeof window.EditorJS === 'undefined') {
-                    errorMessage += '• Библиотека Editor.js не загружена.<br>';
+                try {
+                    editor.destroy();
+                } catch (err) {
+                    console.error("Ошибка при уничтожении редактора:", err);
+                } finally {
+                    editor = null;
                 }
-                if (missingTools.length > 0) {
-                    errorMessage += `• Не удалось загрузить плагины: ${missingTools.join(', ')}.<br>`;
-                }
-                errorMessage += '<br>Пожалуйста, убедитесь, что все скрипты редактора подключены в секции <head> вашего HTML файла.';
-                
-                editorContainer.innerHTML = `<div class="p-6 text-red-400 bg-red-900/20 rounded-lg">${errorMessage}</div>`;
-                console.error(errorMessage.replace(/<br>|<b>|<\/b>/g, ' '));
-                return; // Прерываем выполнение, если компоненты отсутствуют
             }
             
-            // --- 2. Подготовка данных и конвертация старых заметок ---
-            let editorData;
-            try {
-                // Если контент - это валидный JSON, используем его
-                editorData = JSON.parse(activeSession.content);
-                if (!Array.isArray(editorData.blocks)) {
-                    // Если структура JSON некорректна, создаем ошибку, чтобы перейти в блок catch
-                    throw new Error("Неверная структура данных: отсутствует массив 'blocks'");
-                }
-            } catch (e) {
-                // Если контент - это простой текст (старая заметка) или некорректный JSON
-                if (typeof activeSession.content === 'string' && activeSession.content.trim()) {
-                    // Конвертируем старую текстовую заметку в один блок-параграф
-                    editorData = {
-                        blocks: [{
-                            type: 'paragraph',
-                            data: { text: activeSession.content }
-                        }]
-                    };
-                } else {
-                    // В противном случае начинаем с пустого редактора
-                    editorData = { blocks: [] };
-                }
-            }
+            // Показываем индикатор загрузки, пока ждем скрипты
+            editorContainer.innerHTML = `
+                <div class="flex items-center justify-center h-full text-text-secondary">
+                    <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-3"></i>
+                    Загрузка редактора...
+                </div>`;
+            lucide.createIcons();
         
-            // --- 3. Инициализация Editor.js в блоке try...catch ---
-            try {
-                editor = new EditorJS({
-                    holder: 'editorjs-container',
-                    placeholder: 'Начните вводить текст. Нажмите Tab для выбора блока...',
-                    data: editorData,
-                    
-                    tools: {
-                        header: { class: window.Header, inlineToolbar: true, config: { placeholder: 'Заголовок', levels: [2, 3, 4], defaultLevel: 2 } },
-                        list: { class: window.List, inlineToolbar: true },
-                        checklist: { class: window.Checklist, inlineToolbar: true },
-                        code: { class: window.CodeTool, shortcut: 'CMD+SHIFT+C', config: { placeholder: 'Введите код' } },
-                        delimiter: window.Delimiter,
-                        table: { class: window.Table, inlineToolbar: true },
-                        paragraph: { inlineToolbar: true },
-                    },
+            const waitForTools = (toolNames, timeout = 7000) => {
+                return new Promise((resolve, reject) => {
+                    const startTime = Date.now();
+                    const checkInterval = setInterval(() => {
+                        const missingTools = toolNames.filter(name => typeof window[name] === 'undefined');
         
-                    // Вызывается при любом изменении в редакторе
-                    onChange: (api, event) => {
-                        // Используем debounce, чтобы не сохранять на каждое нажатие
-                        clearTimeout(window.saveTimeout);
-                        window.saveTimeout = setTimeout(() => {
-                            saveNoteContent();
-                        }, 700); // Сохраняем через 700 мс после последнего изменения
-                    }
+                        if (missingTools.length === 0) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        } else if (Date.now() - startTime > timeout) {
+                            clearInterval(checkInterval);
+                            reject(missingTools); // Отклоняем с списком незагруженных инструментов
+                        }
+                    }, 100); // Проверяем каждые 100 мс
                 });
-            } catch (error) {
-                console.error("Критическая ошибка при инициализации Editor.js:", error);
-                editorContainer.innerHTML = `<div class="p-4 text-red-400">Не удалось запустить редактор. Подробности в консоли разработчика (F12).</div>`;
-                return;
-            }
+            };
+        
+            const initializeEditor = async () => {
+                const requiredTools = ['EditorJS', 'Header', 'List', 'Checklist', 'CodeTool', 'Delimiter', 'Table'];
+                
+                try {
+                    // Ждем, пока все скрипты будут готовы
+                    await waitForTools(requiredTools);
+                } catch (missingTools) {
+                    // Если скрипты не загрузились за 7 секунд
+                    let errorMessage = '<b>Критическая ошибка: Редактор не может быть загружен.</b><br>';
+                    errorMessage += 'Не удалось получить следующие компоненты из сети:<br>';
+                    missingTools.forEach(tool => {
+                        errorMessage += `• ${tool}<br>`;
+                    });
+                    errorMessage += '<br>Пожалуйста, проверьте ваше интернет-соединение и обновите страницу. Если проблема повторится, возможно, CDN-сервер временно недоступен.';
+                    
+                    editorContainer.innerHTML = `<div class="p-6 text-red-400 bg-red-900/20 rounded-lg">${errorMessage}</div>`;
+                    console.error("Таймаут загрузки скриптов редактора. Отсутствуют:", missingTools);
+                    return;
+                }
+                
+                // --- Если все скрипты загружены, продолжаем как раньше ---
+        
+                // Подготовка данных и конвертация старых заметок
+                let editorData;
+                try {
+                    editorData = JSON.parse(activeSession.content);
+                    if (!editorData || typeof editorData.blocks === 'undefined') {
+                        throw new Error("Неверная структура JSON");
+                    }
+                } catch (e) {
+                    editorData = {
+                        blocks: (typeof activeSession.content === 'string' && activeSession.content)
+                            ? [{ type: 'paragraph', data: { text: activeSession.content } }]
+                            : []
+                    };
+                }
+        
+                // Инициализация Editor.js
+                try {
+                    // Очищаем контейнер от индикатора загрузки
+                    editorContainer.innerHTML = ''; 
+        
+                    editor = new EditorJS({
+                        holder: editorContainer, // Используем сам контейнер
+                        placeholder: 'Начните вводить текст. Нажмите Tab для выбора блока...',
+                        data: editorData,
+                        tools: {
+                            header: { class: window.Header, inlineToolbar: true, config: { placeholder: 'Заголовок', levels: [2, 3, 4], defaultLevel: 2 } },
+                            list: { class: window.List, inlineToolbar: true },
+                            checklist: { class: window.Checklist, inlineToolbar: true },
+                            code: { class: window.CodeTool, shortcut: 'CMD+SHIFT+C', config: { placeholder: 'Введите код' } },
+                            delimiter: window.Delimiter,
+                            table: { class: window.Table, inlineToolbar: true },
+                            paragraph: { inlineToolbar: true },
+                        },
+                        onChange: () => {
+                            clearTimeout(window.saveTimeout);
+                            window.saveTimeout = setTimeout(saveNoteContent, 700);
+                        }
+                    });
+                } catch (error) {
+                    console.error("Критическая ошибка при инициализации Editor.js:", error);
+                    editorContainer.innerHTML = `<div class="p-4 text-red-400">Не удалось запустить редактор. Подробности в консоли разработчика (F12).</div>`;
+                }
+            };
         
             const saveNoteContent = async () => {
                 if (!editor || !state.activeSessionId) return;
@@ -1000,6 +1020,10 @@
                         updatedAt: serverTimestamp()
                     });
                 } catch (error) {
+                    // Игнорируем ошибку "Holder is not an HTMLElement", которая может возникнуть при быстрой смене вкладок
+                    if (error.message.includes("Holder is not an HTMLElement")) {
+                        return;
+                    }
                     console.error('Ошибка сохранения данных Editor.js:', error);
                 }
             };
@@ -1014,6 +1038,9 @@
             };
         
             titleInput?.addEventListener('change', saveNoteTitle);
+            
+            // Запускаем весь процесс инициализации
+            initializeEditor();
         }
     
         function setupSettingsViewEventListeners() { 

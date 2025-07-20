@@ -908,68 +908,90 @@
         
             if (!editorContainer || !activeSession) return;
         
-            // Уничтожаем предыдущий экземпляр редактора, если он существует
+            // Безопасно уничтожаем предыдущий экземпляр редактора
             if (editor) {
-                editor.destroy();
+                editor.destroy().catch(err => console.error("Ошибка при уничтожении предыдущего редактора:", err));
                 editor = null;
             }
         
-            // Пытаемся распарсить контент. Если не получается, используем пустой объект.
+            // --- 1. Проверка на наличие Editor.js и его плагинов ---
+            const requiredTools = ['Header', 'List', 'Checklist', 'CodeTool', 'Delimiter', 'Table'];
+            const missingTools = requiredTools.filter(tool => typeof window[tool] === 'undefined');
+        
+            if (typeof window.EditorJS === 'undefined' || missingTools.length > 0) {
+                let errorMessage = '<b>Ошибка конфигурации редактора:</b><br>';
+                if (typeof window.EditorJS === 'undefined') {
+                    errorMessage += '• Библиотека Editor.js не загружена.<br>';
+                }
+                if (missingTools.length > 0) {
+                    errorMessage += `• Не удалось загрузить плагины: ${missingTools.join(', ')}.<br>`;
+                }
+                errorMessage += '<br>Пожалуйста, убедитесь, что все скрипты редактора подключены в секции <head> вашего HTML файла.';
+                
+                editorContainer.innerHTML = `<div class="p-6 text-red-400 bg-red-900/20 rounded-lg">${errorMessage}</div>`;
+                console.error(errorMessage.replace(/<br>|<b>|<\/b>/g, ' '));
+                return; // Прерываем выполнение, если компоненты отсутствуют
+            }
+            
+            // --- 2. Подготовка данных и конвертация старых заметок ---
             let editorData;
             try {
-                editorData = activeSession.content ? JSON.parse(activeSession.content) : {};
+                // Если контент - это валидный JSON, используем его
+                editorData = JSON.parse(activeSession.content);
+                if (!Array.isArray(editorData.blocks)) {
+                    // Если структура JSON некорректна, создаем ошибку, чтобы перейти в блок catch
+                    throw new Error("Неверная структура данных: отсутствует массив 'blocks'");
+                }
             } catch (e) {
-                console.error("Ошибка парсинга контента заметки:", e);
-                editorData = {};
+                // Если контент - это простой текст (старая заметка) или некорректный JSON
+                if (typeof activeSession.content === 'string' && activeSession.content.trim()) {
+                    // Конвертируем старую текстовую заметку в один блок-параграф
+                    editorData = {
+                        blocks: [{
+                            type: 'paragraph',
+                            data: { text: activeSession.content }
+                        }]
+                    };
+                } else {
+                    // В противном случае начинаем с пустого редактора
+                    editorData = { blocks: [] };
+                }
             }
         
-            editor = new EditorJS({
-                holder: 'editorjs-container',
-                placeholder: 'Начните вводить текст или нажмите + для выбора блока',
-                data: editorData,
+            // --- 3. Инициализация Editor.js в блоке try...catch ---
+            try {
+                editor = new EditorJS({
+                    holder: 'editorjs-container',
+                    placeholder: 'Начните вводить текст. Нажмите Tab для выбора блока...',
+                    data: editorData,
+                    
+                    tools: {
+                        header: { class: window.Header, inlineToolbar: true, config: { placeholder: 'Заголовок', levels: [2, 3, 4], defaultLevel: 2 } },
+                        list: { class: window.List, inlineToolbar: true },
+                        checklist: { class: window.Checklist, inlineToolbar: true },
+                        code: { class: window.CodeTool, shortcut: 'CMD+SHIFT+C', config: { placeholder: 'Введите код' } },
+                        delimiter: window.Delimiter,
+                        table: { class: window.Table, inlineToolbar: true },
+                        paragraph: { inlineToolbar: true },
+                    },
         
-                tools: {
-                    header: {
-                        class: Header,
-                        inlineToolbar: true,
-                        config: {
-                            placeholder: 'Заголовок',
-                            levels: [2, 3, 4],
-                            defaultLevel: 2
-                        }
-                    },
-                    list: {
-                        class: List,
-                        inlineToolbar: true,
-                    },
-                    checklist: {
-                        class: Checklist,
-                        inlineToolbar: true,
-                    },
-                    code: {
-                        class: CodeTool,
-                        shortcut: 'CMD+SHIFT+C',
-                    },
-                    delimiter: Delimiter,
-                    table: {
-                        class: Table,
-                        inlineToolbar: true,
-                    },
-                },
-        
-                // Вызывается при готовности редактора
-                onReady: () => {
-                    console.log('Editor.js готов к работе');
-                },
-        
-                // Вызывается при любом изменении в редакторе
-                onChange: (api, event) => {
-                    saveNoteContent();
-                }
-            });
+                    // Вызывается при любом изменении в редакторе
+                    onChange: (api, event) => {
+                        // Используем debounce, чтобы не сохранять на каждое нажатие
+                        clearTimeout(window.saveTimeout);
+                        window.saveTimeout = setTimeout(() => {
+                            saveNoteContent();
+                        }, 700); // Сохраняем через 700 мс после последнего изменения
+                    }
+                });
+            } catch (error) {
+                console.error("Критическая ошибка при инициализации Editor.js:", error);
+                editorContainer.innerHTML = `<div class="p-4 text-red-400">Не удалось запустить редактор. Подробности в консоли разработчика (F12).</div>`;
+                return;
+            }
         
             const saveNoteContent = async () => {
-                if (!editor) return;
+                if (!editor || !state.activeSessionId) return;
                 try {
                     const updatedData = await editor.save();
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);

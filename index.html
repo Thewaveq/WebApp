@@ -216,7 +216,7 @@
              <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
             </button>
-            <button id="new-folder-btn" class="w-full flex items-center justify-center bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition-colors mt-2 hidden">
+            <button id="new-folder-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors mt-2 hidden">
                 <i data-lucide="folder-plus" class="w-5 h-5 mr-2"></i>Новая папка
             </button>
         </div>
@@ -410,7 +410,6 @@
             });
         
             if (state.activeTab === 'chat') {
-                // Старый рендеринг для чатов
                 if (filteredSessions.length > 0) {
                     filteredSessions.forEach(session => {
                         const item = document.createElement('div');
@@ -434,7 +433,6 @@
                     sidebarList.innerHTML = `<div class="text-center text-sm text-text-secondary p-4">Нет чатов.</div>`;
                 }
             } else if (state.activeTab === 'notepad') {
-                // Новый рендеринг для заметок и папок
                 if (filteredSessions.length > 0) {
                     const tree = buildTree(filteredSessions);
                     const fragment = document.createDocumentFragment();
@@ -499,12 +497,17 @@
             const itemWrapper = document.createElement(isFolder ? 'details' : 'div');
             itemWrapper.className = 'w-full';
             if(isFolder) {
-                itemWrapper.open = node.children.some(child => child.id === state.activeSessionId) || node.id === state.activeSessionId;
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                // Раскрываем папку, если она активна или если внутри нее активный элемент
+                itemWrapper.open = (activeSession && activeSession.parentId === node.id) || node.id === state.activeSessionId;
             }
             
             const itemContent = document.createElement(isFolder ? 'summary' : 'div');
             itemContent.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${node.id === state.activeSessionId ? 'active' : ''} ${isDropTarget ? 'drop-target' : ''}`;
-            itemContent.style.paddingLeft = `${level * 16 + 8}px`; // 8px базовый отступ
+            
+            // ИСПРАВЛЕНИЕ: Используем padding-left вместо margin-left
+            itemContent.style.paddingLeft = `${level * 20 + 8}px`; // 8px базовый отступ + 20px на каждый уровень вложенности
+            
             itemContent.dataset.id = node.id;
             if (isDraggable) {
                 itemContent.setAttribute('draggable', 'true');
@@ -523,8 +526,13 @@
             `;
         
             if (isFolder) {
-                itemContent.style.listStyle = 'none'; // Убираем маркер
-                itemContent.addEventListener('click', e => e.preventDefault()); // Предотвращаем стандартное открытие/закрытие по клику на всю строку
+                itemContent.style.listStyle = 'none';
+                itemContent.addEventListener('click', e => {
+                     // Предотвращаем стандартное открытие/закрытие по клику на всю строку, чтобы управлять этим самим
+                    if (e.target === itemContent || e.target.parentElement.classList.contains('truncate')) {
+                         itemWrapper.open = !itemWrapper.open;
+                    }
+                });
             }
             itemWrapper.appendChild(itemContent);
             
@@ -536,15 +544,8 @@
             
             parentElement.appendChild(itemWrapper);
             
-            // Отдельный обработчик на всю строку для выбора элемента
             itemContent.addEventListener('click', (e) => {
                 if (e.target.closest('.delete-session-btn') || e.target.closest('.new-note-in-folder-btn')) return;
-                
-                // Если это папка, клик раскрывает ее, но также делает активной
-                if(isFolder) {
-                    itemWrapper.open = !itemWrapper.open;
-                }
-        
                 state.activeSessionId = node.id;
                 render();
             });
@@ -560,6 +561,7 @@
         
             itemContent.querySelector('.new-note-in-folder-btn')?.addEventListener('click', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 const folderId = e.currentTarget.dataset.folderId;
                 createNewItem('notepad', folderId);
             });
@@ -632,10 +634,8 @@
                 item.classList.toggle('active', item.dataset.tab === state.activeTab);
             });
             
-            // Получаем новую кнопку
             const newFolderBtn = document.getElementById('new-folder-btn');
         
-            // Управляем видимостью всех кнопок
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
             if (newFolderBtn) {
@@ -1351,7 +1351,7 @@
             } else if (type === 'folder') {
                 newSessionData = { ...commonData, title: 'Новая папка' };
             } else {
-                return; // Неизвестный тип
+                return;
             }
             
             const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -1378,7 +1378,6 @@
                 });
             });
         
-            // --- Обновленные и новые обработчики ---
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad', null));
             
@@ -1387,10 +1386,8 @@
                 newFolderBtn.addEventListener('click', () => createNewItem('folder', null));
             }
             
-            // --- Логика Drag & Drop ---
             let draggedItemId = null;
             const sidebarListEl = document.getElementById('sidebar-list');
-            let batch = null;
         
             sidebarListEl.addEventListener('dragstart', (e) => {
                 const draggableItem = e.target.closest('.sidebar-item[draggable="true"]');
@@ -1456,8 +1453,7 @@
                 }
                 draggedItemId = null;
             });
-            // --- Конец логики Drag & Drop ---
-        
+            
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
                     sidebar.classList.toggle('open');
@@ -1482,14 +1478,14 @@
                     const itemToDelete = state.sessions.find(s => s.id === idToDelete);
                     let message = 'Вы уверены, что хотите удалить этот элемент?';
                     if (itemToDelete && itemToDelete.type === 'folder') {
-                        message = 'Вы уверены, что хотите удалить эту папку? Все вложенные заметки и папки будут перемещены в корень.';
+                        message = 'Вы уверены, что хотите удалить эту папку? Все вложенные элементы будут перемещены в корень.';
                     }
         
                     showConfirmModal(message, async () => {
                         if (itemToDelete && itemToDelete.type === 'folder') {
                             const children = state.sessions.filter(s => s.parentId === idToDelete);
                             if (children.length > 0) {
-                                batch = writeBatch(db); // Используем глобальную переменную batch
+                                const batch = writeBatch(db);
                                 children.forEach(child => {
                                     const childRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, child.id);
                                     batch.update(childRef, { parentId: null });
@@ -1501,6 +1497,7 @@
                     });
                 }
                 
+                // ... остальная часть функции без изменений ...
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
                     const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);

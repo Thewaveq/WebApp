@@ -730,13 +730,15 @@
             }
         }
 
-        function getNotepadViewHTML(activeSession) {
+        function getNotepadViewHTML(activeSession) { 
             return `<div class="flex flex-col h-full">
-                <div class="p-4 flex-shrink-0">
+                <div class="flex-shrink-0 p-4 border-b border-border-color">
                     <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
                 </div>
-                <div id="editorjs-container" class="flex-grow overflow-y-auto px-4">
-                    <!-- Editor.js будет отрисован здесь -->
+                <div class="flex-grow relative overflow-y-auto">
+                    <div id="editorjs-container" class="h-full">
+                        <!-- Editor.js будет отрисован здесь -->
+                    </div>
                 </div>
             </div>`;
         }
@@ -926,7 +928,17 @@
             const editorContainer = document.getElementById('editorjs-container');
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
 
-            if (!editorContainer || !activeSession) return;
+            if (!editorContainer || !activeSession) {
+                console.error("Контейнер редактора или активная сессия не найдены.");
+                return;
+            }
+
+            // Проверяем, доступны ли глобальные переменные Editor.js
+            if (typeof window.EditorJS === 'undefined' || typeof window.Header === 'undefined') {
+                console.error("Editor.js или его плагины не загрузились. Проверьте CDN ссылки в <head>.");
+                editorContainer.innerHTML = '<div class="p-4 text-red-400">Ошибка: Не удалось загрузить редактор.</div>';
+                return;
+            }
 
             let editorInstance = null;
             let debounceTimer;
@@ -935,67 +947,93 @@
                 if (!editorInstance || !state.activeSessionId) return;
                 
                 try {
+                    // Используем .save() для получения данных из редактора
                     const outputData = await editorInstance.save();
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                    
                     await updateDoc(sessionRef, {
                         title: titleInput.value,
-                        content: outputData, // Сохраняем объект JSON, а не строку
+                        content: outputData, // Сохраняем объект JSON
                         updatedAt: serverTimestamp()
                     });
-                } catch (error) {
-                    console.error('Ошибка сохранения заметки:', error);
+                } catch (error)
+                    {
+                    // Ошибки могут возникать, если редактор не готов, игнорируем их
+                    if (error.message.includes('is not ready')) {
+                         // console.log("Editor.js еще не готов к сохранению.");
+                    } else {
+                         console.error('Ошибка сохранения заметки:', error);
+                    }
                 }
             };
 
-            // Обработка старых заметок (где content был строкой)
+            // Обработка старых заметок (где content был строкой) или пустых.
             let initialData = activeSession.content;
-            if (typeof initialData === 'string' || !initialData || !initialData.blocks) {
+            if (typeof initialData !== 'object' || !initialData || !Array.isArray(initialData.blocks) || initialData.blocks.length === 0) {
                 initialData = {
                     time: Date.now(),
                     blocks: [{
                         type: "paragraph",
-                        data: { text: initialData || '' } // Преобразуем старую строку в блок
+                        // Если initialData - строка, используем ее, иначе - пустая строка
+                        data: { text: (typeof initialData === 'string' ? initialData : '') } 
                     }]
                 };
             }
 
-            // Инициализация Editor.js
-            editorInstance = new EditorJS({
-                holder: 'editorjs-container',
-                
-                tools: {
-                    header: {
-                        class: Header,
-                        inlineToolbar: true
+            // Инициализация Editor.js с обращением к глобальным объектам через `window`
+            try {
+                editorInstance = new window.EditorJS({
+                    holder: 'editorjs-container',
+                    
+                    tools: {
+                        header: {
+                            class: window.Header, // <- Обращение через window
+                            inlineToolbar: true,
+                            config: {
+                                placeholder: 'Введите заголовок',
+                                levels: [2, 3, 4],
+                                defaultLevel: 2
+                            }
+                        },
+                        list: {
+                            class: window.List, // <- Обращение через window
+                            inlineToolbar: true,
+                        },
+                        checklist: {
+                            class: window.Checklist, // <- Обращение через window
+                            inlineToolbar: true,
+                        },
+                        code: {
+                            class: window.CodeTool, // <- Обращение через window
+                            config: {
+                                placeholder: 'Вставьте код...'
+                            }
+                        }
                     },
-                    list: {
-                        class: List,
-                        inlineToolbar: true
+                    
+                    data: initialData,
+                    
+                    placeholder: 'Начните вводить текст или нажмите Tab для выбора инструментов',
+                    
+                    // Вызывается при любом изменении в редакторе
+                    onChange: (api, event) => {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => {
+                            saveNote();
+                        }, 1500); // Сохраняем с задержкой в 1.5с после последнего изменения
                     },
-                    checklist: {
-                        class: Checklist,
-                        inlineToolbar: true,
-                    },
-                    code: CodeTool,
-                    paragraph: {
-                       inlineToolbar: true,
-                    }
-                },
-                
-                data: initialData,
-                
-                placeholder: 'Нажмите Tab для выбора инструментов',
-                
-                // Вызывается при любом изменении в редакторе
-                onChange: (api, event) => {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        saveNote();
-                    }, 1500); // Сохраняем с задержкой в 1.5с после последнего изменения
-                }
-            });
 
-            titleInput?.addEventListener('blur', saveNote);
+                    onReady: () => {
+                        console.log('Editor.js готов к работе.');
+                    },
+                });
+
+            } catch (e) {
+                console.error("Критическая ошибка при инициализации Editor.js:", e);
+                editorContainer.innerHTML = `<div class="p-4 text-red-400"><strong>Критическая ошибка:</strong> Не удалось инициализировать редактор. <br>${e.message}</div>`;
+            }
+
+            titleInput?.addEventListener('change', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 

@@ -476,21 +476,8 @@
                 filteredSessions.forEach(session => {
                     const item = document.createElement('div');
                     item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
-                    
-                    // ИЗМЕНЕНИЕ: Добавляем иконку для визуального различия типов заметок
-                    let iconHTML = '';
-                    if (session.type === 'notepad') {
-                        // Для обратной совместимости, если подтип не указан, считаем его карточками
-                        const noteSubtype = session.noteSubtype || 'cards'; 
-                        const icon = noteSubtype === 'text' ? 'file-text' : 'layout-grid';
-                        iconHTML = `<i data-lucide="${icon}" class="w-4 h-4 mr-2 flex-shrink-0 text-text-secondary"></i>`;
-                    }
-
                     item.innerHTML = `
-                        <div class="flex items-center min-w-0">
-                            ${iconHTML}
-                            <span class="truncate pr-2">${session.title || 'Без названия'}</span>
-                        </div>
+                        <span class="truncate pr-2">${session.title || 'Без названия'}</span>
                         <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
@@ -579,15 +566,8 @@
             mainNavItems.forEach(item => {
                 item.classList.toggle('active', item.dataset.tab === state.activeTab);
             });
-
-            // Управляем видимостью кнопки "Новый чат"
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
-
-            // ИЗМЕНЕНИЕ: Управляем видимостью контейнера с кнопками для создания заметок
-            const noteButtonsContainer = document.getElementById('note-buttons-container');
-            if (noteButtonsContainer) {
-                noteButtonsContainer.classList.toggle('hidden', state.activeTab !== 'notepad');
-            }
+            newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
     
         // --- ШАБЛОНЫ HTML ---
@@ -792,24 +772,6 @@
         }
     
         function getNotepadViewHTML(activeSession) {
-            // Определяем подтип заметки. По умолчанию 'cards' для совместимости со старыми данными.
-            const noteSubtype = activeSession.noteSubtype || 'cards'; 
-        
-            if (noteSubtype === 'text') {
-                // ИЗМЕНЕНИЕ: Возвращаем HTML для простой текстовой заметки.
-                return `
-                <div class="flex flex-col h-full">
-                    <div class="p-3 border-b border-border-color flex-shrink-0">
-                        <input type="text" id="note-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название текстовой заметки">
-                    </div>
-                    <div class="flex-grow p-4">
-                         <textarea id="note-content-textarea" class="w-full h-full bg-bg-element rounded-md p-3 resize-none border border-transparent focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Начните писать...">${activeSession.content || ''}</textarea>
-                    </div>
-                </div>
-                `;
-            }
-        
-            // Оригинальный код для заметок в виде карточек
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(card => `
                 <div class="note-card" data-card-id="${card.id}">
@@ -824,11 +786,10 @@
             `).join('');
         
             return `
-                <div class="flex flex-col h-full">
-                    <div class="p-3 border-b border-border-color flex-shrink-0">
-                        <input type="text" id="note-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
-                    </div>
-                    <div class="flex-grow overflow-y-auto p-4">
+                <div class="flex flex-col h-full p-4">
+                    <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
+                    
+                    <div class="flex-grow overflow-y-auto pr-2">
                         <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             ${cardsHTML}
                             <button id="add-new-card-btn" class="min-h-[180px] flex items-center justify-center rounded-lg">
@@ -1021,100 +982,87 @@
         }
         
         function setupNotepadViewEventListeners() {
+            const titleInput = document.getElementById('note-title-input');
+            const cardsGrid = document.getElementById('note-cards-grid');
+            const addNewCardBtn = document.getElementById('add-new-card-btn');
+            
+            // Если сессия не активна, ничего не делаем
             if (!state.activeSessionId) return;
             
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
-            const noteSubtype = activeSession.noteSubtype || 'cards';
-
-            if (noteSubtype === 'text') {
-                const titleInput = document.getElementById('note-title-input');
-                const contentTextarea = document.getElementById('note-content-textarea');
-                let debounceTimer;
-
-                const saveData = () => {
-                    updateDoc(sessionRef, {
-                        title: titleInput.value,
-                        content: contentTextarea.value,
-                        updatedAt: serverTimestamp()
-                    });
+        
+            // Сохранение названия всей "папки" заметок
+            titleInput?.addEventListener('change', () => {
+                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            });
+        
+            // Добавление новой карточки
+            addNewCardBtn?.addEventListener('click', async () => {
+                const newCard = {
+                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), // Более надежный ID
+                    title: '',
+                    content: '',
+                    createdAt: new Date().toISOString()
                 };
                 
-                titleInput?.addEventListener('input', () => {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(saveData, 500);
+                // ИСПРАВЛЕНО: Используем 'arrayUnion' напрямую
+                await updateDoc(sessionRef, {
+                    cards: arrayUnion(newCard),
+                    updatedAt: serverTimestamp()
                 });
-                contentTextarea?.addEventListener('input', () => {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(saveData, 500); 
-                });
-
-            } else {
-                const titleInput = document.getElementById('note-title-input');
-                const cardsGrid = document.getElementById('note-cards-grid');
-                const addNewCardBtn = document.getElementById('add-new-card-btn');
+                // Перерисовка произойдет автоматически благодаря onSnapshot
+            });
+        
+            // Обработка событий внутри сетки с карточками (обновление и удаление)
+            cardsGrid?.addEventListener('focusout', async (e) => {
+                const cardEl = e.target.closest('.note-card');
+                if (!cardEl || !e.target.matches('.note-card-title, .note-card-content')) return;
                 
-                titleInput?.addEventListener('change', () => {
-                    updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
-                });
+                const cardId = cardEl.dataset.cardId;
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                if (!activeSession || !activeSession.cards) return;
         
-                addNewCardBtn?.addEventListener('click', async () => {
-                    const newCard = {
-                        id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
-                        title: '',
-                        content: '',
-                        createdAt: new Date().toISOString()
-                    };
-                    await updateDoc(sessionRef, {
-                        cards: arrayUnion(newCard),
-                        updatedAt: serverTimestamp()
-                    });
-                });
-        
-                cardsGrid?.addEventListener('focusout', async (e) => {
-                    const cardEl = e.target.closest('.note-card');
-                    if (!cardEl || !e.target.matches('.note-card-title, .note-card-content')) return;
-                    
-                    const cardId = cardEl.dataset.cardId;
-                    const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!currentSession || !currentSession.cards) return;
-        
-                    const updatedCards = currentSession.cards.map(card => {
-                        if (card.id === cardId) {
-                            const newTitle = cardEl.querySelector('.note-card-title').value;
-                            const newContent = cardEl.querySelector('.note-card-content').value;
-                            if (card.title !== newTitle || card.content !== newContent) {
-                               return { ...card, title: newTitle, content: newContent };
-                            }
+                // Находим текущую карточку и создаем обновленную версию
+                const updatedCards = activeSession.cards.map(card => {
+                    if (card.id === cardId) {
+                        const newTitle = cardEl.querySelector('.note-card-title').value;
+                        const newContent = cardEl.querySelector('.note-card-content').value;
+                        // Сохраняем только если что-то изменилось
+                        if (card.title !== newTitle || card.content !== newContent) {
+                           return { ...card, title: newTitle, content: newContent };
                         }
-                        return card;
-                    });
-        
-                    await updateDoc(sessionRef, { cards: updatedCards, updatedAt: serverTimestamp() });
+                    }
+                    return card;
                 });
         
-                cardsGrid?.addEventListener('click', (e) => {
-                    const deleteBtn = e.target.closest('.note-card-delete-btn');
-                    if (!deleteBtn) return;
+                // Обновляем весь массив карточек в базе данных
+                await updateDoc(sessionRef, { cards: updatedCards, updatedAt: serverTimestamp() });
+            });
         
-                    const cardEl = deleteBtn.closest('.note-card');
-                    const cardId = cardEl.dataset.cardId;
+            cardsGrid?.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.note-card-delete-btn');
+                if (!deleteBtn) return;
         
-                    showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
-                        const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        const cardToDelete = (currentSession.cards || []).find(c => c.id === cardId);
+                const cardEl = deleteBtn.closest('.note-card');
+                const cardId = cardEl.dataset.cardId;
         
-                        if (cardToDelete) {
-                            await updateDoc(sessionRef, {
-                                cards: arrayRemove(cardToDelete),
-                                updatedAt: serverTimestamp()
-                            });
-                        }
-                    });
+                showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const cards = activeSession.cards || [];
+                    // Важно: для arrayRemove нужно передать точную копию объекта, который нужно удалить
+                    const cardToDelete = cards.find(c => c.id === cardId);
+        
+                    if (cardToDelete) {
+                        // ИСПРАВЛЕНО: Используем 'arrayRemove' напрямую
+                        await updateDoc(sessionRef, {
+                            cards: arrayRemove(cardToDelete),
+                            updatedAt: serverTimestamp()
+                        });
+                    }
                 });
-            }
+            });
         
+            // Перерисовываем иконки Lucide после того, как карточки будут отрендерены
             lucide.createIcons();
         }
     
@@ -1402,28 +1350,6 @@
         }
     
         function setupGlobalEventListeners() {
-            // --- НОВЫЙ БЛОК: Динамическое создание и вставка кнопок для заметок ---
-            const buttonContainer = document.querySelector('aside .p-2.flex-shrink-0');
-            if (buttonContainer) {
-                // Удаляем старую, неиспользуемую кнопку
-                const originalNewNoteBtn = document.getElementById('new-note-btn');
-                if(originalNewNoteBtn) originalNewNoteBtn.remove();
-
-                const noteButtonsContainer = document.createElement('div');
-                noteButtonsContainer.id = 'note-buttons-container';
-                noteButtonsContainer.className = 'hidden space-y-2 mt-2'; // Скрыт по умолчанию
-                noteButtonsContainer.innerHTML = `
-                    <button id="new-text-note-btn" class="w-full flex items-center justify-center bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm">
-                        <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>Новая запись
-                    </button>
-                    <button id="new-cards-note-btn" class="w-full flex items-center justify-center bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm">
-                        <i data-lucide="layout-grid" class="w-4 h-4 mr-2"></i>Новые карточки
-                    </button>
-                `;
-                buttonContainer.appendChild(noteButtonsContainer);
-            }
-            // --- КОНЕЦ НОВОГО БЛОКА ---
-
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
@@ -1437,9 +1363,10 @@
                 });
             });
     
-            const createNewItem = async (type, subtype = null) => {
+            const createNewItem = async (type) => {
                 let newSessionData;
                 if (type === 'chat') {
+                    // ... (код для чата остается без изменений)
                     let providerId = null;
                     let modelName = null;
                     if (state.providers.length > 0) {
@@ -1452,25 +1379,15 @@
                     }
                     newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else { // notepad
-                    if (subtype === 'text') {
-                         newSessionData = { 
-                            type: 'notepad',
-                            noteSubtype: 'text',
-                            title: 'Новая запись', 
-                            content: '',
-                            createdAt: serverTimestamp(), 
-                            updatedAt: serverTimestamp() 
-                        };
-                    } else { // По умолчанию или subtype === 'cards'
-                        newSessionData = { 
-                            type: 'notepad', 
-                            noteSubtype: 'cards',
-                            title: 'Папка с карточками', 
-                            cards: [], 
-                            createdAt: serverTimestamp(), 
-                            updatedAt: serverTimestamp() 
-                        };
-                    }
+                    // --- ЭТА ЧАСТЬ ИЗМЕНИЛАСЬ ---
+                    newSessionData = { 
+                        type: 'notepad', 
+                        title: 'Новая папка', 
+                        cards: [], // Вместо content: ''
+                        createdAt: serverTimestamp(), 
+                        updatedAt: serverTimestamp() 
+                    };
+                    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
                 }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -1484,11 +1401,8 @@
             };
     
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
-
-            // ИЗМЕНЕНИЕ: Добавляем слушатели для НОВЫХ, динамически созданных кнопок
-            document.getElementById('new-text-note-btn')?.addEventListener('click', () => createNewItem('notepad', 'text'));
-            document.getElementById('new-cards-note-btn')?.addEventListener('click', () => createNewItem('notepad', 'cards'));
-
+            newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+            
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
                     sidebar.classList.toggle('open');

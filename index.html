@@ -8,12 +8,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@latest"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -205,33 +199,6 @@
             #chat-width-toggle.active {
                 background-color: var(--accent);
                 color: white;
-            }
-
-            /* Стили для улучшения вида Editor.js в темной теме */
-            .ce-block__content, .ce-toolbar__content {
-                max-width: none; /* Убираем ограничение ширины по-умолчанию */
-            }
-            .ce-toolbar__actions, .ce-inline-toolbar, .ce-conversion-toolbar, .ce-settings {
-                background-color: var(--bg-element);
-                border-color: var(--border-color);
-                color: var(--text-primary);
-            }
-            .ce-toolbar__plus:hover, .ce-toolbar__settings-btn:hover {
-                background-color: var(--bg-input) !important;
-            }
-            .ce-inline-tool, .ce-conversion-tool {
-                color: var(--text-primary);
-            }
-            .ce-inline-tool:hover, .ce-conversion-tool:hover {
-                background-color: var(--bg-input);
-            }
-            .codex-editor__redactor {
-                padding-bottom: 100px !important; /* Добавляем отступ снизу для удобства */
-            }
-            .cdx-input {
-                background-color: var(--bg-input);
-                border-color: var(--border-color) !important;
-                color: var(--text-primary);
             }
     </style>
 </head>
@@ -729,19 +696,8 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
-
-        function getNotepadViewHTML(activeSession) { 
-            return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-4 border-b border-border-color">
-                    <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
-                </div>
-                <div class="flex-grow relative overflow-y-auto">
-                    <div id="editorjs-container" class="h-full">
-                        <!-- Editor.js будет отрисован здесь -->
-                    </div>
-                </div>
-            </div>`;
-        }
+    
+        function getNotepadViewHTML(activeSession) { return `<div class="flex flex-col h-full p-4"><input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`; }
         
         function renderRoles() {
             const list = document.getElementById('roles-list');
@@ -925,115 +881,18 @@
         
         function setupNotepadViewEventListeners() {
             const titleInput = document.getElementById('note-title-input');
-            const editorContainer = document.getElementById('editorjs-container');
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-
-            if (!editorContainer || !activeSession) {
-                console.error("Контейнер редактора или активная сессия не найдены.");
-                return;
-            }
-
-            // Проверяем, доступны ли глобальные переменные Editor.js
-            if (typeof window.EditorJS === 'undefined' || typeof window.Header === 'undefined') {
-                console.error("Editor.js или его плагины не загрузились. Проверьте CDN ссылки в <head>.");
-                editorContainer.innerHTML = '<div class="p-4 text-red-400">Ошибка: Не удалось загрузить редактор.</div>';
-                return;
-            }
-
-            let editorInstance = null;
-            let debounceTimer;
-
-            const saveNote = async () => {
-                if (!editorInstance || !state.activeSessionId) return;
-                
-                try {
-                    // Используем .save() для получения данных из редактора
-                    const outputData = await editorInstance.save();
-                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                    
-                    await updateDoc(sessionRef, {
-                        title: titleInput.value,
-                        content: outputData, // Сохраняем объект JSON
-                        updatedAt: serverTimestamp()
-                    });
-                } catch (error)
-                    {
-                    // Ошибки могут возникать, если редактор не готов, игнорируем их
-                    if (error.message.includes('is not ready')) {
-                         // console.log("Editor.js еще не готов к сохранению.");
-                    } else {
-                         console.error('Ошибка сохранения заметки:', error);
-                    }
-                }
-            };
-
-            // Обработка старых заметок (где content был строкой) или пустых.
-            let initialData = activeSession.content;
-            if (typeof initialData !== 'object' || !initialData || !Array.isArray(initialData.blocks) || initialData.blocks.length === 0) {
-                initialData = {
-                    time: Date.now(),
-                    blocks: [{
-                        type: "paragraph",
-                        // Если initialData - строка, используем ее, иначе - пустая строка
-                        data: { text: (typeof initialData === 'string' ? initialData : '') } 
-                    }]
-                };
-            }
-
-            // Инициализация Editor.js с обращением к глобальным объектам через `window`
-            try {
-                editorInstance = new window.EditorJS({
-                    holder: 'editorjs-container',
-                    
-                    tools: {
-                        header: {
-                            class: window.Header, // <- Обращение через window
-                            inlineToolbar: true,
-                            config: {
-                                placeholder: 'Введите заголовок',
-                                levels: [2, 3, 4],
-                                defaultLevel: 2
-                            }
-                        },
-                        list: {
-                            class: window.List, // <- Обращение через window
-                            inlineToolbar: true,
-                        },
-                        checklist: {
-                            class: window.Checklist, // <- Обращение через window
-                            inlineToolbar: true,
-                        },
-                        code: {
-                            class: window.CodeTool, // <- Обращение через window
-                            config: {
-                                placeholder: 'Вставьте код...'
-                            }
-                        }
-                    },
-                    
-                    data: initialData,
-                    
-                    placeholder: 'Начните вводить текст или нажмите Tab для выбора инструментов',
-                    
-                    // Вызывается при любом изменении в редакторе
-                    onChange: (api, event) => {
-                        clearTimeout(debounceTimer);
-                        debounceTimer = setTimeout(() => {
-                            saveNote();
-                        }, 1500); // Сохраняем с задержкой в 1.5с после последнего изменения
-                    },
-
-                    onReady: () => {
-                        console.log('Editor.js готов к работе.');
-                    },
+            const contentTextarea = document.getElementById('note-content-textarea');
+            const saveNote = () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
+                    updatedAt: serverTimestamp()
                 });
-
-            } catch (e) {
-                console.error("Критическая ошибка при инициализации Editor.js:", e);
-                editorContainer.innerHTML = `<div class="p-4 text-red-400"><strong>Критическая ошибка:</strong> Не удалось инициализировать редактор. <br>${e.message}</div>`;
-            }
-
-            titleInput?.addEventListener('change', saveNote);
+            };
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1348,25 +1207,7 @@
                     }
                     newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else { // notepad
-                    // ИЗМЕНЕНИЕ: Создаем структуру для Editor.js
-                    newSessionData = { 
-                        type: 'notepad', 
-                        title: 'Новая заметка', 
-                        content: { // Вместо '' создаем объект
-                            time: Date.now(),
-                            blocks: [
-                                {
-                                    type: "paragraph",
-                                    data: {
-                                        text: "Начните вводить текст здесь..."
-                                    }
-                                }
-                            ],
-                            version: "2.29.1" 
-                        }, 
-                        createdAt: serverTimestamp(), 
-                        updatedAt: serverTimestamp() 
-                    };
+                    newSessionData = { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);

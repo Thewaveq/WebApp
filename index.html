@@ -398,6 +398,7 @@
                 filteredSessions.forEach(session => {
                     const item = document.createElement('div');
                     item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
+                    
                     item.innerHTML = `
                         <span class="truncate pr-2">${session.title || 'Без названия'}</span>
                         <button class="delete-session-btn text-white hover:text-red-400" data-id="${session.id}">
@@ -409,7 +410,7 @@
                         state.activeSessionId = session.id;
                         render(); 
                     });
-                    
+
                     sidebarList.appendChild(item);
                 });
             } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {

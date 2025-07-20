@@ -400,8 +400,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";    
-        // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
+        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";        // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
+        
         const firebaseConfig = {
             apiKey: "AIzaSyDZ3u9scjk3dydutXO0EUrWlpUnsp4OuqA",
             authDomain: "appllm.firebaseapp.com",
@@ -985,6 +985,10 @@
             const titleInput = document.getElementById('note-title-input');
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
+            
+            // Если сессия не активна, ничего не делаем
+            if (!state.activeSessionId) return;
+            
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
         
             // Сохранение названия всей "папки" заметок
@@ -995,17 +999,18 @@
             // Добавление новой карточки
             addNewCardBtn?.addEventListener('click', async () => {
                 const newCard = {
-                    id: crypto.randomUUID(), // Генерируем уникальный ID для карточки
+                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), // Более надежный ID
                     title: '',
                     content: '',
                     createdAt: new Date().toISOString()
                 };
-                // Используем arrayUnion для безопасного добавления элемента в массив в Firestore
+                
+                // ИСПРАВЛЕНО: Используем 'arrayUnion' напрямую
                 await updateDoc(sessionRef, {
-                    cards: firebase.firestore.FieldValue.arrayUnion(newCard),
+                    cards: arrayUnion(newCard),
                     updatedAt: serverTimestamp()
                 });
-                // Перерисовывать не нужно, onSnapshot сделает это за нас
+                // Перерисовка произойдет автоматически благодаря onSnapshot
             });
         
             // Обработка событий внутри сетки с карточками (обновление и удаление)
@@ -1022,11 +1027,15 @@
                     if (card.id === cardId) {
                         const newTitle = cardEl.querySelector('.note-card-title').value;
                         const newContent = cardEl.querySelector('.note-card-content').value;
-                        return { ...card, title: newTitle, content: newContent };
+                        // Сохраняем только если что-то изменилось
+                        if (card.title !== newTitle || card.content !== newContent) {
+                           return { ...card, title: newTitle, content: newContent };
+                        }
                     }
                     return card;
                 });
         
+                // Обновляем весь массив карточек в базе данных
                 await updateDoc(sessionRef, { cards: updatedCards, updatedAt: serverTimestamp() });
             });
         
@@ -1039,17 +1048,22 @@
         
                 showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    const cardToDelete = activeSession.cards.find(c => c.id === cardId);
+                    const cards = activeSession.cards || [];
+                    // Важно: для arrayRemove нужно передать точную копию объекта, который нужно удалить
+                    const cardToDelete = cards.find(c => c.id === cardId);
         
                     if (cardToDelete) {
-                        // Используем arrayRemove для безопасного удаления элемента из массива в Firestore
+                        // ИСПРАВЛЕНО: Используем 'arrayRemove' напрямую
                         await updateDoc(sessionRef, {
-                            cards: firebase.firestore.FieldValue.arrayRemove(cardToDelete),
+                            cards: arrayRemove(cardToDelete),
                             updatedAt: serverTimestamp()
                         });
                     }
                 });
             });
+        
+            // Перерисовываем иконки Lucide после того, как карточки будут отрендерены
+            lucide.createIcons();
         }
     
         function setupSettingsViewEventListeners() { 

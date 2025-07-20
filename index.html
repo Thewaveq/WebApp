@@ -400,7 +400,7 @@
                     item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
                     item.innerHTML = `
                         <span class="truncate pr-2">${session.title || 'Без названия'}</span>
-                        <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
+                        <button class="delete-session-btn text-white hover:text-red-400" data-id="${session.id}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     `;
@@ -409,8 +409,6 @@
                         state.activeSessionId = session.id;
                         render(); 
                     });
-                    item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
-                    item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
                     
                     sidebarList.appendChild(item);
                 });

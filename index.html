@@ -11,7 +11,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@latest"></script>
@@ -335,6 +334,131 @@
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
+        // PASTE THE CODE BLOCK BELOW THIS LINE
+        // =================================================================================
+        /**
+         * @class List
+         * @classdesc Теперь код плагина "List" встроен прямо сюда, чтобы избежать проблем с его загрузкой из сети.
+         * This is a self-contained version of the 'List' plugin for Editor.js
+         */
+        const List = (function() {
+          'use strict';
+          function e(e) {
+            return e && 'object' == typeof e && 'default' in e ? e : { default: e };
+          }
+          var t = e(
+            'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMTdweCIgaGVpZ2h0PSIxNXB4IiB2aWV3Qm94PSIwIDAgMTcgMTUiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+TGlzdCBVbm9yZGVyZWQ8L3RpdGxlPgogICAgPGcgaWQ9IlBhZ2UtMSIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9ImJsb2NrLXR5cGUtc2VsZWN0IiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjY3LjAwMDAwMCwgLTEyNC4wMDAwMDApIiBmaWxsPSIjMDAwMDAwIiBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8ZyBpZD0iTGlzdC1Vbm9yZGVyZWQiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI2Ny4wMDAwMDAsIDEyNC4wMDAwMDApIj4KICAgICAgICAgICAgICAgIDxwYXRoIGQ9Ik0zLDcgQzIuNDQ3LDcgMiw3LjQ0NyAyLDggQzIsOC41NTMgMi40NDcsOSAzLDkgQzMuNTUzLDkgNCw4LjU1MyA0LDggQzQsNy40NDcgMy41NTMsNyAzLDcgWiBNMywxMSBDMi40NDcsMTEgMiwxMS40NDcgMiwxMiBDMiwxMi41NTMgMi40NDcsMTMgMywxMyBDMy41NTMsMTMgNCwxMi41NTMgNCwxMiBDNCwxMS40NDcgMy41NTMsMTEgMywxMSBaIE0zLDMgQzIuNDQ3LDMgMiwzLjQ0NyAyLDQgQzIsNC41NTMgMi40NDcsNSA_');
+          var n = e(
+            'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxNXB4IiB2aWV3Qm94PSIwIDAgMTggMTUiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+TGlzdCBvcmRlcmVkPC90aXRsZT4KICAgIDxnIGlkPSJQYWdlLTEiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9ImJsb2NrLXR5cGUtc2VsZWN0IiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjE1LjAwMDAwMCwgLTEyNC4wMDAwMDApIiBmaWxsPSIjMDAwMDAwIiBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8ZyBpZD0iTGlzdC1vcmRlcmVkIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTUuMDAwMDAwLCAxMjQuMDAwMDAwKSI+CiAgICAgICAgICAgICAgICA8cGF0aCBkPSJNMyw3IEwyLDcgTDIsOSBMMyw5IEwzLDggQzMuNTUzMzg4MTgsOCAzLjk5OTg5ODkzLDcuNTUzMzg4MTggMy45OTk4OTg5Myw3IEw0LDcgTDMsNyBaIE0yLDExIEwzLDExIEwzLDEzIEwyLDEzIEwyLDExIFogTTIsMyBMMyw1IEwzLDUgTDQsMyBMMi44LDMgTDMsMyBaIE03LDkgTDUsOSBMNSw3IEw3LDcgTDcsOSBaIE03LDEzIEw1LDEzIEw1LDExIEw3LDExIEw3LDEzIFogTTUsNSBMNyw1IEw3LDMgTDUsMyBMNSw1IFogTTgsMyBMOCw1IEwxNyw1IEwxNywzIEw4LDMgWiBNOCw5IEwxNyw5IEwxNyw3IEw4LDcgTDgsOSBaIE04LDEzIEwxNywxMyBwxNywxMSBMOCwxMSBMOCwxMyBaIiBpZD0iU2hhcGUiPjwvcGF0aD4KICAgICAgICAgICAgPC9nPgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+');
+          return class {
+            constructor({ data: e, api: s, config: i }) {
+              (this.api = s),
+                (this._settings = [
+                  { name: 'unordered', title: this.api.i18n.t('Unordered'), icon: t.default, default: !0 },
+                  { name: 'ordered', title: this.api.i18n.t('Ordered'), icon: n.default, default: !1 },
+                ]),
+                (this._data = { style: this._settings[0].name, items: [] }),
+                (this.data = e);
+            }
+            static get conversionConfig() {
+              return { export: (e) => e.items.join('. '), import: (e) => ({ items: [e], style: 'unordered' }) };
+            }
+            static get sanitize() {
+              return { items: { br: !0 } };
+            }
+            get CSS() {
+              return {
+                baseBlock: this.api.styles.block,
+                wrapper: 'cdx-list',
+                item: 'cdx-list__item',
+                settingsWrapper: 'cdx-list-settings',
+                settingsButton: this.api.styles.settingsButton,
+                settingsButtonActive: this.api.styles.settingsButtonActive,
+              };
+            }
+            set data(e) {
+              e && e.items && (this._data = e);
+            }
+            get data() {
+              return (this._data.items = this._getItems()), this._data;
+            }
+            render() {
+              const e = this._data.style === this._settings[0].name ? 'UL' : 'OL';
+              return (
+                (this._element = this.make(e, [this.CSS.baseBlock, this.CSS.wrapper])),
+                this._data.items.length
+                  ? this._data.items.forEach((e) => {
+                      this._element.appendChild(this.make('LI', this.CSS.item, { innerHTML: e }));
+                    })
+                  : this._element.appendChild(this.make('LI', this.CSS.item)),
+                this._element
+              );
+            }
+            renderSettings() {
+              const e = this.make('DIV', [this.CSS.settingsWrapper]);
+              return (
+                this._settings.forEach((t) => {
+                  const n = this.make('SPAN', this.CSS.settingsButton, { innerHTML: t.icon });
+                  this.api.tooltip.onHover(n, t.title, { placement: 'top' }),
+                    this._data.style === t.name && n.classList.add(this.CSS.settingsButtonActive),
+                    this.api.listeners.on(n, 'click', () => {
+                      this._toggleTune(t.name);
+                    }),
+                    e.appendChild(n);
+                }),
+                e
+              );
+            }
+            save() {
+              return this.data;
+            }
+            onPaste(e) {
+              const { data: t } = e;
+              this.data = this.pasteHandler(t);
+            }
+            pasteHandler(e) {
+              const t = e.tagName;
+              let n = [];
+              switch (t) {
+                case 'OL':
+                case 'UL':
+                  n = Array.from(e.querySelectorAll('LI')).map((e) => e.innerHTML);
+                  break;
+                case 'LI':
+                  n = [e.innerHTML];
+                  break;
+                default:
+                  if (this.api.paste.isValidHTML(e.innerHTML)) n = [e.innerHTML];
+                  else {
+                    const s = this.api.sanitizer.clean(e.innerHTML, { br: !0 });
+                    n = this.api.paste.splitByBRs(s);
+                  }
+              }
+              return { style: 'UL' === t || 'OL' === t ? t.toLowerCase() : 'unordered', items: n.map((e) => e.replace(' ', ' ')).filter((e) => '' !== e.trim()) };
+            }
+            make(e, t = null, n = {}) {
+              const s = document.createElement(e);
+              Array.isArray(t) ? s.classList.add(...t) : t && s.classList.add(t);
+              for (const e in n) s[e] = n[e];
+              return s;
+            }
+            _getItems() {
+              return Array.from(this._element.querySelectorAll(`.${this.CSS.item}`)).map((e) => e.innerHTML);
+            }
+            _toggleTune(e) {
+              const t = this.make(e === this._settings[0].name ? 'UL' : 'OL', this._element.classList);
+              Array.from(this._element.children).forEach((e) => {
+                t.appendChild(e);
+              }),
+                this._element.parentNode.replaceChild(t, this._element),
+                (this._element = t),
+                (this._data.style = e);
+            }
+            static get isReadOnlySupported() {
+              return !0;
+            }
+          };
+        })();
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
         const firebaseConfig = {
             apiKey: "AIzaSyDZ3u9scjk3dydutXO0EUrWlpUnsp4OuqA",

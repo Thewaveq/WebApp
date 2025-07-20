@@ -216,6 +216,9 @@
              <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая заметка
             </button>
+            <button id="new-folder-btn" class="w-full flex items-center justify-center bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition-colors mt-2 hidden">
+                <i data-lucide="folder-plus" class="w-5 h-5 mr-2"></i>Новая папка
+            </button>
         </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
         </nav>
@@ -396,34 +399,170 @@
     
         function renderSidebar() {
             sidebarList.innerHTML = '';
-            const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
-    
-            if (filteredSessions.length > 0) {
-                filteredSessions.forEach(session => {
-                    const item = document.createElement('div');
-                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
-                    item.innerHTML = `
-                        <span class="truncate pr-2">${session.title || 'Без названия'}</span>
-                        <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    `;
-                    item.addEventListener('click', (e) => {
-                        if (e.target.closest('.delete-session-btn')) return;
-                        state.activeSessionId = session.id;
-                        render(); 
+            const filteredSessions = state.sessions.filter(s => {
+                if (state.activeTab === 'chat') {
+                    return s.type === 'chat';
+                }
+                if (state.activeTab === 'notepad') {
+                    return s.type === 'notepad' || s.type === 'folder';
+                }
+                return false;
+            });
+        
+            if (state.activeTab === 'chat') {
+                // Старый рендеринг для чатов
+                if (filteredSessions.length > 0) {
+                    filteredSessions.forEach(session => {
+                        const item = document.createElement('div');
+                        item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
+                        item.innerHTML = `
+                            <span class="truncate pr-2">${session.title || 'Без названия'}</span>
+                            <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        `;
+                        item.addEventListener('click', (e) => {
+                            if (e.target.closest('.delete-session-btn')) return;
+                            state.activeSessionId = session.id;
+                            render(); 
+                        });
+                        item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
+                        item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
+                        sidebarList.appendChild(item);
                     });
-                    item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
-                    item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
+                } else {
+                    sidebarList.innerHTML = `<div class="text-center text-sm text-text-secondary p-4">Нет чатов.</div>`;
+                }
+            } else if (state.activeTab === 'notepad') {
+                // Новый рендеринг для заметок и папок
+                if (filteredSessions.length > 0) {
+                    const tree = buildTree(filteredSessions);
+                    const fragment = document.createDocumentFragment();
                     
-                    sidebarList.appendChild(item);
-                });
-            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
-                 sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${state.activeTab === 'chat' ? 'чатов' : 'заметок'}.</div>`;
+                    const rootDropZone = document.createElement('div');
+                    rootDropZone.className = 'drop-target p-2 text-center text-text-secondary text-xs border-2 border-dashed border-transparent rounded-md transition-colors';
+                    rootDropZone.dataset.id = 'root';
+                    rootDropZone.textContent = 'Перетащите сюда для перемещения в корень';
+                    fragment.appendChild(rootDropZone);
+        
+                    tree.forEach(node => renderNode(node, fragment, 0));
+                    sidebarList.appendChild(fragment);
+        
+                } else {
+                    sidebarList.innerHTML = `<div class="text-center text-sm text-text-secondary p-4">Нет заметок или папок.</div>`;
+                }
             } else {
-                 sidebarList.innerHTML = ''; 
+                sidebarList.innerHTML = '';
             }
+        
             lucide.createIcons();
+        }
+        
+        // ДОБАВИТЬ ЭТУ НОВУЮ ФУНКЦИЮ
+        function buildTree(nodes) {
+            const map = new Map();
+            const tree = [];
+        
+            nodes.forEach(node => {
+                map.set(node.id, { ...node, children: [] });
+            });
+        
+            map.forEach(node => {
+                if (node.parentId && map.has(node.parentId)) {
+                    map.get(node.parentId).children.push(node);
+                } else {
+                    tree.push(node);
+                }
+            });
+        
+            const sortNodes = (nodeArray) => {
+                nodeArray.sort((a, b) => {
+                    if (a.type === 'folder' && b.type !== 'folder') return -1;
+                    if (a.type !== 'folder' && b.type === 'folder') return 1;
+                    return (a.title || '').localeCompare(b.title || '');
+                });
+                nodeArray.forEach(n => {
+                    if (n.children.length) sortNodes(n.children);
+                });
+            };
+            sortNodes(tree);
+        
+            return tree;
+        }
+        
+        // ДОБАВИТЬ ЭТУ НОВУЮ ФУНКЦИЮ
+        function renderNode(node, parentElement, level) {
+            const isFolder = node.type === 'folder';
+            const isDropTarget = isFolder; 
+            const isDraggable = true;
+        
+            const itemWrapper = document.createElement(isFolder ? 'details' : 'div');
+            itemWrapper.className = 'w-full';
+            if(isFolder) {
+                itemWrapper.open = node.children.some(child => child.id === state.activeSessionId) || node.id === state.activeSessionId;
+            }
+            
+            const itemContent = document.createElement(isFolder ? 'summary' : 'div');
+            itemContent.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${node.id === state.activeSessionId ? 'active' : ''} ${isDropTarget ? 'drop-target' : ''}`;
+            itemContent.style.paddingLeft = `${level * 16 + 8}px`; // 8px базовый отступ
+            itemContent.dataset.id = node.id;
+            if (isDraggable) {
+                itemContent.setAttribute('draggable', 'true');
+            }
+            
+            const iconName = isFolder ? 'folder' : 'notebook-tabs';
+            itemContent.innerHTML = `
+                <div class="flex items-center truncate">
+                    <i data-lucide="${iconName}" class="w-4 h-4 mr-2 flex-shrink-0"></i>
+                    <span class="truncate pr-2">${node.title || 'Без названия'}</span>
+                </div>
+                <div class="flex items-center flex-shrink-0">
+                    ${isFolder ? `<button title="Создать заметку в этой папке" class="new-note-in-folder-btn hidden text-white hover:text-accent p-1" data-folder-id="${node.id}"><i data-lucide="plus-circle" class="w-4 h-4"></i></button>` : ''}
+                    <button title="Удалить" class="delete-session-btn hidden text-white hover:text-red-400 p-1" data-id="${node.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            `;
+        
+            if (isFolder) {
+                itemContent.style.listStyle = 'none'; // Убираем маркер
+                itemContent.addEventListener('click', e => e.preventDefault()); // Предотвращаем стандартное открытие/закрытие по клику на всю строку
+            }
+            itemWrapper.appendChild(itemContent);
+            
+            if (isFolder && node.children.length > 0) {
+                const childrenContainer = document.createElement('div');
+                node.children.forEach(child => renderNode(child, childrenContainer, level + 1));
+                itemWrapper.appendChild(childrenContainer);
+            }
+            
+            parentElement.appendChild(itemWrapper);
+            
+            // Отдельный обработчик на всю строку для выбора элемента
+            itemContent.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-session-btn') || e.target.closest('.new-note-in-folder-btn')) return;
+                
+                // Если это папка, клик раскрывает ее, но также делает активной
+                if(isFolder) {
+                    itemWrapper.open = !itemWrapper.open;
+                }
+        
+                state.activeSessionId = node.id;
+                render();
+            });
+        
+            itemContent.addEventListener('mouseenter', () => {
+                itemContent.querySelector('.delete-session-btn')?.classList.remove('hidden');
+                itemContent.querySelector('.new-note-in-folder-btn')?.classList.remove('hidden');
+            });
+            itemContent.addEventListener('mouseleave', () => {
+                itemContent.querySelector('.delete-session-btn')?.classList.add('hidden');
+                itemContent.querySelector('.new-note-in-folder-btn')?.classList.add('hidden');
+            });
+        
+            itemContent.querySelector('.new-note-in-folder-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const folderId = e.currentTarget.dataset.folderId;
+                createNewItem('notepad', folderId);
+            });
         }
     
         function renderMainContent() {
@@ -492,8 +631,16 @@
             mainNavItems.forEach(item => {
                 item.classList.toggle('active', item.dataset.tab === state.activeTab);
             });
+            
+            // Получаем новую кнопку
+            const newFolderBtn = document.getElementById('new-folder-btn');
+        
+            // Управляем видимостью всех кнопок
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+            if (newFolderBtn) {
+                newFolderBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+            }
         }
     
         // --- ШАБЛОНЫ HTML ---
@@ -1178,6 +1325,45 @@
             lucide.createIcons();
         }
     
+        async function createNewItem(type, parentId = null) {
+            let newSessionData;
+            const commonData = {
+                type: type,
+                parentId: parentId,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
+        
+            if (type === 'chat') {
+                let providerId = null;
+                let modelName = null;
+                if (state.providers.length > 0) {
+                    const firstProvider = state.providers[0];
+                    providerId = firstProvider.id;
+                    const models = firstProvider.models || [];
+                    if (models.length > 0) {
+                        modelName = models[0];
+                    }
+                }
+                newSessionData = { ...commonData, title: 'Новый чат', messages: [], providerId, modelName, roleId: '' };
+            } else if (type === 'notepad') {
+                newSessionData = { ...commonData, title: 'Новая заметка', content: '' };
+            } else if (type === 'folder') {
+                newSessionData = { ...commonData, title: 'Новая папка' };
+            } else {
+                return; // Неизвестный тип
+            }
+            
+            const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+            state.activeSessionId = newSessionRef.id;
+            
+            render();
+            if (window.innerWidth < 1024) { 
+                sidebar.classList.remove('open'); 
+                sidebarBackdrop.classList.add('hidden'); 
+            }
+        }
+
         function setupGlobalEventListeners() {
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
@@ -1191,38 +1377,87 @@
                     render();
                 });
             });
-    
-            const createNewItem = async (type) => {
-                let newSessionData;
-                if (type === 'chat') {
-                    let providerId = null;
-                    let modelName = null;
-                    if (state.providers.length > 0) {
-                        const firstProvider = state.providers[0];
-                        providerId = firstProvider.id;
-                        const models = firstProvider.models || [];
-                        if (models.length > 0) {
-                            modelName = models[0];
-                        }
-                    }
-                    newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                } else { // notepad
-                    newSessionData = { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                }
-                
-                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
-                state.activeSessionId = newSessionRef.id;
-                
-                render();
-                if (window.innerWidth < 1024) { 
-                    sidebar.classList.remove('open'); 
-                    sidebarBackdrop.classList.add('hidden'); 
-                }
-            };
-    
+        
+            // --- Обновленные и новые обработчики ---
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
-            newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+            newNoteBtn.addEventListener('click', () => createNewItem('notepad', null));
             
+            const newFolderBtn = document.getElementById('new-folder-btn');
+            if (newFolderBtn) {
+                newFolderBtn.addEventListener('click', () => createNewItem('folder', null));
+            }
+            
+            // --- Логика Drag & Drop ---
+            let draggedItemId = null;
+            const sidebarListEl = document.getElementById('sidebar-list');
+            let batch = null;
+        
+            sidebarListEl.addEventListener('dragstart', (e) => {
+                const draggableItem = e.target.closest('.sidebar-item[draggable="true"]');
+                if (draggableItem) {
+                    draggedItemId = draggableItem.dataset.id;
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => {
+                        draggableItem.classList.add('opacity-50');
+                    }, 0);
+                }
+            });
+        
+            sidebarListEl.addEventListener('dragend', (e) => {
+                const draggableItem = e.target.closest('.sidebar-item[draggable="true"]');
+                if (draggableItem) {
+                    draggableItem.classList.remove('opacity-50');
+                }
+                draggedItemId = null;
+                document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('bg-accent-hover', 'border-accent'));
+            });
+        
+            sidebarListEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget && dropTarget.dataset.id !== draggedItemId) {
+                    e.dataTransfer.dropEffect = 'move';
+                } else {
+                    e.dataTransfer.dropEffect = 'none';
+                }
+            });
+        
+            sidebarListEl.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget && dropTarget.dataset.id !== draggedItemId) {
+                    dropTarget.classList.add('bg-accent-hover', 'border-accent');
+                }
+            });
+        
+            sidebarListEl.addEventListener('dragleave', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget) {
+                    if (!dropTarget.contains(e.relatedTarget)) {
+                        dropTarget.classList.remove('bg-accent-hover', 'border-accent');
+                    }
+                }
+            });
+        
+            sidebarListEl.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.drop-target');
+                if (draggedItemId && dropTarget) {
+                    dropTarget.classList.remove('bg-accent-hover', 'border-accent');
+                    const newParentId = dropTarget.dataset.id;
+        
+                    if (draggedItemId === newParentId) return;
+        
+                    const itemRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, draggedItemId);
+                    await updateDoc(itemRef, {
+                        parentId: newParentId === 'root' ? null : newParentId,
+                        updatedAt: serverTimestamp()
+                    });
+                }
+                draggedItemId = null;
+            });
+            // --- Конец логики Drag & Drop ---
+        
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
                     sidebar.classList.toggle('open');
@@ -1232,19 +1467,36 @@
                     updateSidebarView();
                 }
             });
-    
+        
             sidebarBackdrop.addEventListener('click', () => {
                 sidebar.classList.remove('open');
                 sidebarBackdrop.classList.add('hidden');
             });
             
             window.addEventListener('resize', updateSidebarView);
-    
+        
             document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                    const itemToDelete = state.sessions.find(s => s.id === idToDelete);
+                    let message = 'Вы уверены, что хотите удалить этот элемент?';
+                    if (itemToDelete && itemToDelete.type === 'folder') {
+                        message = 'Вы уверены, что хотите удалить эту папку? Все вложенные заметки и папки будут перемещены в корень.';
+                    }
+        
+                    showConfirmModal(message, async () => {
+                        if (itemToDelete && itemToDelete.type === 'folder') {
+                            const children = state.sessions.filter(s => s.parentId === idToDelete);
+                            if (children.length > 0) {
+                                batch = writeBatch(db); // Используем глобальную переменную batch
+                                children.forEach(child => {
+                                    const childRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, child.id);
+                                    batch.update(childRef, { parentId: null });
+                                });
+                                await batch.commit();
+                            }
+                        }
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                     });
                 }
@@ -1253,7 +1505,7 @@
                 if (deleteMessageBtn) {
                     const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-    
+        
                     if (activeSession && !isNaN(messageIndex)) {
                         showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
@@ -1262,7 +1514,7 @@
                         });
                     }
                 }
-    
+        
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;
@@ -1295,10 +1547,10 @@
             
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
             editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
-    
+        
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
-    
+        
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }

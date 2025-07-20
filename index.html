@@ -1286,9 +1286,6 @@
     
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                const settingsPanel = document.getElementById('chat-settings-collapsible');
-                const wasSettingsPanelExpanded = settingsPanel && settingsPanel.classList.contains('expanded');
-
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
@@ -1297,14 +1294,6 @@
                 if (!state.isLoading) {
                     render();
                 }
-
-                if (wasSettingsPanelExpanded) {
-                    const newSettingsPanel = document.getElementById('chat-settings-collapsible');
-                    const newSettingsIcon = document.getElementById('chat-settings-icon');
-                    if (newSettingsPanel) newSettingsPanel.classList.add('expanded');
-                    if (newSettingsIcon) newSettingsIcon.classList.add('expanded');
-                }
-                
             }, error => console.error("Session listener error: ", error));
     
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);

@@ -11,10 +11,37 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/table@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@latest"></script>
+    <style>
+        /* Стили для улучшения вида Editor.js в темной теме */
+        .ce-block__content, .ce-toolbar__content {
+            max-width: none; /* Убираем ограничение ширины по-умолчанию */
+        }
+        .ce-toolbar__actions, .ce-inline-toolbar, .ce-conversion-toolbar, .ce-settings {
+            background-color: var(--bg-element);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        .ce-toolbar__plus:hover, .ce-toolbar__settings-btn:hover {
+            background-color: var(--bg-input) !important;
+        }
+        .ce-inline-tool, .ce-conversion-tool {
+            color: var(--text-primary);
+        }
+        .ce-inline-tool:hover, .ce-conversion-tool:hover {
+            background-color: var(--bg-input);
+        }
+        .codex-editor__redactor {
+            padding-bottom: 100px !important; /* Добавляем отступ снизу для удобства */
+        }
+        .cdx-input {
+            background-color: var(--bg-input);
+            border-color: var(--border-color) !important;
+            color: var(--text-primary);
+        }
+    </style>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -334,131 +361,6 @@
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
-        // PASTE THE CODE BLOCK BELOW THIS LINE
-        // =================================================================================
-        /**
-         * @class List
-         * @classdesc Теперь код плагина "List" встроен прямо сюда, чтобы избежать проблем с его загрузкой из сети.
-         * This is a self-contained version of the 'List' plugin for Editor.js
-         */
-        const List = (function() {
-          'use strict';
-          function e(e) {
-            return e && 'object' == typeof e && 'default' in e ? e : { default: e };
-          }
-          var t = e(
-            'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMTdweCIgaGVpZ2h0PSIxNXB4IiB2aWV3Qm94PSIwIDAgMTcgMTUiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+TGlzdCBVbm9yZGVyZWQ8L3RpdGxlPgogICAgPGcgaWQ9IlBhZ2UtMSIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9ImJsb2NrLXR5cGUtc2VsZWN0IiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjY3LjAwMDAwMCwgLTEyNC4wMDAwMDApIiBmaWxsPSIjMDAwMDAwIiBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8ZyBpZD0iTGlzdC1Vbm9yZGVyZWQiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI2Ny4wMDAwMDAsIDEyNC4wMDAwMDApIj4KICAgICAgICAgICAgICAgIDxwYXRoIGQ9Ik0zLDcgQzIuNDQ3LDcgMiw3LjQ0NyAyLDggQzIsOC41NTMgMi40NDcsOSAzLDkgQzMuNTUzLDkgNCw4LjU1MyA0LDggQzQsNy40NDcgMy41NTMsNyAzLDcgWiBNMywxMSBDMi40NDcsMTEgMiwxMS40NDcgMiwxMiBDMiwxMi41NTMgMi40NDcsMTMgMywxMyBDMy41NTMsMTMgNCwxMi41NTMgNCwxMiBDNCwxMS40NDcgMy41NTMsMTEgMywxMSBaIE0zLDMgQzIuNDQ3LDMgMiwzLjQ0NyAyLDQgQzIsNC41NTMgMi40NDcsNSA_');
-          var n = e(
-            'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxNXB4IiB2aWV3Qm94PSIwIDAgMTggMTUiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+TGlzdCBvcmRlcmVkPC90aXRsZT4KICAgIDxnIGlkPSJQYWdlLTEiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9ImJsb2NrLXR5cGUtc2VsZWN0IiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjE1LjAwMDAwMCwgLTEyNC4wMDAwMDApIiBmaWxsPSIjMDAwMDAwIiBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8ZyBpZD0iTGlzdC1vcmRlcmVkIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTUuMDAwMDAwLCAxMjQuMDAwMDAwKSI+CiAgICAgICAgICAgICAgICA8cGF0aCBkPSJNMyw3IEwyLDcgTDIsOSBMMyw5IEwzLDggQzMuNTUzMzg4MTgsOCAzLjk5OTg5ODkzLDcuNTUzMzg4MTggMy45OTk4OTg5Myw3IEw0LDcgTDMsNyBaIE0yLDExIEwzLDExIEwzLDEzIEwyLDEzIEwyLDExIFogTTIsMyBMMyw1IEwzLDUgTDQsMyBMMi44LDMgTDMsMyBaIE03LDkgTDUsOSBMNSw3IEw3LDcgTDcsOSBaIE03LDEzIEw1LDEzIEw1LDExIEw3LDExIEw3LDEzIFogTTUsNSBMNyw1IEw3LDMgTDUsMyBMNSw1IFogTTgsMyBMOCw1IEwxNyw1IEwxNywzIEw4LDMgWiBNOCw5IEwxNyw5IEwxNyw3IEw4LDcgTDgsOSBaIE04LDEzIEwxNywxMyBwxNywxMSBMOCwxMSBMOCwxMyBaIiBpZD0iU2hhcGUiPjwvcGF0aD4KICAgICAgICAgICAgPC9nPgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+');
-          return class {
-            constructor({ data: e, api: s, config: i }) {
-              (this.api = s),
-                (this._settings = [
-                  { name: 'unordered', title: this.api.i18n.t('Unordered'), icon: t.default, default: !0 },
-                  { name: 'ordered', title: this.api.i18n.t('Ordered'), icon: n.default, default: !1 },
-                ]),
-                (this._data = { style: this._settings[0].name, items: [] }),
-                (this.data = e);
-            }
-            static get conversionConfig() {
-              return { export: (e) => e.items.join('. '), import: (e) => ({ items: [e], style: 'unordered' }) };
-            }
-            static get sanitize() {
-              return { items: { br: !0 } };
-            }
-            get CSS() {
-              return {
-                baseBlock: this.api.styles.block,
-                wrapper: 'cdx-list',
-                item: 'cdx-list__item',
-                settingsWrapper: 'cdx-list-settings',
-                settingsButton: this.api.styles.settingsButton,
-                settingsButtonActive: this.api.styles.settingsButtonActive,
-              };
-            }
-            set data(e) {
-              e && e.items && (this._data = e);
-            }
-            get data() {
-              return (this._data.items = this._getItems()), this._data;
-            }
-            render() {
-              const e = this._data.style === this._settings[0].name ? 'UL' : 'OL';
-              return (
-                (this._element = this.make(e, [this.CSS.baseBlock, this.CSS.wrapper])),
-                this._data.items.length
-                  ? this._data.items.forEach((e) => {
-                      this._element.appendChild(this.make('LI', this.CSS.item, { innerHTML: e }));
-                    })
-                  : this._element.appendChild(this.make('LI', this.CSS.item)),
-                this._element
-              );
-            }
-            renderSettings() {
-              const e = this.make('DIV', [this.CSS.settingsWrapper]);
-              return (
-                this._settings.forEach((t) => {
-                  const n = this.make('SPAN', this.CSS.settingsButton, { innerHTML: t.icon });
-                  this.api.tooltip.onHover(n, t.title, { placement: 'top' }),
-                    this._data.style === t.name && n.classList.add(this.CSS.settingsButtonActive),
-                    this.api.listeners.on(n, 'click', () => {
-                      this._toggleTune(t.name);
-                    }),
-                    e.appendChild(n);
-                }),
-                e
-              );
-            }
-            save() {
-              return this.data;
-            }
-            onPaste(e) {
-              const { data: t } = e;
-              this.data = this.pasteHandler(t);
-            }
-            pasteHandler(e) {
-              const t = e.tagName;
-              let n = [];
-              switch (t) {
-                case 'OL':
-                case 'UL':
-                  n = Array.from(e.querySelectorAll('LI')).map((e) => e.innerHTML);
-                  break;
-                case 'LI':
-                  n = [e.innerHTML];
-                  break;
-                default:
-                  if (this.api.paste.isValidHTML(e.innerHTML)) n = [e.innerHTML];
-                  else {
-                    const s = this.api.sanitizer.clean(e.innerHTML, { br: !0 });
-                    n = this.api.paste.splitByBRs(s);
-                  }
-              }
-              return { style: 'UL' === t || 'OL' === t ? t.toLowerCase() : 'unordered', items: n.map((e) => e.replace(' ', ' ')).filter((e) => '' !== e.trim()) };
-            }
-            make(e, t = null, n = {}) {
-              const s = document.createElement(e);
-              Array.isArray(t) ? s.classList.add(...t) : t && s.classList.add(t);
-              for (const e in n) s[e] = n[e];
-              return s;
-            }
-            _getItems() {
-              return Array.from(this._element.querySelectorAll(`.${this.CSS.item}`)).map((e) => e.innerHTML);
-            }
-            _toggleTune(e) {
-              const t = this.make(e === this._settings[0].name ? 'UL' : 'OL', this._element.classList);
-              Array.from(this._element.children).forEach((e) => {
-                t.appendChild(e);
-              }),
-                this._element.parentNode.replaceChild(t, this._element),
-                (this._element = t),
-                (this._data.style = e);
-            }
-            static get isReadOnlySupported() {
-              return !0;
-            }
-          };
-        })();
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
         const firebaseConfig = {
             apiKey: "AIzaSyDZ3u9scjk3dydutXO0EUrWlpUnsp4OuqA",
@@ -476,7 +378,6 @@
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
         let chatObserver = null;
-        let editor = null;
     
         let state = {
             activeTab: 'chat',
@@ -829,20 +730,16 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
-    
+
         function getNotepadViewHTML(activeSession) {
-            return `
-                <div class="flex flex-col h-full p-4">
-                    <input 
-                        type="text" 
-                        id="note-title-input" 
-                        class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" 
-                        value="${activeSession.title || ''}" 
-                        placeholder="Название заметки"
-                    >
-                    <div id="editorjs-container" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 overflow-y-auto"></div>
+            return `<div class="flex flex-col h-full">
+                <div class="p-4 flex-shrink-0">
+                    <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
                 </div>
-            `;
+                <div id="editorjs-container" class="flex-grow overflow-y-auto px-4">
+                    <!-- Editor.js будет отрисован здесь -->
+                </div>
+            </div>`;
         }
         
         function renderRoles() {
@@ -1029,142 +926,77 @@
             const titleInput = document.getElementById('note-title-input');
             const editorContainer = document.getElementById('editorjs-container');
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-        
+
             if (!editorContainer || !activeSession) return;
-        
-            // Безопасно уничтожаем предыдущий экземпляр редактора
-            if (editor) {
-                try {
-                    editor.destroy();
-                } catch (err) {
-                    console.error("Ошибка при уничтожении редактора:", err);
-                } finally {
-                    editor = null;
-                }
-            }
-            
-            // Показываем индикатор загрузки, пока ждем скрипты
-            editorContainer.innerHTML = `
-                <div class="flex items-center justify-center h-full text-text-secondary">
-                    <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-3"></i>
-                    Загрузка редактора...
-                </div>`;
-            lucide.createIcons();
-        
-            const waitForTools = (toolNames, timeout = 7000) => {
-                return new Promise((resolve, reject) => {
-                    const startTime = Date.now();
-                    const checkInterval = setInterval(() => {
-                        const missingTools = toolNames.filter(name => typeof window[name] === 'undefined');
-        
-                        if (missingTools.length === 0) {
-                            clearInterval(checkInterval);
-                            resolve();
-                        } else if (Date.now() - startTime > timeout) {
-                            clearInterval(checkInterval);
-                            reject(missingTools); // Отклоняем с списком незагруженных инструментов
-                        }
-                    }, 100); // Проверяем каждые 100 мс
-                });
-            };
-        
-            const initializeEditor = async () => {
-                const requiredTools = ['EditorJS', 'Header', 'List', 'Checklist', 'CodeTool', 'Delimiter', 'Table'];
+
+            let editorInstance = null;
+            let debounceTimer;
+
+            const saveNote = async () => {
+                if (!editorInstance || !state.activeSessionId) return;
                 
                 try {
-                    // Ждем, пока все скрипты будут готовы
-                    await waitForTools(requiredTools);
-                } catch (missingTools) {
-                    // Если скрипты не загрузились за 7 секунд
-                    let errorMessage = '<b>Критическая ошибка: Редактор не может быть загружен.</b><br>';
-                    errorMessage += 'Не удалось получить следующие компоненты из сети:<br>';
-                    missingTools.forEach(tool => {
-                        errorMessage += `• ${tool}<br>`;
-                    });
-                    errorMessage += '<br>Пожалуйста, проверьте ваше интернет-соединение и обновите страницу. Если проблема повторится, возможно, CDN-сервер временно недоступен.';
-                    
-                    editorContainer.innerHTML = `<div class="p-6 text-red-400 bg-red-900/20 rounded-lg">${errorMessage}</div>`;
-                    console.error("Таймаут загрузки скриптов редактора. Отсутствуют:", missingTools);
-                    return;
-                }
-                
-                // --- Если все скрипты загружены, продолжаем как раньше ---
-        
-                // Подготовка данных и конвертация старых заметок
-                let editorData;
-                try {
-                    editorData = JSON.parse(activeSession.content);
-                    if (!editorData || typeof editorData.blocks === 'undefined') {
-                        throw new Error("Неверная структура JSON");
-                    }
-                } catch (e) {
-                    editorData = {
-                        blocks: (typeof activeSession.content === 'string' && activeSession.content)
-                            ? [{ type: 'paragraph', data: { text: activeSession.content } }]
-                            : []
-                    };
-                }
-        
-                // Инициализация Editor.js
-                try {
-                    // Очищаем контейнер от индикатора загрузки
-                    editorContainer.innerHTML = ''; 
-        
-                    editor = new EditorJS({
-                        holder: editorContainer, // Используем сам контейнер
-                        placeholder: 'Начните вводить текст. Нажмите Tab для выбора блока...',
-                        data: editorData,
-                        tools: {
-                            header: { class: window.Header, inlineToolbar: true, config: { placeholder: 'Заголовок', levels: [2, 3, 4], defaultLevel: 2 } },
-                            list: { class: window.List, inlineToolbar: true },
-                            checklist: { class: window.Checklist, inlineToolbar: true },
-                            code: { class: window.CodeTool, shortcut: 'CMD+SHIFT+C', config: { placeholder: 'Введите код' } },
-                            delimiter: window.Delimiter,
-                            table: { class: window.Table, inlineToolbar: true },
-                            paragraph: { inlineToolbar: true },
-                        },
-                        onChange: () => {
-                            clearTimeout(window.saveTimeout);
-                            window.saveTimeout = setTimeout(saveNoteContent, 700);
-                        }
-                    });
-                } catch (error) {
-                    console.error("Критическая ошибка при инициализации Editor.js:", error);
-                    editorContainer.innerHTML = `<div class="p-4 text-red-400">Не удалось запустить редактор. Подробности в консоли разработчика (F12).</div>`;
-                }
-            };
-        
-            const saveNoteContent = async () => {
-                if (!editor || !state.activeSessionId) return;
-                try {
-                    const updatedData = await editor.save();
+                    const outputData = await editorInstance.save();
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                     await updateDoc(sessionRef, {
-                        content: JSON.stringify(updatedData),
+                        title: titleInput.value,
+                        content: outputData, // Сохраняем объект JSON, а не строку
                         updatedAt: serverTimestamp()
                     });
                 } catch (error) {
-                    // Игнорируем ошибку "Holder is not an HTMLElement", которая может возникнуть при быстрой смене вкладок
-                    if (error.message.includes("Holder is not an HTMLElement")) {
-                        return;
-                    }
-                    console.error('Ошибка сохранения данных Editor.js:', error);
+                    console.error('Ошибка сохранения заметки:', error);
                 }
             };
-        
-            const saveNoteTitle = () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    updatedAt: serverTimestamp()
-                });
-            };
-        
-            titleInput?.addEventListener('change', saveNoteTitle);
-            
-            // Запускаем весь процесс инициализации
-            initializeEditor();
+
+            // Обработка старых заметок (где content был строкой)
+            let initialData = activeSession.content;
+            if (typeof initialData === 'string' || !initialData || !initialData.blocks) {
+                initialData = {
+                    time: Date.now(),
+                    blocks: [{
+                        type: "paragraph",
+                        data: { text: initialData || '' } // Преобразуем старую строку в блок
+                    }]
+                };
+            }
+
+            // Инициализация Editor.js
+            editorInstance = new EditorJS({
+                holder: 'editorjs-container',
+                
+                tools: {
+                    header: {
+                        class: Header,
+                        inlineToolbar: true
+                    },
+                    list: {
+                        class: List,
+                        inlineToolbar: true
+                    },
+                    checklist: {
+                        class: Checklist,
+                        inlineToolbar: true,
+                    },
+                    code: CodeTool,
+                    paragraph: {
+                       inlineToolbar: true,
+                    }
+                },
+                
+                data: initialData,
+                
+                placeholder: 'Нажмите Tab для выбора инструментов',
+                
+                // Вызывается при любом изменении в редакторе
+                onChange: (api, event) => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        saveNote();
+                    }, 1500); // Сохраняем с задержкой в 1.5с после последнего изменения
+                }
+            });
+
+            titleInput?.addEventListener('blur', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1479,7 +1311,25 @@
                     }
                     newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else { // notepad
-                    newSessionData = { type: 'notepad', title: 'Новая заметка', content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    // ИЗМЕНЕНИЕ: Создаем структуру для Editor.js
+                    newSessionData = { 
+                        type: 'notepad', 
+                        title: 'Новая заметка', 
+                        content: { // Вместо '' создаем объект
+                            time: Date.now(),
+                            blocks: [
+                                {
+                                    type: "paragraph",
+                                    data: {
+                                        text: "Начните вводить текст здесь..."
+                                    }
+                                }
+                            ],
+                            version: "2.29.1" 
+                        }, 
+                        createdAt: serverTimestamp(), 
+                        updatedAt: serverTimestamp() 
+                    };
                 }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -1662,9 +1512,7 @@
             }
         }
         
-        window.onload = () => {
-            init();
-        };
+        init();
     </script>
 
 </body>

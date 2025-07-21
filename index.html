@@ -1675,11 +1675,49 @@
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+                // Вместо полной замены массива, мы будем точечно обрабатывать изменения
+                snapshot.docChanges().forEach((change) => {
+                    const sessionData = { id: change.doc.id, ...change.doc.data() };
+                    const existingSessionIndex = state.sessions.findIndex(s => s.id === change.doc.id);
+        
+                    if (change.type === "added") {
+                        // Это новое событие добавления с сервера.
+                        // Проверим, не является ли оно реальной версией нашего временного элемента.
+                        const tempSessionIndex = state.sessions.findIndex(s => s.id.startsWith('temp_'));
+
+                        if (tempSessionIndex !== -1) {
+                            // Да, это реальный документ для нашего временного.
+                            // Заменяем временный элемент на настоящий в том же месте.
+                            state.sessions[tempSessionIndex] = sessionData;
+                        } else if (existingSessionIndex === -1) {
+                            // Это новый элемент (например, с другого устройства), добавляем его.
+                            state.sessions.push(sessionData);
+                        }
+                    }
+                    if (change.type === "modified") {
+                        // Элемент был изменен.
+                        if (existingSessionIndex !== -1) {
+                            state.sessions[existingSessionIndex] = sessionData;
+                        }
+                    }
+                    if (change.type === "removed") {
+                        // Элемент был удален.
+                        if (existingSessionIndex !== -1) {
+                            state.sessions.splice(existingSessionIndex, 1);
+                        }
+                    }
+                });
+        
+                // После всех изменений, один раз сортируем массив.
+                state.sessions.sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+        
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
-                    state.activeSessionId = null;
+                    const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
+                    state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                 }
+                
+                // Перерисовываем интерфейс только если не идет загрузка, чтобы избежать конфликтов
                 if (!state.isLoading) {
                     render();
                 }

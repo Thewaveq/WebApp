@@ -1441,7 +1441,15 @@
             });
     
             const createNewItem = async (type) => {
+                // Данные для отправки в Firestore. Используем serverTimestamp.
                 let newSessionData;
+                const timestamp = serverTimestamp();
+    
+                // Данные для немедленного локального отображения. Используем локальную дату.
+                // Объект с toMillis() нужен, чтобы наш временный объект был совместим с функцией сортировки.
+                const localDate = new Date();
+                const localTimestamp = { toMillis: () => localDate.getTime() };
+    
                 if (type === 'chat') {
                     let providerId = null;
                     let modelName = null;
@@ -1453,32 +1461,53 @@
                             modelName = models[0];
                         }
                     }
-                    newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: timestamp, updatedAt: timestamp };
                 } else if (type === 'notepad') {
-                    newSessionData = { 
-                        type: 'notepad', 
-                        title: 'Новая папка', 
-                        cards: [],
-                        createdAt: serverTimestamp(), 
-                        updatedAt: serverTimestamp() 
-                    };
+                    newSessionData = { type: 'notepad', title: 'Новая папка', cards: [], createdAt: timestamp, updatedAt: timestamp };
                 } else if (type === 'simplenote') {
-                    newSessionData = {
-                        type: 'simplenote',
-                        title: 'Новая простая заметка',
-                        content: '',
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
-                    };
+                    newSessionData = { type: 'simplenote', title: 'Новая простая заметка', content: '', createdAt: timestamp, updatedAt: timestamp };
                 }
-                
-                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
-                state.activeSessionId = newSessionRef.id;
-                
+    
+                // 1. Создаем временный ID и временный объект для мгновенного отображения.
+                const tempId = `temp_${Date.now()}`;
+                const tempSession = {
+                    ...newSessionData,
+                    id: tempId,
+                    updatedAt: localTimestamp, // Используем локальную дату для сортировки
+                    createdAt: localTimestamp
+                };
+    
+                // 2. Добавляем временный объект в НАЧАЛО локального массива состояния.
+                state.sessions.unshift(tempSession);
+                state.activeSessionId = tempId;
+    
+                // 3. Немедленно перерисовываем интерфейс. Новый элемент появится сверху без "прыжка".
                 render();
-                if (window.innerWidth < 1024) { 
-                    sidebar.classList.remove('open'); 
-                    sidebarBackdrop.classList.add('hidden'); 
+    
+                // Закрываем боковую панель на мобильных устройствах
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.remove('open');
+                    sidebarBackdrop.classList.add('hidden');
+                }
+    
+                try {
+                    // 4. В фоне отправляем запрос на создание реального документа в Firestore.
+                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                    
+                    // 5. Когда документ создан, обновляем активный ID с временного на реальный.
+                    // Слушатель onSnapshot сам заменит временный объект в state.sessions на реальный.
+                    if (state.activeSessionId === tempId) {
+                        state.activeSessionId = newSessionRef.id;
+                        // Можно еще раз вызвать render(), чтобы гарантированно применился класс 'active' к элементу с новым ID.
+                        render();
+                    }
+                } catch (error) {
+                    console.error("Ошибка при создании нового элемента:", error);
+                    // Если произошла ошибка, удаляем наш временный элемент из списка
+                    state.sessions = state.sessions.filter(s => s.id !== tempId);
+                    state.activeSessionId = state.sessions[0]?.id || null;
+                    render();
+                    showModalAlert("Не удалось создать элемент. Пожалуйста, попробуйте еще раз.");
                 }
             };
     

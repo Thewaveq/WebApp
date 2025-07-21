@@ -1179,8 +1179,9 @@
             const saveNoteContent = async () => {
                 if (!contentContainer) return;
                 
+                // СОХРАНЯЕМ ПОЗИЦИЮ СКРОЛЛА перед обновлением
                 state.simpleNoteScrollPosition = contentContainer.scrollTop;
-
+        
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
                     const type = el.dataset.type;
@@ -1198,20 +1199,20 @@
                     updatedAt: serverTimestamp()
                 });
             };
-
+        
             const autoResizeTextarea = (textarea) => {
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             };
             
             contentContainer.querySelectorAll('textarea').forEach(autoResizeTextarea);
-
+        
             contentContainer.addEventListener('input', e => {
                 if (e.target.tagName.toLowerCase() === 'textarea') {
                     autoResizeTextarea(e.target);
                 }
             });
-
+        
             contentContainer.addEventListener('focusout', (e) => {
                  if (e.target.matches('textarea, code')) {
                     saveNoteContent();
@@ -1220,10 +1221,11 @@
                     }
                  }
             });
-
+        
             contentContainer.addEventListener('click', async (e) => {
                 const addItem = async (type) => {
                     const newItem = { type: type, content: '' };
+                    // СОХРАНЯЕМ ПОЗИЦИЮ СКРОЛЛА перед добавлением
                     state.simpleNoteScrollPosition = contentContainer.scrollTop;
                      await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
@@ -1238,7 +1240,7 @@
                 if (e.target.closest('#add-code-item-btn')) {
                     addItem('code');
                 }
-
+        
                 const deleteBtn = e.target.closest('.delete-item-btn');
                 if (deleteBtn) {
                     const itemEl = deleteBtn.closest('.note-item');
@@ -1250,6 +1252,7 @@
                     if (!isNaN(itemIndex) && currentItems[itemIndex]) {
                          showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                              const itemToRemove = currentItems[itemIndex];
+                             // СОХРАНЯЕМ ПОЗИЦИЮ СКРОЛЛА перед удалением
                              state.simpleNoteScrollPosition = contentContainer.scrollTop;
                              await updateDoc(sessionRef, {
                                  contentItems: arrayRemove(itemToRemove),
@@ -1258,7 +1261,7 @@
                          });
                     }
                 }
-
+        
                 const copyBtn = e.target.closest('.copy-note-code-btn');
                 if (copyBtn) {
                     const codeBlock = copyBtn.closest('.note-item').querySelector('code');
@@ -1274,21 +1277,19 @@
                 }
             });
             
-            // --- ИСПРАВЛЕНИЕ: Динамически изменяем стиль пустых блоков кода ---
             contentContainer.querySelectorAll('pre').forEach((preElement) => {
                 const codeElement = preElement.querySelector('code');
                 if (codeElement && codeElement.innerText.trim() === '') {
-                    // Уменьшаем вертикальные отступы и задаем минимальную высоту
                     preElement.style.paddingTop = '0.5rem';
                     preElement.style.paddingBottom = '0.5rem';
                     preElement.style.minHeight = '3rem'; 
                 }
             });
-
+        
             contentContainer.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightElement(block);
             });
-
+        
             lucide.createIcons();
         }
     
@@ -1802,7 +1803,7 @@
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
-                    // --- ИСПРАВЛЕНИЕ: Сохраняем и восстанавливаем позицию скролла ---
+                    // ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СКРОЛЛА после обновления
                     const scrollPos = state.simpleNoteScrollPosition;
                     render();
                     if (scrollPos !== null && state.activeTab === 'simplenote') {
@@ -1810,7 +1811,7 @@
                         if (contentContainer) {
                             contentContainer.scrollTop = scrollPos;
                         }
-                        // Сбрасываем сохраненную позицию, чтобы она не применялась при обычном переключении вкладок
+                        // Сбрасываем сохраненную позицию
                         state.simpleNoteScrollPosition = null; 
                     }
                 }

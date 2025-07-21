@@ -1002,14 +1002,21 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            // Эта функция теперь создает оболочку с двумя кнопками для добавления разных типов блоков.
+            const isCompact = state.isChatWidthCompact; // Используем тот же флаг состояния для консистентности
+            const containerClasses = `flex-grow w-full overflow-y-auto p-4 space-y-4 ${isCompact ? 'chat-view-compact' : ''}`;
+
             return `
                 <div class="flex flex-col h-full">
-                    <div class="flex-shrink-0 p-4 border-b border-border-color">
-                         <input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
+                    <div class="flex-shrink-0 p-3 border-b border-border-color">
+                         <div class="flex items-center justify-between gap-3">
+                            <button id="chat-width-toggle" title="Переключить ширину" class="p-2 rounded-md hover:bg-bg-input hidden lg:flex flex-shrink-0">
+                                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                            </button>
+                            <input type="text" id="simple-note-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название заметки">
+                         </div>
                     </div>
-                    <div id="simple-note-content-container" class="flex-grow w-full overflow-y-auto p-4 space-y-4">
-                        <!-- Содержимое (текст и код) будет вставлено сюда динамически -->
+                    <div id="simple-note-content-container" class="${containerClasses}">
+                        {/* Содержимое будет вставлено сюда динамически */}
                     </div>
                     <div class="flex-shrink-0 p-4 border-t border-border-color">
                         <div class="flex items-center justify-center gap-3">
@@ -1285,10 +1292,30 @@
             const contentContainer = document.getElementById('simple-note-content-container');
             const addNewTextBtn = document.getElementById('add-new-text-block-btn');
             const addNewCodeBtn = document.getElementById('add-new-code-block-btn');
+            const widthToggleBtn = document.getElementById('chat-width-toggle');
 
             if (!state.activeSessionId) return;
 
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
+            // Обработчик для кнопки переключения ширины
+            if(widthToggleBtn) {
+                const isExpanded = !state.isChatWidthCompact;
+                widthToggleBtn.classList.toggle('active', isExpanded);
+                widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
+        
+                widthToggleBtn.addEventListener('click', () => {
+                    state.isChatWidthCompact = !state.isChatWidthCompact;
+                    const isNowExpanded = !state.isChatWidthCompact;
+        
+                    localStorage.setItem('chatViewCompact', state.isChatWidthCompact);
+        
+                    contentContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
+                    widthToggleBtn.classList.toggle('active', isNowExpanded);
+        
+                    widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
+                });
+            }
 
             titleInput?.addEventListener('change', () => {
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
@@ -1402,7 +1429,6 @@
                     target.style.height = (target.scrollHeight) + 'px';
                     debouncedSave(blockId, { content: target.value });
                 } else if (blockType === 'code' && target.tagName === 'CODE') {
-                    // Используем innerText для получения текстового содержимого без HTML тегов
                     debouncedSave(blockId, { content: target.innerText });
                 }
             });

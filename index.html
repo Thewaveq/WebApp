@@ -1803,15 +1803,19 @@
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
-                    // ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СКРОЛЛА после обновления
                     const scrollPos = state.simpleNoteScrollPosition;
-                    render();
+                    render(); // Эта функция по-прежнему перерисовывает интерфейс
+        
+                    // ИЗМЕНЕНИЕ: Восстановление скролла обернуто в setTimeout
                     if (scrollPos !== null && state.activeTab === 'simplenote') {
-                        const contentContainer = document.getElementById('simple-note-content');
-                        if (contentContainer) {
-                            contentContainer.scrollTop = scrollPos;
-                        }
-                        // Сбрасываем сохраненную позицию
+                        setTimeout(() => {
+                            const contentContainer = document.getElementById('simple-note-content');
+                            if (contentContainer) {
+                                contentContainer.scrollTop = scrollPos;
+                            }
+                        }, 0); // Нулевая задержка откладывает выполнение до следующего цикла событий
+                        
+                        // Сбрасываем сохраненную позицию, чтобы она не применялась при обычном переключении
                         state.simpleNoteScrollPosition = null; 
                     }
                 }

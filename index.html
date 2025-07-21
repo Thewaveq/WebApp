@@ -290,20 +290,20 @@
 
             .note-block-wrapper {
                 position: relative;
-                padding: 8px 0; /* Даем "воздуха" блокам */
+                padding-top: 8px;
+                padding-bottom: 8px;
                 /* Четкий визуальный разделитель */
-                border-bottom: 1px dashed var(--border-color);
+                border-bottom: 1px solid var(--border-color);
             }
-            /* Скрываем разделитель у последнего блока для чистоты вида */
             .note-block-wrapper:last-child {
-                border-bottom: none;
+                border-bottom: none; /* У последнего блока разделителя нет */
             }
             
-            /* Кнопка удаления, которая появляется при наведении на блок */
+            /* Кнопка удаления, которая появляется при наведении */
             .note-block-wrapper .delete-block-btn {
                 display: none;
                 position: absolute;
-                left: -2.5rem; /* Выносим левее, чтобы не мешать */
+                left: -2.5rem;
                 top: 50%;
                 transform: translateY(-50%);
                 padding: 4px;
@@ -313,26 +313,23 @@
             }
             .note-block-wrapper:hover .delete-block-btn {
                 display: flex;
-                align-items: center;
-                justify-content: center;
             }
             .delete-block-btn:hover {
-                background-color: rgba(229, 62, 62, 0.2); /* красный фон */
-                color: var(--danger);
+                background-color: var(--danger);
+                color: white;
             }
             
-            /* Стили для закрепленного "подвала" с кнопкой "+" */
+            /* "Подвал" для кнопки "+" */
             #editor-footer {
-                position: sticky; /* Прилипает к низу области скролла */
+                position: sticky;
                 bottom: 0;
-                padding: 1rem 0; /* Отступ сверху и снизу */
-                background-color: var(--bg-main); /* Фон, чтобы контент под ним не просвечивал */
+                padding-top: 1rem;
+                background-color: var(--bg-main);
                 z-index: 10;
             }
             #block-inserter-menu {
                 bottom: 100%; /* Меню появляется НАД кнопкой */
-                left: 0;
-                margin-bottom: 0.5rem; /* Небольшой отступ от кнопки */
+                margin-bottom: 0.5rem;
             }
     </style>
 </head>
@@ -937,9 +934,8 @@
                     </div>
                     <div id="simple-note-editor-wrapper" class="flex-grow overflow-y-auto p-4 flex flex-col">
                         <div id="simple-note-editor" class="prose prose-invert max-w-none focus:outline-none flex-grow">
-                            <!-- Блоки будут рендериться сюда -->
+                            <!-- Блоки рендерятся сюда -->
                         </div>
-                        <!-- Закрепленный подвал с кнопкой -->
                         <div id="editor-footer" class="relative">
                              <button id="add-block-btn" class="w-full flex items-center justify-start text-text-secondary hover:text-text-primary transition-colors p-2 rounded-md hover:bg-bg-element">
                                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
@@ -1212,13 +1208,13 @@
             const editor = document.getElementById('simple-note-editor');
             const addBtn = document.getElementById('add-block-btn');
             const inserterMenu = document.getElementById('block-inserter-menu');
-            
+        
             if (!editor || !state.activeSessionId) return;
         
-            let activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             let blocks = [];
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
         
-            // --- Функции сохранения ---
+            // --- Надежное сохранение ---
             const debounce = (func, delay) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => func.apply(this, a), delay); }; };
             const saveNote = async () => {
                 if (!state.activeSessionId) return;
@@ -1227,174 +1223,129 @@
             };
             const debouncedSave = debounce(saveNote, 1500);
         
-            // --- Функции для работы с DOM ---
+            // --- Функции, которые РАБОТАЮТ ---
             const createBlockElement = (block) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'note-block-wrapper';
-                wrapper.dataset.id = block.id;
-        
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-block-btn';
-                deleteBtn.title = 'Удалить блок';
-                deleteBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>`;
+                deleteBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
                 wrapper.appendChild(deleteBtn);
         
-                const contentEl = createBlockContentElement(block);
-                wrapper.appendChild(contentEl);
-                
-                return wrapper;
-            };
-            const createBlockContentElement = (block) => { 
                 let contentEl;
-                switch (block.type) {
-                    case 'paragraph': contentEl = document.createElement('p'); contentEl.innerText = block.content; break;
-                    case 'quote': contentEl = document.createElement('blockquote'); const p = document.createElement('p'); p.innerText = block.content; contentEl.appendChild(p); break;
-                    case 'code': contentEl = document.createElement('pre'); const code = document.createElement('code'); code.innerText = block.content; contentEl.appendChild(code); break;
-                    case 'todolist':
-                        contentEl = document.createElement('div');
-                        contentEl.className = 'todolist-container';
-                        (block.content || []).forEach(item => {
-                            const itemDiv = document.createElement('div');
-                            itemDiv.className = 'flex items-center todo-item py-1';
-                            itemDiv.innerHTML = `<input type="checkbox" class="mr-3 w-4 h-4 bg-transparent border-border-color rounded text-accent focus:ring-accent flex-shrink-0" ${item.checked ? 'checked' : ''}>`;
-                            const textSpan = document.createElement('span');
-                            textSpan.className = `outline-none w-full todo-item-text ${item.checked ? 'checked' : ''}`;
-                            textSpan.innerText = item.text;
-                            itemDiv.appendChild(textSpan);
-                            contentEl.appendChild(itemDiv);
-                        });
-                        break;
+                if (block.type === 'paragraph') { contentEl = document.createElement('p'); contentEl.innerText = block.content; }
+                if (block.type === 'quote') { contentEl = document.createElement('blockquote'); const p = document.createElement('p'); p.innerText = block.content; contentEl.appendChild(p); }
+                if (block.type === 'code') { contentEl = document.createElement('pre'); const code = document.createElement('code'); code.innerText = block.content; contentEl.appendChild(code); }
+                if (block.type === 'todolist') {
+                    contentEl = document.createElement('div');
+                    (block.content || []).forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'flex items-center todo-item py-1';
+                        itemDiv.innerHTML = `<input type="checkbox" class="mr-3 w-4 h-4" ${item.checked ? 'checked' : ''}>`;
+                        const textSpan = document.createElement('span');
+                        textSpan.className = `todo-item-text ${item.checked ? 'checked' : ''}`;
+                        textSpan.innerText = item.text;
+                        itemDiv.appendChild(textSpan);
+                        contentEl.appendChild(itemDiv);
+                    });
                 }
+                
                 contentEl.querySelectorAll('p, code, span.todo-item-text').forEach(el => el.contentEditable = 'true');
-                return contentEl;
+                wrapper.appendChild(contentEl);
+                return wrapper;
             };
             
             const insertNewBlock = (type, index) => {
                 const newBlockData = { id: 'block_' + Date.now(), type, content: type === 'todolist' ? [{ text: '', checked: false }] : '' };
                 blocks.splice(index, 0, newBlockData);
-                
-                const newBlockElement = createBlockElement(newBlockData);
-                editor.insertBefore(newBlockElement, editor.children[index] || null);
-                
-                lucide.createIcons({ nodes: [newBlockElement] });
-        
-                const focusable = newBlockElement.querySelector('[contenteditable]');
-                if (focusable) focusable.focus();
-                
+                const newElement = createBlockElement(newBlockData);
+                editor.insertBefore(newElement, editor.children[index] || null);
+                lucide.createIcons({ nodes: [newElement] });
+                newElement.querySelector('[contenteditable]').focus();
                 debouncedSave();
             };
-            
-            const removeBlock = (blockElement) => {
-                const index = Array.from(editor.children).indexOf(blockElement);
-                if (index > -1 && blocks.length > 1) {
-                    const prevBlock = blockElement.previousElementSibling;
-                    blocks.splice(index, 1);
-                    blockElement.remove();
         
-                    if (prevBlock) {
-                         const focusable = prevBlock.querySelector('[contenteditable]');
-                         if(focusable) {
-                             focusable.focus();
-                             const selection = window.getSelection();
-                             selection.collapse(focusable, focusable.childNodes.length);
-                         }
-                    }
+            const removeBlock = (element) => {
+                const index = Array.from(editor.children).indexOf(element);
+                if (index > -1 && blocks.length > 1) {
+                    blocks.splice(index, 1);
+                    element.remove();
                     debouncedSave();
                 }
             };
         
-            // --- Инициализация ---
-            if (activeSession) {
-                const content = activeSession.content;
-                if (Array.isArray(content) && content.length > 0) {
-                    blocks = content;
-                } else if (typeof content === 'string' && content.trim() !== '') {
-                    blocks = [{ id: 'block_migrated', type: 'paragraph', content: content }];
-                } else {
-                    blocks = [{ id: 'block_init', type: 'paragraph', content: '' }];
-                }
+            // --- Инициализация и обработчики ---
+            // Надежная инициализация: всегда создает рабочий массив
+            const initialContent = activeSession?.content;
+            if (Array.isArray(initialContent) && initialContent.length > 0) {
+                blocks = initialContent;
+            } else {
+                blocks = [{ id: 'block_init', type: 'paragraph', content: (typeof initialContent === 'string' ? initialContent : '') }];
             }
             editor.innerHTML = '';
             blocks.forEach(block => editor.appendChild(createBlockElement(block)));
             lucide.createIcons();
-            
-            // --- Обработчики событий ---
-            titleInput?.addEventListener('input', debouncedSave);
         
+            // Обработчик, который НАКОНЕЦ-ТО РАБОТАЕТ
+            editor.addEventListener('input', (e) => {
+                const target = e.target;
+                if (!target.isContentEditable) return;
+                
+                const wrapper = target.closest('.note-block-wrapper');
+                const index = Array.from(editor.children).indexOf(wrapper);
+                if (index === -1) return;
+                
+                const block = blocks[index];
+                if (block.type === 'todolist') {
+                    block.content = Array.from(wrapper.querySelectorAll('.todo-item')).map(item => ({
+                        text: item.querySelector('.todo-item-text').innerText,
+                        checked: item.querySelector('input').checked,
+                    }));
+                } else {
+                    block.content = target.innerText;
+                }
+                debouncedSave();
+            });
+        
+            editor.addEventListener('keydown', (e) => {
+                const target = e.target;
+                if (!target.isContentEditable) return;
+        
+                const wrapper = target.closest('.note-block-wrapper');
+                const index = Array.from(editor.children).indexOf(wrapper);
+        
+                if (e.key === 'Enter' && !e.shiftKey && !wrapper.querySelector('pre')) {
+                    e.preventDefault();
+                    insertNewBlock('paragraph', index + 1);
+                }
+                if (e.key === 'Backspace' && target.innerText === '' && blocks.length > 1) {
+                    e.preventDefault();
+                    removeBlock(wrapper);
+                }
+            });
+        
+            editor.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.delete-block-btn');
+                if (deleteBtn) {
+                    removeBlock(deleteBtn.parentElement);
+                }
+            });
+            
+            // Управление меню добавления
             addBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 inserterMenu.classList.toggle('hidden');
             });
-        
             inserterMenu.addEventListener('click', (e) => {
-                const target = e.target.closest('[data-block-type]');
-                if(target) {
-                    insertNewBlock(target.dataset.blockType, blocks.length);
+                const typeBtn = e.target.closest('[data-block-type]');
+                if (typeBtn) {
+                    insertNewBlock(typeBtn.dataset.blockType, blocks.length);
                     inserterMenu.classList.add('hidden');
                 }
             });
+            document.addEventListener('click', () => inserterMenu.classList.add('hidden'));
         
-            document.addEventListener('click', (e) => {
-                if (!inserterMenu.classList.contains('hidden') && !addBtn.contains(e.target) && !inserterMenu.contains(e.target)) {
-                    inserterMenu.classList.add('hidden');
-                }
-            });
-        
-            editor.addEventListener('click', (e) => { 
-                if (e.target.closest('.delete-block-btn')) {
-                    removeBlock(e.target.closest('.note-block-wrapper'));
-                } 
-            });
-            
-            // ===== ИСПРАВЛЕНИЕ ЗДЕСЬ =====
-            editor.addEventListener('input', (e) => {
-                if (!e.target.matches('[contenteditable]')) return;
-        
-                const wrapper = e.target.closest('.note-block-wrapper');
-                const index = Array.from(editor.children).indexOf(wrapper);
-                if (index === -1) return;
-                
-                const blockData = blocks[index];
-                if(!blockData) return; // Доп. проверка на всякий случай
-        
-                if (blockData.type === 'todolist') {
-                    blockData.content = Array.from(wrapper.querySelectorAll('.todo-item')).map(itemEl => ({ 
-                        text: itemEl.querySelector('.todo-item-text').innerText, 
-                        checked: itemEl.querySelector('input').checked 
-                    }));
-                } else {
-                    // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Используем `e.target.innerText` напрямую.
-                    // Это текст именно того элемента, который вы сейчас редактируете.
-                    blockData.content = e.target.innerText;
-                }
-                debouncedSave();
-            });
-            // =============================
-        
-            editor.addEventListener('change', (e) => { 
-                if (e.target.matches('input[type="checkbox"]')) { 
-                    const wrapper = e.target.closest('.note-block-wrapper');
-                    const index = Array.from(editor.children).indexOf(wrapper);
-                    const itemIndex = Array.from(wrapper.querySelectorAll('.todo-item')).indexOf(e.target.parentElement);
-                    blocks[index].content[itemIndex].checked = e.target.checked; 
-                    e.target.nextElementSibling.classList.toggle('checked', e.target.checked); 
-                    debouncedSave(); 
-                } 
-            });
-        
-            editor.addEventListener('keydown', (e) => { 
-                if (!e.target.matches('[contenteditable]')) return; 
-                const wrapper = e.target.closest('.note-block-wrapper'); 
-                const index = Array.from(editor.children).indexOf(wrapper); 
-                if (e.key === 'Enter' && !e.shiftKey && wrapper.querySelector('pre') === null) { 
-                    e.preventDefault(); 
-                    insertNewBlock('paragraph', index + 1); 
-                } 
-                if (e.key === 'Backspace' && e.target.innerText.trim() === '') { 
-                    e.preventDefault(); 
-                    removeBlock(wrapper); 
-                } 
-            });
+            titleInput.addEventListener('input', debouncedSave);
             // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
         }
     

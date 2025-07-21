@@ -1165,7 +1165,7 @@
             lucide.createIcons();
         }
 
-                function setupSimpleNotepadViewEventListeners() {
+        function setupSimpleNotepadViewEventListeners() {
             const titleInput = document.getElementById('simple-note-title-input');
             const contentContainer = document.getElementById('simple-note-content');
             
@@ -1176,13 +1176,14 @@
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
             
-            // ИЗМЕНЕНИЕ: Вводим понятие "намерения" прокрутки
+            // ГЛАВНОЕ ИЗМЕНЕНИЕ: Логика теперь проста. Запоминаем позицию -> обновляем базу -> ВОССТАНАВЛИВАЕМ позицию.
+            // Все происходит в одном месте, как и должно быть.
             const saveNoteContent = async () => {
                 if (!contentContainer) return;
                 
-                state.simpleNoteScrollPosition = contentContainer.scrollTop; // Сохраняем позицию
-                state.scrollAction = 'restore'; // Устанавливаем намерение "восстановить"
-
+                // 1. Запоминаем текущую позицию прокрутки ПЕРЕД обновлением.
+                const scrollPos = contentContainer.scrollTop;
+                
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
                     const type = el.dataset.type;
@@ -1195,9 +1196,17 @@
                     return { type, content };
                 });
                 
+                // 2. Ждем, пока база данных обновится. В это время onSnapshot перерисует интерфейс, и прокрутка сбросится.
                 await updateDoc(sessionRef, {
                     contentItems: contentItems,
                     updatedAt: serverTimestamp()
+                });
+
+                // 3. ПОСЛЕ обновления, когда интерфейс уже перерисован, мы восстанавливаем прокрутку.
+                // requestAnimationFrame гарантирует, что это произойдет после того, как браузер все отрисует.
+                requestAnimationFrame(() => {
+                    const newContainer = document.getElementById('simple-note-content');
+                    if (newContainer) newContainer.scrollTop = scrollPos;
                 });
             };
 
@@ -1224,23 +1233,26 @@
             });
 
             contentContainer.addEventListener('click', async (e) => {
+                // Логика для добавления нового блока
                 const addItem = async (type) => {
                     const newItem = { type: type, content: '' };
-                    state.scrollAction = 'scrollToBottom'; // Намерение "прокрутить в самый низ"
-                     await updateDoc(sessionRef, {
+                    // Обновляем базу
+                    await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
                         updatedAt: serverTimestamp()
                     });
+                    
+                    // После перерисовки прокручиваем в самый низ, чтобы увидеть новый блок.
+                    requestAnimationFrame(() => {
+                         const newContainer = document.getElementById('simple-note-content');
+                         if (newContainer) newContainer.scrollTop = newContainer.scrollHeight;
+                    });
                 };
                 
-                if (e.target.closest('#add-text-item-btn')) {
-                    addItem('text');
-                }
-                
-                if (e.target.closest('#add-code-item-btn')) {
-                    addItem('code');
-                }
+                if (e.target.closest('#add-text-item-btn')) { addItem('text'); }
+                if (e.target.closest('#add-code-item-btn')) { addItem('code'); }
 
+                // Логика для удаления блока
                 const deleteBtn = e.target.closest('.delete-item-btn');
                 if (deleteBtn) {
                     const itemEl = deleteBtn.closest('.note-item');
@@ -1251,16 +1263,22 @@
                     if (!isNaN(itemIndex) && currentItems[itemIndex]) {
                          showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                              const itemToRemove = currentItems[itemIndex];
-                             state.simpleNoteScrollPosition = contentContainer.scrollTop; // Сохраняем позицию
-                             state.scrollAction = 'restore'; // Намерение "восстановить"
+                             
+                             // Точно так же: запоминаем -> обновляем -> восстанавливаем.
+                             const scrollPos = contentContainer.scrollTop;
                              await updateDoc(sessionRef, {
                                  contentItems: arrayRemove(itemToRemove),
                                  updatedAt: serverTimestamp()
+                             });
+                             requestAnimationFrame(() => {
+                                const newContainer = document.getElementById('simple-note-content');
+                                if (newContainer) newContainer.scrollTop = scrollPos;
                              });
                          });
                     }
                 }
 
+                // Логика для кнопки копирования (без изменений)
                 const copyBtn = e.target.closest('.copy-note-code-btn');
                 if (copyBtn) {
                     const codeBlock = copyBtn.closest('.note-item').querySelector('code');
@@ -1284,24 +1302,11 @@
                     preElement.style.minHeight = '3rem'; 
                 }
             });
-            
+
             contentContainer.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightElement(block);
             });
 
-            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-            // Этот блок кода выполнится в самом конце, после всех перерисовок и вычисления высоты.
-            if (state.scrollAction) {
-                if (state.scrollAction === 'scrollToBottom') {
-                    contentContainer.scrollTop = contentContainer.scrollHeight;
-                } else if (state.scrollAction === 'restore' && state.simpleNoteScrollPosition !== null) {
-                    contentContainer.scrollTop = state.simpleNoteScrollPosition;
-                }
-                // Сбрасываем намерение, чтобы оно не сработало при следующем рендере
-                state.scrollAction = null; 
-                state.simpleNoteScrollPosition = null;
-            }
-            
             lucide.createIcons();
         }
     

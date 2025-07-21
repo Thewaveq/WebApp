@@ -581,18 +581,21 @@
                     const blockWrapper = document.createElement('div');
                     blockWrapper.dataset.id = blockData.id;
                     blockWrapper.dataset.type = blockData.type;
+                    // Добавляем относительное позиционирование, группу и отступ сверху для пространства под кнопкой
+                    blockWrapper.className = "relative group mt-5"; 
                     
                     if (blockData.type === 'code') {
-                        blockWrapper.className = "code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg";
+                        // Кнопка удаления теперь позиционируется абсолютно относительно нового blockWrapper, НАД блоком с кодом.
+                        // Внутренняя структура блока с кодом остается почти такой же, но без кнопки удаления.
                         blockWrapper.innerHTML = `
-                            <div class="relative group">
-                                <pre class="p-4 pr-24 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
-                                <div class="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="delete-block-btn absolute -top-4 right-2 z-10 p-1 bg-bg-element text-text-secondary rounded-full border border-border-color hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Удалить блок">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                            <div class="code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg relative">
+                                <pre class="p-4 pr-16 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-lg"><code class="hljs" contenteditable="true" spellcheck="false">${(blockData.content || '').replace(/</g, "<").replace(/>/g, ">")}</code></pre>
+                                <div class="absolute top-3 right-3 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button class="copy-code-btn p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors" title="Копировать код">
                                         <i data-lucide="copy" class="w-4 h-4"></i>
-                                    </button>
-                                    <button class="delete-block-btn p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </div>
                             </div>`;
@@ -600,12 +603,13 @@
                         const codeElement = blockWrapper.querySelector('code');
                         hljs.highlightElement(codeElement);
                     } else { // type 'text'
-                        blockWrapper.className = "relative group";
+                        // Аналогичная структура для текстового поля: кнопка удаления вынесена наверх.
                         blockWrapper.innerHTML = `
-                            <textarea class="w-full bg-input border border-border-color rounded-lg p-4 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>
-                            <button class="delete-block-btn absolute top-3 right-3 p-1.5 bg-bg-element text-text-secondary rounded-md border border-border-color hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title="Удалить блок">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>`;
+                            <button class="delete-block-btn absolute -top-4 right-2 z-10 p-1 bg-bg-element text-text-secondary rounded-full border border-border-color hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Удалить блок">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                            <textarea class="w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${(blockData.content || '')}</textarea>
+                            `;
                         container.appendChild(blockWrapper);
                         const newTextarea = blockWrapper.querySelector('textarea');
                         newTextarea.style.height = 'auto';

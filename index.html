@@ -870,7 +870,34 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
+            const notes = activeSession.content || [];
+            // Рендерим структуру, но оставляем контент для заполнения через JS для безопасности
+            const notesHTML = notes.map((note, index) => `
+                <div class="simple-note-field-wrapper relative mb-4" data-note-id="${note.id}">
+                    <pre class="hljs p-4 rounded-lg min-h-[5rem] border border-border-color whitespace-pre-wrap word-wrap-break-word"><code class="language-plaintext"></code></pre>
+                    <textarea 
+                        class="absolute top-0 left-0 w-full h-full p-4 rounded-lg bg-transparent text-transparent resize-none overflow-y-hidden focus:outline-none focus:ring-2 focus:ring-accent"
+                        style="caret-color: var(--text-primary); font-family: 'Courier New', Courier, monospace; font-size: 1rem; line-height: 1.5;"
+                        data-note-index="${index}"
+                    ></textarea>
+                </div>
+            `).join('');
+        
+            return `
+                <div class="flex flex-col h-full p-4">
+                    <input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-shrink-0" value="${activeSession.title || ''}" placeholder="Название заметки">
+                    
+                    <div id="simple-notes-container" class="flex-grow overflow-y-auto pr-2">
+                        ${notesHTML}
+                    </div>
+
+                    <div class="flex-shrink-0 pt-4 text-center">
+                        <button id="add-new-note-field-btn" class="p-2 bg-accent hover:bg-accent-hover rounded-full text-white transition-colors">
+                            <i data-lucide="plus" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
         }
         
         function renderRoles() {
@@ -1128,18 +1155,105 @@
 
         function setupSimpleNotepadViewEventListeners() {
             const titleInput = document.getElementById('simple-note-title-input');
-            const contentTextarea = document.getElementById('simple-note-content-textarea');
-            const saveNote = () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: contentTextarea.value,
+            const container = document.getElementById('simple-notes-container');
+            const addBtn = document.getElementById('add-new-note-field-btn');
+            
+            if (!state.activeSessionId) return;
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            if (!activeSession) return;
+            const notesData = activeSession.content || [];
+
+            // --- Функция для автоматического изменения размера текстового поля ---
+            const autoResizeTextarea = (textarea) => {
+                textarea.style.height = 'auto';
+                const newHeight = Math.max(textarea.scrollHeight, 80); // Минимальная высота 80px
+                textarea.style.height = newHeight + 'px';
+                
+                const wrapper = textarea.closest('.simple-note-field-wrapper');
+                if (wrapper) {
+                    const pre = wrapper.querySelector('pre');
+                    if (pre) {
+                        pre.style.height = newHeight + 'px';
+                    }
+                }
+            };
+            
+            // --- Функция для подсветки синтаксиса ---
+            const highlightContent = (textarea) => {
+                const wrapper = textarea.closest('.simple-note-field-wrapper');
+                const codeBlock = wrapper?.querySelector('code');
+                if (codeBlock) {
+                    codeBlock.textContent = textarea.value;
+                    hljs.highlightElement(codeBlock);
+                }
+            };
+
+            // --- Отложенное обновление в Firestore для производительности ---
+            let debounceTimer;
+            const debouncedUpdate = (newContent) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    updateDoc(sessionRef, { content: newContent, updatedAt: serverTimestamp() });
+                }, 500);
+            };
+
+            // --- Обработчик для заголовка ---
+            titleInput?.addEventListener('change', () => {
+                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            });
+
+            // --- Обработчик для ввода текста в полях (с делегированием событий) ---
+            container?.addEventListener('input', (e) => {
+                if (e.target.matches('textarea')) {
+                    const textarea = e.target;
+                    autoResizeTextarea(textarea);
+                    highlightContent(textarea);
+
+                    const noteIndex = parseInt(textarea.dataset.noteIndex, 10);
+                    const newContent = [...(activeSession.content || [])];
+                    if (newContent[noteIndex]) {
+                        newContent[noteIndex].content = textarea.value;
+                        debouncedUpdate(newContent);
+                    }
+                }
+            });
+
+            // --- Обработчик для кнопки добавления нового поля ---
+            addBtn?.addEventListener('click', async () => {
+                const newNote = {
+                    id: 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                    content: ''
+                };
+                await updateDoc(sessionRef, {
+                    content: arrayUnion(newNote),
                     updatedAt: serverTimestamp()
                 });
-            };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
+            });
+            
+            // --- Начальная настройка для существующих полей при загрузке ---
+            const allWrappers = container?.querySelectorAll('.simple-note-field-wrapper');
+            allWrappers?.forEach((wrapper, index) => {
+                const textarea = wrapper.querySelector('textarea');
+                const codeBlock = wrapper.querySelector('code');
+                const note = notesData[index];
+                
+                if (textarea && codeBlock && note) {
+                    textarea.value = note.content;
+                    codeBlock.textContent = note.content;
+                    autoResizeTextarea(textarea);
+                    setTimeout(() => { hljs.highlightElement(codeBlock); }, 0);
+
+                    // Синхронизация прокрутки
+                    const pre = textarea.previousElementSibling;
+                    textarea.addEventListener('scroll', () => {
+                        pre.scrollTop = textarea.scrollTop;
+                        pre.scrollLeft = textarea.scrollLeft;
+                    });
+                }
+            });
+
+            lucide.createIcons();
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1466,7 +1580,11 @@
                     newSessionData = {
                         type: 'simplenote',
                         title: 'Новая простая заметка',
-                        content: '',
+                        // Инициализируем контент как массив с одним пустым полем
+                        content: [{ 
+                            id: 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                            content: ''
+                        }],
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp()
                     };

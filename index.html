@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Multi-Tool 3</title>
+    <title>AI Multi-Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -286,13 +286,6 @@
                 border-color: var(--accent);
                 color: var(--accent);
                 background-color: var(--bg-element);
-            }
-
-            .code-editor-textarea {
-                background-color: #282c34;
-                font-family: 'Courier New', Courier, monospace;
-                white-space: pre;
-                overflow-x: auto;
             }
     </style>
 </head>
@@ -587,10 +580,6 @@
                      if (activeSession) {
                         mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
                         setupSimpleNotepadViewEventListeners();
-                        // ИЗМЕНЕНИЕ: Запускаем подсветку после рендера
-                        mainContent.querySelectorAll('pre code').forEach((block) => {
-                           hljs.highlightElement(block);
-                        });
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('simplenote');
                     }
@@ -881,98 +870,7 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            // --- ФИНАЛЬНАЯ, СТРУКТУРНО ИСПРАВЛЕННАЯ ВЕРСИЯ ---
-            let contentBlocks = activeSession.content || [];
-            if (typeof contentBlocks === 'string' || (Array.isArray(contentBlocks) && contentBlocks.length === 0)) {
-                const value = typeof contentBlocks === 'string' ? contentBlocks : '';
-                contentBlocks = [{ id: 'block_' + Date.now(), type: 'paragraph', value }];
-            }
-            
-            const generateBlockHTML = (block) => {
-                const deleteButtonHTML = `<div class="block-actions flex-shrink-0 pl-2"><button class="delete-block-btn p-1.5 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-red-500/10" data-block-id="${block.id}" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
-                
-                const baseBlockWrapperStart = `<div class="content-block group flex items-start" data-block-id="${block.id}" data-type="${block.type}">`;
-                const contentWrapperStart = `<div class="content-wrapper flex-grow min-w-0">`;
-                const contentWrapperEnd = `</div>`;
-                const baseBlockWrapperEnd = `</div>`;
-
-                // Функция для безопасного экранирования HTML
-                const escapeHtml = (unsafe) => {
-                    if (typeof unsafe !== 'string') return '';
-                    return unsafe
-                         .replace(/&/g, "&")
-                         .replace(/</g, "<")
-                         .replace(/>/g, ">")
-                         .replace(/"/g, """)
-                         .replace(/'/g, "'");
-                }
-
-                switch(block.type) {
-                    case 'code':
-                        const codeValue = block.value || '';
-                        // ИЗМЕНЕНИЕ: Мы больше не вызываем highlight.js здесь.
-                        // Вместо этого мы вставляем экранированный текст кода.
-                        // Подсветка будет применена позже, когда блок уже будет в DOM.
-                        return `
-                            ${baseBlockWrapperStart}
-                                ${contentWrapperStart}
-                                    <div class="code-block-display cursor-pointer" title="Нажмите, чтобы редактировать">
-                                        <pre class="hljs rounded-lg p-4"><code class="language-javascript">${escapeHtml(codeValue)}</code></pre>
-                                    </div>
-                                    <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed hidden" rows="5">${escapeHtml(codeValue)}</textarea>
-                                ${contentWrapperEnd}
-                                ${deleteButtonHTML}
-                            ${baseBlockWrapperEnd}`;
-                    case 'todolist':
-                        const itemsHTML = (block.value && block.value.length > 0 ? block.value : [{text:'', checked:false}])
-                            .map((item) => `
-                                <div class="todolist-item group flex items-center gap-2">
-                                    <input type="checkbox" ${item.checked ? 'checked' : ''} class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0">
-                                    <input type="text" value="${escapeHtml(item.text || '')}" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
-                                    <button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button>
-                                </div>
-                            `).join('');
-                        return `
-                            ${baseBlockWrapperStart}
-                                ${contentWrapperStart}
-                                    <div class="todolist-container space-y-2 p-3 bg-bg-element/50 rounded-lg">
-                                        ${itemsHTML}
-                                    </div>
-                                    <button class="add-todo-item-btn text-sm text-accent hover:text-accent-hover mt-2">+ Добавить пункт</button>
-                                ${contentWrapperEnd}
-                                ${deleteButtonHTML}
-                            ${baseBlockWrapperEnd}`;
-                    case 'paragraph':
-                    default:
-                         return `
-                            ${baseBlockWrapperStart}
-                                ${contentWrapperStart}
-                                    <textarea class="w-full bg-transparent p-2 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${escapeHtml(block.value || '')}</textarea>
-                                ${contentWrapperEnd}
-                                ${deleteButtonHTML}
-                            ${baseBlockWrapperEnd}`;
-                }
-            };
-
-            const contentHTML = contentBlocks.map(generateBlockHTML).join('');
-
-            return `
-                <div class="flex flex-col h-full">
-                    <div id="simple-note-editor" class="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 max-w-4xl mx-auto w-full">
-                        <input type="text" id="simple-note-title-input" class="bg-transparent text-3xl font-bold mb-6 focus:outline-none w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
-                        <div id="simple-note-content" class="space-y-4">
-                            ${contentHTML}
-                        </div>
-                        <div class="flex justify-center items-center py-8">
-                             <div class="flex items-center gap-4 p-2 rounded-full bg-bg-element border border-border-color">
-                                <button data-add-block="paragraph" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить текст"><i data-lucide="pilcrow" class="w-5 h-5"></i></button>
-                                <button data-add-block="code" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить блок кода"><i data-lucide="code" class="w-5 h-5"></i></button>
-                                <button data-add-block="todolist" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить список задач"><i data-lucide="check-square" class="w-5 h-5"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
         }
         
         function renderRoles() {
@@ -1229,190 +1127,19 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            const editor = document.getElementById('simple-note-editor');
-            if (!editor) return;
-
-            let debounceTimer;
-
-            const autoResizeTextarea = (textarea) => {
-                if(!textarea) return;
-                textarea.style.height = 'auto';
-                textarea.style.height = (textarea.scrollHeight) + 'px';
-            };
-
-            const saveNote = async () => {
+            const titleInput = document.getElementById('simple-note-title-input');
+            const contentTextarea = document.getElementById('simple-note-content-textarea');
+            const saveNote = () => {
                 if (!state.activeSessionId) return;
-                const titleInput = document.getElementById('simple-note-title-input');
-                const contentContainer = document.getElementById('simple-note-content');
-                if (!titleInput || !contentContainer) return;
-
-                const blockElements = contentContainer.querySelectorAll('.content-block');
-                const newContent = Array.from(blockElements).map(blockEl => {
-                    const id = blockEl.dataset.blockId;
-                    const type = blockEl.dataset.type;
-                    let value;
-
-                    switch(type) {
-                        case 'code':
-                        case 'paragraph':
-                            value = blockEl.querySelector('textarea').value;
-                            break;
-                        case 'todolist':
-                            const items = blockEl.querySelectorAll('.todolist-item');
-                            value = Array.from(items).map(item => ({
-                                checked: item.querySelector('input[type="checkbox"]').checked,
-                                text: item.querySelector('input[type="text"]').value
-                            }));
-                            break;
-                    }
-                    return { id, type, value };
-                });
-
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                await updateDoc(sessionRef, { title: titleInput.value, content: newContent, updatedAt: serverTimestamp() });
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
+                    updatedAt: serverTimestamp()
+                });
             };
-
-            const scheduleSave = () => {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(saveNote, 1500);
-            };
-            
-            editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
-
-            editor.addEventListener('input', (e) => {
-                if (e.target.matches('textarea, #simple-note-title-input, .todolist-item input[type="text"]')) {
-                    if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
-                    scheduleSave();
-                }
-            });
-
-            editor.addEventListener('change', (e) => {
-                if (e.target.matches('input[type="checkbox"]')) scheduleSave();
-            });
-
-            editor.addEventListener('keydown', (e) => {
-                const targetInput = e.target;
-                if (!targetInput.matches('.todolist-item input[type="text"]')) return;
-                const currentItem = targetInput.closest('.todolist-item');
-
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const listContainer = currentItem.parentElement;
-                    const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
-                    currentItem.insertAdjacentHTML('afterend', newItemHTML);
-                    const newItemElement = currentItem.nextElementSibling;
-                    lucide.createIcons({nodes: [newItemElement]});
-                    newItemElement.querySelector('input[type="text"]').focus();
-                    scheduleSave();
-                } else if (e.key === 'Backspace' && targetInput.value === '') {
-                    e.preventDefault();
-                    const prevItem = currentItem.previousElementSibling;
-                    currentItem.remove();
-                    if (prevItem && prevItem.matches('.todolist-item')) {
-                        prevItem.querySelector('input[type="text"]').focus();
-                    }
-                    scheduleSave();
-                }
-            });
-            
-            editor.addEventListener('click', (e) => {
-                const target = e.target;
-
-                // ИСПРАВЛЕНИЕ №1: Правильный порядок проверки и изоляция событий.
-                
-                // Действие 1 (Высший приоритет): Клик по блоку кода для редактирования.
-                const codeDisplay = target.closest('.code-block-display');
-                if (codeDisplay) {
-                    e.stopPropagation(); // Изолируем это событие
-                    const block = codeDisplay.closest('.content-block');
-                    const textarea = block.querySelector('.code-editor-textarea');
-                    codeDisplay.classList.add('hidden');
-                    textarea.classList.remove('hidden');
-                    textarea.focus();
-                    autoResizeTextarea(textarea);
-                    return; // Завершаем, чтобы другие проверки не сработали.
-                }
-
-                // Действие 2: Удаление блока (сработает, только если не был клик по коду).
-                const deleteBlockBtn = target.closest('.delete-block-btn');
-                if (deleteBlockBtn) {
-                    e.stopPropagation();
-                    deleteBlockBtn.closest('.content-block')?.remove();
-                    scheduleSave();
-                    return;
-                }
-                
-                // Действие 3: Логика для списка задач.
-                const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
-                if (deleteTodoItemBtn) {
-                    e.stopPropagation();
-                    deleteTodoItemBtn.closest('.todolist-item')?.remove();
-                    scheduleSave();
-                    return;
-                }
-                const addTodoItemBtn = target.closest('.add-todo-item-btn');
-                if (addTodoItemBtn) {
-                    e.stopPropagation();
-                    const listContainer = addTodoItemBtn.closest('.content-block').querySelector('.todolist-container');
-                    const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
-                    listContainer.insertAdjacentHTML('beforeend', newItemHTML);
-                    const newItemElement = listContainer.lastElementChild;
-                    lucide.createIcons({nodes: [newItemElement]});
-                    newItemElement.querySelector('input[type="text"]').focus();
-                    scheduleSave();
-                    return;
-                }
-
-                // Действие 4: Добавление нового блока.
-                const addBtn = target.closest('.add-block-btn');
-                if (addBtn) {
-                    e.stopPropagation();
-                    const contentContainer = document.getElementById('simple-note-content');
-                    const type = addBtn.dataset.addBlock;
-                    
-                    // ИСПРАВЛЕНИЕ №2: Надежный способ добавления элемента без использования .match()
-                    const tempDiv = document.createElement('div');
-                    const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: '' }] };
-                    tempDiv.innerHTML = getSimpleNotepadViewHTML(tempSession);
-                    const newElement = tempDiv.querySelector('.content-block');
-
-                    if (newElement) {
-                        contentContainer.append(newElement);
-                        if (type === 'code') {
-                            const codeBlock = newElement.querySelector('pre code');
-                            if (codeBlock) hljs.highlightElement(codeBlock);
-                        }
-                        lucide.createIcons({nodes: [newElement]});
-                        const focusTarget = newElement.querySelector('textarea, input[type="text"]');
-                        if(focusTarget) {
-                            focusTarget.focus();
-                            if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
-                        }
-                        scheduleSave();
-                    }
-                    return;
-                }
-            });
-
-            editor.addEventListener('blur', (e) => {
-                if (e.target.matches('.code-editor-textarea')) {
-                    const textarea = e.target;
-                    const block = textarea.closest('.content-block');
-                    const codeDisplay = block.querySelector('.code-block-display');
-                    const codeElement = codeDisplay.querySelector('code');
-                    
-                    const newCode = textarea.value;
-                    // Обновляем текст и заново подсвечиваем
-                    codeElement.textContent = newCode;
-                    hljs.highlightElement(codeElement);
-                    
-                    textarea.classList.add('hidden');
-                    codeDisplay.classList.remove('hidden');
-                    scheduleSave();
-                }
-            }, true);
-            
-            lucide.createIcons();
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1914,44 +1641,34 @@
         }
         
         function attachFirestoreListeners() {
-            // --- НОВАЯ ВЕРСИЯ ФУНКЦИИ ---
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             if (!userId) return;
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                const updatedSessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                
-                // Просто обновляем данные в состоянии, без полной перерисовки
-                state.sessions = updatedSessions;
-
-                // Проверяем, существует ли активная сессия. Если нет, сбрасываем ее.
+                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
-                    // Только в этом случае нужна перерисовка, чтобы показать пустое состояние
-                    render(); 
-                } else {
-                    // Если мы не в процессе загрузки, просто перерисовываем боковую панель
-                    if (!state.isLoading) {
-                        renderSidebar();
-                    }
+                }
+                if (!state.isLoading) {
+                    render();
                 }
             }, error => console.error("Session listener error: ", error));
         
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if ((state.activeTab === 'settings' || state.activeTab === 'chat') && !state.isLoading) {
-                     render();
+                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
+                     if (!state.isLoading) render();
                 }
             }, error => console.error("Providers listener error: ", error));
         
             const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
             unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
                 state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                if ((state.activeTab === 'settings' || state.activeTab === 'chat') && !state.isLoading) {
-                    render();
+                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
+                    if (!state.isLoading) render();
                 }
             }, error => console.error("Roles listener error: ", error));
         }

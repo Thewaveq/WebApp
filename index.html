@@ -877,8 +877,7 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            // --- ОКОНЧАТЕЛЬНАЯ ВЕРСИЯ ---
-            // Гарантирует правильную структуру данных, даже если в базе пустое значение.
+            // --- ФИНАЛЬНАЯ, СТРУКТУРНО ИСПРАВЛЕННАЯ ВЕРСИЯ ---
             let contentBlocks = activeSession.content || [];
             if (typeof contentBlocks === 'string' || (Array.isArray(contentBlocks) && contentBlocks.length === 0)) {
                 const value = typeof contentBlocks === 'string' ? contentBlocks : '';
@@ -886,21 +885,29 @@
             }
             
             const generateBlockHTML = (block) => {
-                const commonDeleteButton = `<button class="delete-block-btn absolute top-2 right-2 p-1.5 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-red-500/10" data-block-id="${block.id}" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
+                // ИЗМЕНЕНИЕ: Кнопка удаления теперь отдельный элемент, который будет размещен сбоку.
+                const deleteButtonHTML = `<div class="block-actions flex-shrink-0 pl-2"><button class="delete-block-btn p-1.5 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-red-500/10" data-block-id="${block.id}" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
                 
+                // ИЗМЕНЕНИЕ: Весь блок теперь обернут во flex-контейнер для разделения контента и кнопки.
+                const baseBlockWrapperStart = `<div class="content-block group flex items-start" data-block-id="${block.id}" data-type="${block.type}">`;
+                const contentWrapperStart = `<div class="content-wrapper flex-grow min-w-0">`; // min-w-0 для правильного сжатия flex-элемента
+                const contentWrapperEnd = `</div>`;
+                const baseBlockWrapperEnd = `</div>`;
+
                 switch(block.type) {
                     case 'code':
-                        // ИСПРАВЛЕНИЕ: Генерируется и область для показа (`.code-block-display`), и скрытое поле для редактирования (`textarea`).
                         const codeValue = block.value || '';
                         const highlightedCode = hljs.highlight(codeValue, {language: 'javascript', ignoreIllegals: true}).value;
                         return `
-                            <div class="content-block group relative" data-block-id="${block.id}" data-type="code">
-                                <div class="code-block-display cursor-pointer" title="Нажмите, чтобы редактировать">
-                                    <pre class="hljs rounded-lg p-4"><code class="language-javascript">${highlightedCode}</code></pre>
-                                </div>
-                                <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed hidden" rows="5">${codeValue}</textarea>
-                                ${commonDeleteButton}
-                            </div>`;
+                            ${baseBlockWrapperStart}
+                                ${contentWrapperStart}
+                                    <div class="code-block-display cursor-pointer" title="Нажмите, чтобы редактировать">
+                                        <pre class="hljs rounded-lg p-4"><code class="language-javascript">${highlightedCode}</code></pre>
+                                    </div>
+                                    <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed hidden" rows="5">${codeValue}</textarea>
+                                ${contentWrapperEnd}
+                                ${deleteButtonHTML}
+                            ${baseBlockWrapperEnd}`;
                     case 'todolist':
                         const itemsHTML = (block.value && block.value.length > 0 ? block.value : [{text:'', checked:false}])
                             .map((item) => `
@@ -911,20 +918,24 @@
                                 </div>
                             `).join('');
                         return `
-                            <div class="content-block group relative" data-block-id="${block.id}" data-type="todolist">
-                                <div class="todolist-container space-y-2 p-3 bg-bg-element/50 rounded-lg">
-                                    ${itemsHTML}
-                                </div>
-                                <button class="add-todo-item-btn text-sm text-accent hover:text-accent-hover mt-2">+ Добавить пункт</button>
-                                ${commonDeleteButton}
-                            </div>`;
+                            ${baseBlockWrapperStart}
+                                ${contentWrapperStart}
+                                    <div class="todolist-container space-y-2 p-3 bg-bg-element/50 rounded-lg">
+                                        ${itemsHTML}
+                                    </div>
+                                    <button class="add-todo-item-btn text-sm text-accent hover:text-accent-hover mt-2">+ Добавить пункт</button>
+                                ${contentWrapperEnd}
+                                ${deleteButtonHTML}
+                            ${baseBlockWrapperEnd}`;
                     case 'paragraph':
                     default:
-                        return `
-                            <div class="content-block group relative" data-block-id="${block.id}" data-type="paragraph">
-                                <textarea class="w-full bg-transparent p-2 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${block.value || ''}</textarea>
-                                ${commonDeleteButton}
-                            </div>`;
+                         return `
+                            ${baseBlockWrapperStart}
+                                ${contentWrapperStart}
+                                    <textarea class="w-full bg-transparent p-2 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${block.value || ''}</textarea>
+                                ${contentWrapperEnd}
+                                ${deleteButtonHTML}
+                            ${baseBlockWrapperEnd}`;
                 }
             };
 
@@ -1203,7 +1214,7 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            // --- ОКОНЧАТЕЛЬНАЯ, ИСПРАВЛЕННАЯ ВЕРСЯ С ГАРАНТИРОВАННЫМ РЕШЕНИЕМ ---
+            // --- ФИНАЛЬНАЯ, СТРУКТУРНО ИСПРАВЛЕННАЯ ВЕРСИЯ ---
             const editor = document.getElementById('simple-note-editor');
             if (!editor) return;
 
@@ -1254,7 +1265,6 @@
             
             editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
 
-            // --- ОБРАБОТЧИКИ ВВОДА (ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ) ---
             editor.addEventListener('input', (e) => {
                 if (e.target.matches('textarea, #simple-note-title-input, .todolist-item input[type="text"]')) {
                     if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
@@ -1290,30 +1300,42 @@
                     scheduleSave();
                 }
             });
-
-            // *** ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ: ПОЛНОСТЬЮ ПЕРЕРАБОТАННЫЙ ОБРАБОТЧИК КЛИКОВ ***
+            
             editor.addEventListener('click', (e) => {
                 const target = e.target;
 
-                // --- ПРОВЕРКА ДЕЙСТВИЙ С НАИВЫСШИМ ПРИОРИТЕТОМ (КНОПКИ) ---
+                // Этот подход гарантирует, что клик по области кода и клик по кнопке удаления — это два абсолютно разных, непересекающихся действия.
 
-                // Действие 1: Удаление всего блока. Самая точная проверка.
-                if (target.closest('.delete-block-btn')) {
-                    target.closest('.content-block')?.remove();
-                    scheduleSave();
-                    return; // Завершаем выполнение, чтобы другие проверки не сработали.
-                }
-
-                // Действие 2: Удаление элемента списка
-                if (target.closest('.delete-todo-item-btn')) {
-                    target.closest('.todolist-item')?.remove();
+                // Действие 1: Удаление блока (самый приоритетный)
+                const deleteBlockBtn = target.closest('.delete-block-btn');
+                if (deleteBlockBtn) {
+                    deleteBlockBtn.closest('.content-block')?.remove();
                     scheduleSave();
                     return;
                 }
 
-                // Действие 3: Добавление элемента в список
-                if (target.closest('.add-todo-item-btn')) {
-                    const listContainer = target.closest('.content-block').querySelector('.todolist-container');
+                // Действие 2: Клик по блоку кода для редактирования
+                const codeDisplay = target.closest('.code-block-display');
+                if (codeDisplay) {
+                    const block = codeDisplay.closest('.content-block');
+                    const textarea = block.querySelector('textarea');
+                    codeDisplay.classList.add('hidden');
+                    textarea.classList.remove('hidden');
+                    textarea.focus();
+                    autoResizeTextarea(textarea);
+                    return;
+                }
+                
+                // Действие 3: Клик по кнопкам в списке задач
+                const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
+                if (deleteTodoItemBtn) {
+                    deleteTodoItemBtn.closest('.todolist-item')?.remove();
+                    scheduleSave();
+                    return;
+                }
+                const addTodoItemBtn = target.closest('.add-todo-item-btn');
+                if (addTodoItemBtn) {
+                    const listContainer = addTodoItemBtn.closest('.content-block').querySelector('.todolist-container');
                     const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
                     listContainer.insertAdjacentHTML('beforeend', newItemHTML);
                     const newItemElement = listContainer.lastElementChild;
@@ -1328,37 +1350,24 @@
                 if (addBtn) {
                     const contentContainer = document.getElementById('simple-note-content');
                     const type = addBtn.dataset.addBlock;
+                    // Создаем временный объект для рендеринга только одного блока, чтобы извлечь его HTML
                     const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: type === 'todolist' ? [] : '' }] };
+                    // Используем .match() для надежного извлечения HTML всего блока
                     const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
                     contentContainer.insertAdjacentHTML('beforeend', newBlockHTML);
                     const newElement = contentContainer.lastElementChild;
                     lucide.createIcons({nodes: [newElement]});
                     const focusTarget = newElement.querySelector('textarea, input[type="text"]');
-                    if (focusTarget) {
+                    if(focusTarget) {
                         focusTarget.focus();
                         if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
                     scheduleSave();
                     return;
                 }
-
-                // --- ПРОВЕРКА ДЕЙСТВИЙ С НИЗКИМ ПРИОРИТЕТОМ (КЛИК ПО ОБЛАСТИ) ---
-
-                // Действие 5: Переключение кода в режим редактирования.
-                // Эта проверка сработает, только если не сработали проверки выше.
-                const codeDisplay = target.closest('.code-block-display');
-                if (codeDisplay) {
-                    const block = codeDisplay.closest('.content-block');
-                    const textarea = block.querySelector('textarea');
-                    codeDisplay.classList.add('hidden');
-                    textarea.classList.remove('hidden');
-                    textarea.focus();
-                    autoResizeTextarea(textarea);
-                    // Здесь не нужен return, так как это последнее действие в цепочке.
-                }
             });
 
-            // --- ОБРАБОТЧИК ПОТЕРИ ФОКУСА (ДЛЯ РЕДАКТОРА КОДА) ---
+            // Обработчик потери фокуса для поля редактирования кода
             editor.addEventListener('blur', (e) => {
                 if (e.target.matches('.code-editor-textarea')) {
                     const textarea = e.target;
@@ -1367,15 +1376,13 @@
                     const codeElement = codeDisplay.querySelector('code');
                     
                     const newCode = textarea.value;
-                    // Подсветка нового кода
                     codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
                     
-                    // Возвращаем все в исходное состояние
                     textarea.classList.add('hidden');
                     codeDisplay.classList.remove('hidden');
                     scheduleSave();
                 }
-            }, true); // Используем 'true' для event capturing
+            }, true);
             
             lucide.createIcons();
         }

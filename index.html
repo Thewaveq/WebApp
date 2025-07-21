@@ -1301,7 +1301,7 @@
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
 
-            // --- Миграция для старых заметок (остается без изменений, но важна) ---
+            // --- Миграция для старых заметок (остается без изменений) ---
             if (activeSession && typeof activeSession.content === 'string' && !activeSession.contentBlocks) {
                 const initialBlock = {
                     id: 'block_' + Date.now(),
@@ -1319,11 +1319,45 @@
                 return;
             }
 
-            // Применяем авто-высоту ко всем существующим полям при первоначальной загрузке
-            blocksContainer.querySelectorAll('.simple-note-content-textarea').forEach(autoResizeTextarea);
-            
-            // Прокручиваем к "якорю" в конце заметки после небольшой задержки,
-            // чтобы браузер успел обработать изменение высоты всех полей.
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+
+            // Инициализация блоков: для текста настраиваем высоту, для кода - заменяем на подсвечиваемый блок
+            blocksContainer.querySelectorAll('.simple-note-block').forEach(blockEl => {
+                const textarea = blockEl.querySelector('textarea.simple-note-content-textarea');
+                if (!textarea) return;
+
+                if (textarea.classList.contains('code-input')) {
+                    const codeContent = textarea.value;
+                    
+                    // Создаем структуру <pre><code> для подсветки
+                    const pre = document.createElement('pre');
+                    const code = document.createElement('code');
+                    
+                    // Стилизуем <pre> для соответствия дизайну
+                    pre.style.margin = '0';
+                    pre.style.whiteSpace = 'pre-wrap'; // Перенос строк
+                    pre.style.wordBreak = 'break-all'; // Перенос длинных слов
+                    
+                    code.textContent = codeContent;
+                    code.contentEditable = 'true';
+                    code.spellcheck = false;
+                    
+                    pre.appendChild(code);
+                    
+                    // Применяем подсветку синтаксиса
+                    hljs.highlightElement(code);
+                    
+                    // Заменяем исходный textarea на новый блок <pre>
+                    textarea.parentNode.replaceChild(pre, textarea);
+
+                } else {
+                    // Для обычных текстовых полей настраиваем авто-высоту
+                    autoResizeTextarea(textarea);
+                }
+            });
+
+
+            // Прокручиваем к "якорю" в конце заметки (без изменений)
             setTimeout(() => {
                 const sentinel = document.getElementById('simple-note-end-sentinel');
                 if (sentinel) {
@@ -1331,7 +1365,7 @@
                 }
             }, 100);
 
-            // Функция добавления нового блока
+            // Функция добавления нового блока (без изменений)
             const addNewBlock = async (type) => {
                 const newBlock = {
                     id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
@@ -1339,7 +1373,7 @@
                     content: ''
                 };
 
-                const scrollContainer = blocksContainer; // Прокручиваем внутренний контейнер
+                const scrollContainer = blocksContainer; 
                 const isScrolledToBottom = scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 5;
                 
                 await updateDoc(sessionRef, {
@@ -1348,16 +1382,15 @@
                 });
 
                 if (isScrolledToBottom) {
-                    // Небольшая задержка, чтобы дать Firestore время обновить DOM через onSnapshot
                     setTimeout(() => {
                         const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"]`);
                         newBlockElement?.scrollIntoView({ behavior: "smooth", block: "center" });
-                        newBlockElement?.querySelector('textarea')?.focus();
+                        newBlockElement?.querySelector('textarea, code[contenteditable="true"]')?.focus();
                     }, 200);
                 }
             };
 
-            // НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ
+            // НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ (логика без изменений)
             addTextBlockBtn.onclick = () => addNewBlock('text');
             addCodeBlockBtn.onclick = () => addNewBlock('code');
             
@@ -1365,31 +1398,45 @@
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             };
             
+            // ОБРАБОТЧИКИ СОБЫТИЙ В КОНТЕЙНЕРЕ БЛОКОВ (ИЗМЕНЕНЫ)
             blocksContainer.addEventListener('input', (e) => {
-                if (e.target.matches('.simple-note-content-textarea')) {
+                // Авто-высота теперь применяется только к textarea
+                if (e.target.matches('textarea.simple-note-content-textarea')) {
                     autoResizeTextarea(e.target);
                 }
             });
 
             blocksContainer.addEventListener('focusout', (e) => {
-                if (e.target.matches('.simple-note-content-textarea')) {
-                    const blockEl = e.target.closest('.simple-note-block');
-                    const blockId = blockEl.dataset.blockId;
-                    const newContent = e.target.value;
+                const blockEl = e.target.closest('.simple-note-block');
+                if (!blockEl) return;
+                
+                const blockId = blockEl.dataset.blockId;
+                let newContent;
 
-                    const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    const currentBlocks = currentSession?.contentBlocks || [];
-                    
-                    const updatedBlocks = currentBlocks.map(block => 
-                        block.id === blockId ? { ...block, content: newContent } : block
-                    );
-                    
-                    if (JSON.stringify(currentBlocks) !== JSON.stringify(updatedBlocks)) {
-                        updateDoc(sessionRef, { 
-                            contentBlocks: updatedBlocks, 
-                            updatedAt: serverTimestamp() 
-                        });
-                    }
+                // Проверяем, откуда ушел фокус: с блока кода или с текстового поля
+                if (e.target.matches('code[contenteditable="true"]')) {
+                    newContent = e.target.innerText;
+                    // Повторно применяем подсветку, чтобы исправить DOM после правок
+                    hljs.highlightElement(e.target);
+                } else if (e.target.matches('textarea.simple-note-content-textarea')) {
+                    newContent = e.target.value;
+                } else {
+                    return; // Игнорируем другие события
+                }
+
+                // Логика сохранения данных (без изменений)
+                const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
+                const currentBlocks = currentSession?.contentBlocks || [];
+                
+                const updatedBlocks = currentBlocks.map(block => 
+                    block.id === blockId ? { ...block, content: newContent } : block
+                );
+                
+                if (JSON.stringify(currentBlocks) !== JSON.stringify(updatedBlocks)) {
+                    updateDoc(sessionRef, { 
+                        contentBlocks: updatedBlocks, 
+                        updatedAt: serverTimestamp() 
+                    });
                 }
             });
 
@@ -1412,6 +1459,7 @@
                     });
                 }
             });
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
         }
     
         function setupSettingsViewEventListeners() { 

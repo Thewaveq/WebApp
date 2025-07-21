@@ -707,7 +707,10 @@
                         setupSimpleNotepadViewEventListeners();
                         // Прокручиваем вниз после рендеринга, чтобы увидеть конец заметки
                         setTimeout(() => {
-                            mainContent.scrollTop = mainContent.scrollHeight;
+                            const container = document.getElementById('simple-note-content-container');
+                            if (container) {
+                                container.scrollTop = container.scrollHeight;
+                            }
                         }, 0);
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('simplenote');

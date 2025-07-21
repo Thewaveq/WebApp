@@ -885,19 +885,23 @@
             }
             
             const generateBlockHTML = (block) => {
-                // ИЗМЕНЕНИЕ: Кнопка удаления теперь отдельный элемент, который будет размещен сбоку.
+                // Кнопка удаления теперь отдельный элемент, который будет размещен сбоку.
                 const deleteButtonHTML = `<div class="block-actions flex-shrink-0 pl-2"><button class="delete-block-btn p-1.5 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-red-500/10" data-block-id="${block.id}" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
                 
-                // ИЗМЕНЕНИЕ: Весь блок теперь обернут во flex-контейнер для разделения контента и кнопки.
+                // Весь блок теперь обернут во flex-контейнер для разделения контента и кнопки.
                 const baseBlockWrapperStart = `<div class="content-block group flex items-start" data-block-id="${block.id}" data-type="${block.type}">`;
                 const contentWrapperStart = `<div class="content-wrapper flex-grow min-w-0">`; // min-w-0 для правильного сжатия flex-элемента
                 const contentWrapperEnd = `</div>`;
                 const baseBlockWrapperEnd = `</div>`;
-
+        
                 switch(block.type) {
                     case 'code':
                         const codeValue = block.value || '';
-                        const highlightedCode = hljs.highlight(codeValue, {language: 'javascript', ignoreIllegals: true}).value;
+                        // Проверка на существование hljs перед использованием
+                        const highlightedCode = typeof hljs !== 'undefined' 
+                            ? hljs.highlight(codeValue, {language: 'javascript', ignoreIllegals: true}).value
+                            : codeValue.replace(/</g, "<").replace(/>/g, ">"); // Простое экранирование если hljs не доступен
+        
                         return `
                             ${baseBlockWrapperStart}
                                 ${contentWrapperStart}
@@ -938,9 +942,9 @@
                             ${baseBlockWrapperEnd}`;
                 }
             };
-
+        
             const contentHTML = contentBlocks.map(generateBlockHTML).join('');
-
+        
             return `
                 <div class="flex flex-col h-full">
                     <div id="simple-note-editor" class="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 max-w-4xl mx-auto w-full">
@@ -1217,29 +1221,32 @@
             // --- ФИНАЛЬНАЯ, СТРУКТУРНО ИСПРАВЛЕННАЯ ВЕРСИЯ ---
             const editor = document.getElementById('simple-note-editor');
             if (!editor) return;
-
+        
             let debounceTimer;
-
+        
             const autoResizeTextarea = (textarea) => {
                 if(!textarea) return;
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             };
-
+        
             const saveNote = async () => {
                 if (!state.activeSessionId) return;
                 const titleInput = document.getElementById('simple-note-title-input');
                 const contentContainer = document.getElementById('simple-note-content');
                 if (!titleInput || !contentContainer) return;
-
+        
                 const blockElements = contentContainer.querySelectorAll('.content-block');
                 const newContent = Array.from(blockElements).map(blockEl => {
                     const id = blockEl.dataset.blockId;
                     const type = blockEl.dataset.type;
                     let value;
-
+        
                     switch(type) {
                         case 'code':
+                            // Значение берется из textarea, даже если она скрыта
+                            value = blockEl.querySelector('textarea').value;
+                            break;
                         case 'paragraph':
                             value = blockEl.querySelector('textarea').value;
                             break;
@@ -1253,34 +1260,34 @@
                     }
                     return { id, type, value };
                 });
-
+        
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 await updateDoc(sessionRef, { title: titleInput.value, content: newContent, updatedAt: serverTimestamp() });
             };
-
+        
             const scheduleSave = () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(saveNote, 1500);
             };
             
             editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
-
+        
             editor.addEventListener('input', (e) => {
                 if (e.target.matches('textarea, #simple-note-title-input, .todolist-item input[type="text"]')) {
                     if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
                     scheduleSave();
                 }
             });
-
+        
             editor.addEventListener('change', (e) => {
                 if (e.target.matches('input[type="checkbox"]')) scheduleSave();
             });
-
+        
             editor.addEventListener('keydown', (e) => {
                 const targetInput = e.target;
                 if (!targetInput.matches('.todolist-item input[type="text"]')) return;
                 const currentItem = targetInput.closest('.todolist-item');
-
+        
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     const listContainer = currentItem.parentElement;
@@ -1303,30 +1310,30 @@
             
             editor.addEventListener('click', (e) => {
                 const target = e.target;
-
-                // Этот подход гарантирует, что клик по области кода и клик по кнопке удаления — это два абсолютно разных, непересекающихся действия.
-
-                // Действие 1: Удаление блока (самый приоритетный)
+                
+                // --- Логика разделена на независимые блоки для избежания конфликтов ---
+        
+                // Действие 1: Удаление блока (самый высокий приоритет)
                 const deleteBlockBtn = target.closest('.delete-block-btn');
                 if (deleteBlockBtn) {
                     deleteBlockBtn.closest('.content-block')?.remove();
                     scheduleSave();
-                    return;
+                    return; // Прерываем выполнение, чтобы другие обработчики не сработали
                 }
-
-                // Действие 2: Клик по блоку кода для редактирования
+        
+                // Действие 2: Клик по блоку кода для переключения в режим редактирования
                 const codeDisplay = target.closest('.code-block-display');
                 if (codeDisplay) {
                     const block = codeDisplay.closest('.content-block');
-                    const textarea = block.querySelector('textarea');
+                    const textarea = block.querySelector('.code-editor-textarea');
                     codeDisplay.classList.add('hidden');
                     textarea.classList.remove('hidden');
                     textarea.focus();
                     autoResizeTextarea(textarea);
-                    return;
+                    return; // Прерываем выполнение
                 }
                 
-                // Действие 3: Клик по кнопкам в списке задач
+                // Действие 3: Логика для списка задач (удаление/добавление)
                 const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
                 if (deleteTodoItemBtn) {
                     deleteTodoItemBtn.closest('.todolist-item')?.remove();
@@ -1344,7 +1351,7 @@
                     scheduleSave();
                     return;
                 }
-
+        
                 // Действие 4: Добавление нового блока
                 const addBtn = target.closest('.add-block-btn');
                 if (addBtn) {
@@ -1363,10 +1370,10 @@
                         if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
                     scheduleSave();
-                    return;
+                    // Здесь return не обязателен, т.к. это последняя проверка
                 }
             });
-
+        
             // Обработчик потери фокуса для поля редактирования кода
             editor.addEventListener('blur', (e) => {
                 if (e.target.matches('.code-editor-textarea')) {
@@ -1376,13 +1383,18 @@
                     const codeElement = codeDisplay.querySelector('code');
                     
                     const newCode = textarea.value;
-                    codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
+                    // Проверка на существование hljs перед использованием
+                    if (typeof hljs !== 'undefined') {
+                        codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
+                    } else {
+                        codeElement.textContent = newCode;
+                    }
                     
                     textarea.classList.add('hidden');
                     codeDisplay.classList.remove('hidden');
                     scheduleSave();
                 }
-            }, true);
+            }, true); // Используем capturing фазу, чтобы сработать до других возможных blur-событий
             
             lucide.createIcons();
         }

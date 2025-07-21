@@ -730,14 +730,14 @@
 
             if (isUser) {
                 const editButton = document.createElement('button');
-                editButton.className = 'edit-message-btn p-1 text-text-secondary hover:text-accent';
+                editButton.className = 'edit-message-btn p-1 text-text-secondary'
                 editButton.title = 'Редактировать и отправить заново';
                 editButton.dataset.messageIndex = index;
                 editButton.innerHTML = `<i data-lucide="pencil" class="w-4 h-4"></i>`;
                 actionsContainer.appendChild(editButton);
             } else {
                 const regenerateButton = document.createElement('button');
-                regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary hover:text-accent';
+                regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary';
                 regenerateButton.title = 'Перегенерировать ответ';
                 regenerateButton.dataset.messageIndex = index;
                 regenerateButton.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i>`;
@@ -745,7 +745,7 @@
             }
 
             const deleteButton = document.createElement('button');
-            deleteButton.className = `delete-message-btn p-1 text-text-secondary hover:text-red-400`;
+            deleteButton.className = `delete-message-btn p-1 text-text-secondary`;
             deleteButton.title = 'Удалить сообщение';
             deleteButton.dataset.messageIndex = index;
             deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;

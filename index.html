@@ -287,6 +287,13 @@
                 color: var(--accent);
                 background-color: var(--bg-element);
             }
+
+            .code-editor-textarea {
+                background-color: #282c34;
+                font-family: 'Courier New', Courier, monospace;
+                white-space: pre;
+                overflow-x: auto;
+            }
     </style>
 </head>
 <body class="h-dvh w-full flex">
@@ -873,12 +880,12 @@
             // --- НОВАЯ ВЕРСИЯ ФУНКЦИИ ---
             let contentBlocks = activeSession.content || [];
 
-            // Обратная совместимость: если content - это строка, преобразуем ее в новый формат
-            if (typeof contentBlocks === 'string') {
+            if (typeof contentBlocks === 'string' || contentBlocks.length === 0) {
+                const value = typeof contentBlocks === 'string' ? contentBlocks : '';
                 contentBlocks = [{
                     id: 'block_' + Date.now(),
                     type: 'paragraph',
-                    value: contentBlocks
+                    value: value
                 }];
             }
             
@@ -889,14 +896,14 @@
                     case 'code':
                         return `
                             <div class="content-block group relative" data-block-id="${block.id}" data-type="code">
-                                <textarea class="w-full bg-bg-sidebar font-mono text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed" placeholder="Ваш код..." rows="5">${block.value || ''}</textarea>
+                                <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed" placeholder="Ваш код..." rows="5">${block.value || ''}</textarea>
                                 ${commonDeleteButton}
                             </div>`;
                     case 'todolist':
                         const itemsHTML = (block.value || [{text:'', checked:false}])
-                            .map((item, index) => `
+                            .map((item) => `
                                 <div class="flex items-center gap-2 todolist-item">
-                                    <input type="checkbox" ${item.checked ? 'checked' : ''} class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent">
+                                    <input type="checkbox" ${item.checked ? 'checked' : ''} class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0">
                                     <input type="text" value="${item.text || ''}" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
                                 </div>
                             `).join('');
@@ -904,7 +911,7 @@
                             <div class="content-block group relative" data-block-id="${block.id}" data-type="todolist">
                                 <div class="space-y-2 p-3 bg-bg-element/50 rounded-lg">
                                     ${itemsHTML}
-                                    <button class="add-todo-item-btn text-sm text-accent hover:text-accent-hover">+ Добавить пункт</button>
+                                    <button class="add-todo-item-btn text-sm text-accent hover:text-accent-hover mt-2">+ Добавить пункт</button>
                                 </div>
                                 ${commonDeleteButton}
                             </div>`;
@@ -929,13 +936,13 @@
                         </div>
                         <div class="flex justify-center items-center py-8">
                             <div class="flex items-center gap-4 p-2 rounded-full bg-bg-element border border-border-color">
-                                <button id="add-paragraph-btn" class="p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить текст">
+                                <button data-add-block="paragraph" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить текст">
                                     <i data-lucide="pilcrow" class="w-5 h-5"></i>
                                 </button>
-                                <button id="add-code-btn" class="p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить блок кода">
+                                <button data-add-block="code" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить блок кода">
                                     <i data-lucide="code" class="w-5 h-5"></i>
                                 </button>
-                                <button id="add-todolist-btn" class="p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить список задач">
+                                <button data-add-block="todolist" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить список задач">
                                     <i data-lucide="check-square" class="w-5 h-5"></i>
                                 </button>
                             </div>
@@ -1215,6 +1222,8 @@
 
                 const titleInput = document.getElementById('simple-note-title-input');
                 const contentContainer = document.getElementById('simple-note-content');
+                if (!titleInput || !contentContainer) return;
+
                 const blockElements = contentContainer.querySelectorAll('.content-block');
 
                 const newContent = Array.from(blockElements).map(blockEl => {
@@ -1232,7 +1241,7 @@
                             value = Array.from(items).map(item => ({
                                 checked: item.querySelector('input[type="checkbox"]').checked,
                                 text: item.querySelector('input[type="text"]').value
-                            })).filter(item => item.text.trim() !== ''); // Не сохраняем пустые задачи
+                            }));
                             break;
                     }
                     return { id, type, value };
@@ -1244,23 +1253,20 @@
                     content: newContent,
                     updatedAt: serverTimestamp()
                 });
-                console.log('Заметка сохранена!');
             };
 
             const scheduleSave = () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(saveNote, 1500);
             };
-
-            // Инициализация авто-размера для существующих textarea
+            
             editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
             
-            // Глобальный слушатель для всего редактора
             editor.addEventListener('input', (e) => {
-                if (e.target.tagName === 'TEXTAREA') {
-                    autoResizeTextarea(e.target);
+                if (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type === 'text')) {
+                    if(e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
+                    scheduleSave();
                 }
-                scheduleSave();
             });
 
             editor.addEventListener('change', (e) => {
@@ -1272,38 +1278,36 @@
             editor.addEventListener('click', (e) => {
                 const contentContainer = document.getElementById('simple-note-content');
                 
-                const getNewBlock = (type, value) => {
-                    const newBlock = { id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), type, value };
-                    const newBlockHTML = getSimpleNotepadViewHTML({content: [newBlock]}).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
-                    return { element: newBlockHTML, data: newBlock };
-                };
-                
-                // --- Обработка кнопок добавления ---
-                let newBlockInfo;
-                if (e.target.closest('#add-paragraph-btn')) {
-                    newBlockInfo = getNewBlock('paragraph', '');
-                } else if (e.target.closest('#add-code-btn')) {
-                    newBlockInfo = getNewBlock('code', '');
-                } else if (e.target.closest('#add-todolist-btn')) {
-                    newBlockInfo = getNewBlock('todolist', [{text:'', checked:false}]);
-                }
+                // --- Умное добавление блока ---
+                const addBtn = e.target.closest('.add-block-btn');
+                if (addBtn) {
+                    const type = addBtn.dataset.addBlock;
+                    const newBlockData = {
+                         id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), 
+                         type: type, 
+                         value: type === 'todolist' ? [{text:'', checked:false}] : ''
+                    };
+                    
+                    // Генерируем HTML только для нового блока, используя фиктивную сессию
+                    const tempSession = { content: [newBlockData] };
+                    const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
 
-                if (newBlockInfo) {
-                    contentContainer.insertAdjacentHTML('beforeend', newBlockInfo.element);
+                    contentContainer.insertAdjacentHTML('beforeend', newBlockHTML);
                     const newElement = contentContainer.lastElementChild;
-                    const textarea = newElement.querySelector('textarea');
-                    if(textarea) {
-                        autoResizeTextarea(textarea);
-                        textarea.focus();
-                    } else {
-                        newElement.querySelector('input[type="text"]')?.focus();
+
+                    // Активируем иконки и фокусируемся
+                    lucide.createIcons({nodes: [newElement]});
+                    const focusTarget = newElement.querySelector('textarea, input[type="text"]');
+                    if (focusTarget) {
+                        focusTarget.focus();
+                        if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
-                    lucide.createIcons();
+                    
                     scheduleSave();
                     return;
                 }
-
-                // --- Обработка удаления блока ---
+                
+                // --- Прямое удаление блока из DOM ---
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (deleteBtn) {
                     const blockEl = deleteBtn.closest('.content-block');
@@ -1314,12 +1318,12 @@
                     return;
                 }
                 
-                // --- Обработка добавления пункта в список задач ---
+                // --- Прямое добавление пункта в список задач ---
                 const addTodoItemBtn = e.target.closest('.add-todo-item-btn');
                 if (addTodoItemBtn) {
                     const todoItemHTML = `
                         <div class="flex items-center gap-2 todolist-item">
-                            <input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent">
+                            <input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0">
                             <input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
                         </div>`;
                     addTodoItemBtn.insertAdjacentHTML('beforebegin', todoItemHTML);
@@ -1831,34 +1835,44 @@
         }
         
         function attachFirestoreListeners() {
+            // --- НОВАЯ ВЕРСИЯ ФУНКЦИИ ---
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             if (!userId) return;
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+                const updatedSessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+                
+                // Просто обновляем данные в состоянии, без полной перерисовки
+                state.sessions = updatedSessions;
+
+                // Проверяем, существует ли активная сессия. Если нет, сбрасываем ее.
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
-                }
-                if (!state.isLoading) {
-                    render();
+                    // Только в этом случае нужна перерисовка, чтобы показать пустое состояние
+                    render(); 
+                } else {
+                    // Если мы не в процессе загрузки, просто перерисовываем боковую панель
+                    if (!state.isLoading) {
+                        renderSidebar();
+                    }
                 }
             }, error => console.error("Session listener error: ", error));
         
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
-                     if (!state.isLoading) render();
+                if ((state.activeTab === 'settings' || state.activeTab === 'chat') && !state.isLoading) {
+                     render();
                 }
             }, error => console.error("Providers listener error: ", error));
         
             const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
             unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
                 state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                if (state.activeTab === 'settings' || state.activeTab === 'chat') {
-                    if (!state.isLoading) render();
+                if ((state.activeTab === 'settings' || state.activeTab === 'chat') && !state.isLoading) {
+                    render();
                 }
             }, error => console.error("Roles listener error: ", error));
         }

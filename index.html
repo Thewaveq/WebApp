@@ -1441,8 +1441,18 @@
             });
     
             const createNewItem = async (type) => {
-                let newSessionData;
-                let title = 'Новый элемент'; // Заголовок по умолчанию
+                // --- НАЧАЛО ИСПРАВЛЕННОЙ ЛОГИКИ ---
+
+                // 1. Создаем временный ID и базовый объект для немедленного отображения
+                const tempId = `temp_${Date.now()}`;
+                let title = 'Новый элемент';
+                let tempSessionObject = {
+                    id: tempId,
+                    type: type,
+                    // Имитируем объект timestamp, чтобы сортировка работала сразу
+                    updatedAt: { toMillis: () => Date.now() }
+                };
+                let firebaseData = {};
     
                 if (type === 'chat') {
                     title = 'Новый чат';
@@ -1452,65 +1462,53 @@
                         const firstProvider = state.providers[0];
                         providerId = firstProvider.id;
                         const models = firstProvider.models || [];
-                        if (models.length > 0) {
-                            modelName = models[0];
-                        }
+                        if (models.length > 0) modelName = models[0];
                     }
-                    newSessionData = { type: 'chat', title, messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    tempSessionObject = { ...tempSessionObject, title, messages: [], providerId, modelName, roleId: '' };
+                    firebaseData = { type: 'chat', title, messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else if (type === 'notepad') {
                     title = 'Новая папка';
-                    newSessionData = { 
-                        type: 'notepad', 
-                        title, 
-                        cards: [],
-                        createdAt: serverTimestamp(), 
-                        updatedAt: serverTimestamp() 
-                    };
+                    tempSessionObject = { ...tempSessionObject, title, cards: [] };
+                    firebaseData = { type: 'notepad', title, cards: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else if (type === 'simplenote') {
                     title = 'Новая простая заметка';
-                    newSessionData = {
-                        type: 'simplenote',
-                        title,
-                        content: '',
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
-                    };
+                    tempSessionObject = { ...tempSessionObject, title, content: '' };
+                    firebaseData = { type: 'simplenote', title, content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 }
-                
-                // --- НАЧАЛО ИЗМЕНЕНИЙ (ОПТИМИСТИЧНЫЙ UI) ---
     
-                // 1. Немедленно создаем временный элемент для отображения вверху списка
-                const placeholderItem = document.createElement('div');
-                placeholderItem.className = 'sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 active';
-                placeholderItem.innerHTML = `<span class="truncate pr-2">${title}</span>`;
-                
-                // 2. Убираем активный класс со всех других элементов
-                sidebarList.querySelectorAll('.sidebar-item.active').forEach(el => el.classList.remove('active'));
-                
-                // 3. Добавляем новый элемент в САМОЕ НАЧАЛО списка
-                sidebarList.prepend(placeholderItem);
+                // 2. Немедленно обновляем ЛОКАЛЬНОЕ СОСТОЯНИЕ
+                state.activeSessionId = tempId;
+                state.sessions.unshift(tempSessionObject); // Добавляем в начало массива состояния
     
-                // 4. Асинхронно создаем документ в Firebase
+                // 3. Вызываем полный ререндеринг на основе обновленного состояния. "Прыжка" не будет.
+                render();
+    
+                if (window.innerWidth < 1024) { 
+                    sidebar.classList.remove('open'); 
+                    sidebarBackdrop.classList.add('hidden'); 
+                }
+    
+                // 4. Асинхронно отправляем реальные данные в Firebase
                 try {
-                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), firebaseData);
                     
-                    // 5. Обновляем состояние и основной контент
+                    // 5. Как только мы получили реальный ID, обновляем его в нашем состоянии,
+                    // чтобы активная сессия не была потеряна до того, как сработает onSnapshot.
                     state.activeSessionId = newSessionRef.id;
-                    renderMainContent(); // Рендерим только основное окно, а не весь сайдбар
-                
-                    if (window.innerWidth < 1024) { 
-                        sidebar.classList.remove('open'); 
-                        sidebarBackdrop.classList.add('hidden'); 
+                    const sessionInState = state.sessions.find(s => s.id === tempId);
+                    if (sessionInState) {
+                        sessionInState.id = newSessionRef.id;
                     }
-                    // Слушатель onSnapshot позже сам обновит сайдбар без "прыжка",
-                    // так как новый элемент уже будет иметь правильное время создания.
+
                 } catch (error) {
                     console.error("Ошибка при создании нового элемента:", error);
-                    // В случае ошибки, убираем временный элемент из интерфейса
-                    placeholderItem.remove();
+                    // В случае ошибки, откатываем изменение состояния и ререндерим
+                    state.sessions = state.sessions.filter(s => s.id !== tempId);
+                    state.activeSessionId = state.sessions.length > 0 ? state.sessions[0].id : null;
+                    render();
                     showModalAlert('Не удалось создать новый элемент.');
                 }
-                // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+                // --- КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ ---
             };
     
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
@@ -1568,9 +1566,7 @@
                             async () => {
                                 const messagesForRegen = activeSession.messages.slice(0, messageIndex);
                                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                                // 1. Немедленно обновляем UI, удаляя старые сообщения
                                 await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
-                                // 2. Запускаем генерацию нового ответа
                                 await generateAssistantResponse(messagesForRegen);
                             }
                         );
@@ -1618,9 +1614,7 @@
                             messagesForSubmit.push({ role: 'user', content: newContent });
                             
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            // 1. Немедленно обновляем UI с новым сообщением пользователя и удаляем старые
                             await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
-                            // 2. Запускаем генерацию ответа
                             await generateAssistantResponse(messagesForSubmit);
                         }
                     });

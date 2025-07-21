@@ -932,6 +932,7 @@
                     
                     <div id="simple-note-blocks-container" class="flex-grow overflow-y-auto p-4">
                         ${blocksHTML}
+                        <div id="simple-note-end-sentinel" style="height: 1px;"></div>
                     </div>
 
                     <div class="flex-shrink-0 p-3 border-t border-border-color flex items-center justify-center space-x-4 bg-bg-sidebar">
@@ -1320,16 +1321,16 @@
 
             // Применяем авто-высоту ко всем существующим полям при первоначальной загрузке
             blocksContainer.querySelectorAll('.simple-note-content-textarea').forEach(autoResizeTextarea);
-
-            // Прокручиваем в самый низ при загрузке заметки
-            // Небольшая задержка, чтобы браузер успел отрисовать все элементы и вычислить высоту
-            setTimeout(() => {
-                const scrollContainer = document.getElementById('main-content');
-                if (scrollContainer) {
-                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                }
-            }, 50);
             
+            // Прокручиваем к "якорю" в конце заметки после небольшой задержки,
+            // чтобы браузер успел обработать изменение высоты всех полей.
+            setTimeout(() => {
+                const sentinel = document.getElementById('simple-note-end-sentinel');
+                if (sentinel) {
+                    sentinel.scrollIntoView({ behavior: 'auto', block: 'end' });
+                }
+            }, 100);
+
             // Функция добавления нового блока
             const addNewBlock = async (type) => {
                 const newBlock = {
@@ -1338,7 +1339,7 @@
                     content: ''
                 };
 
-                const scrollContainer = mainContent;
+                const scrollContainer = blocksContainer; // Прокручиваем внутренний контейнер
                 const isScrolledToBottom = scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 5;
                 
                 await updateDoc(sessionRef, {
@@ -1349,9 +1350,9 @@
                 if (isScrolledToBottom) {
                     // Небольшая задержка, чтобы дать Firestore время обновить DOM через onSnapshot
                     setTimeout(() => {
-                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                        const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"] textarea`);
-                        newBlockElement?.focus();
+                        const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"]`);
+                        newBlockElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        newBlockElement?.querySelector('textarea')?.focus();
                     }, 200);
                 }
             };

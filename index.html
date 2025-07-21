@@ -1,4 +1,3 @@
-html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -287,119 +286,6 @@ html
                 border-color: var(--accent);
                 color: var(--accent);
                 background-color: var(--bg-element);
-            }
-            
-            /* --- СТИЛИ ДЛЯ ПРОСТЫХ ЗАМЕТОК (БЛОЧНЫЙ РЕДАКТОР) --- */
-            .note-block {
-                position: relative;
-                padding-left: 2rem; 
-                margin-bottom: 0.5rem;
-            }
-            .note-block:hover .delete-block-btn {
-                opacity: 1;
-            }
-            .delete-block-btn {
-                position: absolute;
-                left: 0;
-                top: 50%;
-                transform: translateY(-50%);
-                opacity: 0;
-                transition: opacity 0.2s;
-                color: var(--text-secondary);
-                padding: 0.25rem;
-            }
-            .delete-block-btn:hover {
-                color: var(--danger);
-            }
-            .note-block textarea {
-                background-color: transparent;
-                width: 100%;
-                resize: none;
-                overflow: hidden;
-                padding: 0.25rem 0;
-            }
-            .note-block textarea:focus {
-                outline: none;
-                background-color: rgba(59, 130, 246, 0.1); /* Slight blue bg on focus */
-                border-radius: 4px;
-            }
-            .add-block-container {
-                position: relative;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 1rem 0;
-                margin-top: 1rem;
-            }
-            .add-block-btn {
-                color: var(--text-secondary);
-                border: 2px dashed var(--border-color);
-                border-radius: 9999px;
-                width: 2rem;
-                height: 2rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s;
-            }
-            .add-block-container:hover .add-block-btn {
-                 color: var(--accent);
-                 border-color: var(--accent);
-            }
-            .add-block-menu {
-                display: none;
-                position: absolute;
-                bottom: 100%; /* Position above the '+' button */
-                margin-bottom: 0.5rem;
-                background-color: var(--bg-element);
-                border: 1px solid var(--border-color);
-                border-radius: 0.5rem;
-                padding: 0.5rem;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                z-index: 10;
-                flex-direction: column;
-                gap: 0.25rem;
-            }
-            .add-block-container:hover .add-block-menu {
-                display: flex;
-            }
-            .add-block-menu-item {
-                background-color: var(--bg-input);
-                color: var(--text-primary);
-                padding: 0.5rem 0.75rem;
-                border-radius: 0.3rem;
-                cursor: pointer;
-                transition: background-color 0.2s;
-                text-align: left;
-                width: 100%;
-                display: flex;
-                align-items: center;
-            }
-            .add-block-menu-item:hover {
-                background-color: var(--accent);
-            }
-            .task-item {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                margin-bottom: 0.25rem;
-            }
-            .task-item input[type="checkbox"] {
-                width: 1rem;
-                height: 1rem;
-                accent-color: var(--accent);
-                background-color: var(--bg-input);
-                border-radius: 0.2rem;
-            }
-            .task-item input[type="text"] {
-                flex-grow: 1;
-                background: transparent;
-                border: none;
-                outline: none;
-            }
-            .task-item.completed input[type="text"] {
-                text-decoration: line-through;
-                color: var(--text-secondary);
             }
     </style>
 </head>
@@ -982,84 +868,81 @@ html
                 </div>
             `;
         }
-        
-        // НОВАЯ ФУНКЦИЯ ДЛЯ ПРОСТЫХ ЗАМЕТОК
-        function getSimpleNotepadViewHTML(session) {
-            // "Мягкая миграция" старых заметок. Если contentBlocks нет, а content есть - конвертируем.
-            if (!session.contentBlocks && typeof session.content === 'string') {
-                session.contentBlocks = [{
+
+        function getSimpleNotepadViewHTML(activeSession) {
+            // --- НОВАЯ ВЕРСИЯ ФУНКЦИИ ---
+            let contentBlocks = activeSession.content || [];
+
+            // Обратная совместимость: если content - это строка, преобразуем ее в новый формат
+            if (typeof contentBlocks === 'string') {
+                contentBlocks = [{
                     id: 'block_' + Date.now(),
-                    type: 'text',
-                    content: session.content
+                    type: 'paragraph',
+                    value: contentBlocks
                 }];
-                // Удаляем старое поле, чтобы в будущем не было конфликтов
-                delete session.content;
-            } else if (!session.contentBlocks) {
-                // Если заметка совсем пустая
-                session.contentBlocks = [];
             }
-        
-            const blocksHTML = session.contentBlocks.map(block => {
+            
+            const generateBlockHTML = (block) => {
+                const commonDeleteButton = `<button class="delete-block-btn absolute top-2 right-2 p-1.5 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-red-500/10" data-block-id="${block.id}" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
+                
                 switch(block.type) {
-                    case 'text':
-                        return `
-                            <div class="note-block" data-block-id="${block.id}" data-block-type="text">
-                                <button class="delete-block-btn" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                <textarea class="text-base leading-relaxed" placeholder="Введите текст..." rows="1">${block.content || ''}</textarea>
-                            </div>`;
                     case 'code':
                         return `
-                             <div class="note-block bg-bg-input rounded-md p-2" data-block-id="${block.id}" data-block-type="code">
-                                <button class="delete-block-btn" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                <div class="pl-4">
-                                    <select class="code-lang-select bg-bg-element text-xs rounded mb-2 p-1">
-                                        <option ${block.lang === 'javascript' ? 'selected' : ''} value="javascript">JavaScript</option>
-                                        <option ${block.lang === 'python' ? 'selected' : ''} value="python">Python</option>
-                                        <option ${block.lang === 'html' ? 'selected' : ''} value="html">HTML</option>
-                                        <option ${block.lang === 'css' ? 'selected' : ''} value="css">CSS</option>
-                                        <option ${block.lang === 'bash' ? 'selected' : ''} value="bash">Bash</option>
-                                        <option ${block.lang === 'json' ? 'selected' : ''} value="json">JSON</option>
-                                    </select>
-                                    <textarea class="font-mono text-sm leading-relaxed" placeholder="Вставьте ваш код..." rows="3">${block.content || ''}</textarea>
-                                </div>
-                             </div>`;
-                    case 'tasklist':
-                         const tasksHTML = (block.tasks || []).map((task, index) => `
-                            <div class="task-item ${task.completed ? 'completed' : ''}" data-task-index="${index}">
-                                <input type="checkbox" ${task.completed ? 'checked' : ''}>
-                                <input type="text" value="${task.text}" placeholder="Новая задача...">
-                            </div>
-                        `).join('');
-                        return `
-                            <div class="note-block" data-block-id="${block.id}" data-block-type="tasklist">
-                               <button class="delete-block-btn" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                               <div class="tasks-container">${tasksHTML}</div>
-                               <button class="add-task-item-btn text-xs text-text-secondary hover:text-accent ml-8 mt-1">+ Добавить пункт</button>
+                            <div class="content-block group relative" data-block-id="${block.id}" data-type="code">
+                                <textarea class="w-full bg-bg-sidebar font-mono text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed" placeholder="Ваш код..." rows="5">${block.value || ''}</textarea>
+                                ${commonDeleteButton}
                             </div>`;
+                    case 'todolist':
+                        const itemsHTML = (block.value || [{text:'', checked:false}])
+                            .map((item, index) => `
+                                <div class="flex items-center gap-2 todolist-item">
+                                    <input type="checkbox" ${item.checked ? 'checked' : ''} class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent">
+                                    <input type="text" value="${item.text || ''}" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
+                                </div>
+                            `).join('');
+                        return `
+                            <div class="content-block group relative" data-block-id="${block.id}" data-type="todolist">
+                                <div class="space-y-2 p-3 bg-bg-element/50 rounded-lg">
+                                    ${itemsHTML}
+                                    <button class="add-todo-item-btn text-sm text-accent hover:text-accent-hover">+ Добавить пункт</button>
+                                </div>
+                                ${commonDeleteButton}
+                            </div>`;
+                    case 'paragraph':
                     default:
-                        return '';
+                        return `
+                            <div class="content-block group relative" data-block-id="${block.id}" data-type="paragraph">
+                                <textarea class="w-full bg-transparent p-2 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${block.value || ''}</textarea>
+                                ${commonDeleteButton}
+                            </div>`;
                 }
-            }).join('');
-        
+            };
+
+            const contentHTML = contentBlocks.map(generateBlockHTML).join('');
+
             return `
                 <div class="flex flex-col h-full">
-                    <div class="p-4 flex-shrink-0">
-                         <input type="text" id="simple-note-title-input" class="bg-transparent text-3xl font-bold focus:outline-none w-full px-1" value="${session.title || ''}" placeholder="Название заметки">
-                    </div>
-                    <div id="simple-note-editor" class="flex-grow overflow-y-auto px-4 lg:px-8">
-                        ${blocksHTML}
-                        <div class="add-block-container group">
-                             <div class="add-block-menu">
-                                <button class="add-block-menu-item" data-type="text"><i data-lucide="pilcrow" class="w-4 h-4 mr-2"></i>Текст</button>
-                                <button class="add-block-menu-item" data-type="code"><i data-lucide="code" class="w-4 h-4 mr-2"></i>Блок кода</button>
-                                <button class="add-block-menu-item" data-type="tasklist"><i data-lucide="check-square" class="w-4 h-4 mr-2"></i>Список задач</button>
-                            </div>
-                            <div class="add-block-btn">
-                                <i data-lucide="plus" class="w-5 h-5"></i>
+                    <div id="simple-note-editor" class="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 max-w-4xl mx-auto w-full">
+                        <input type="text" id="simple-note-title-input" class="bg-transparent text-3xl font-bold mb-6 focus:outline-none w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
+                        <div id="simple-note-content" class="space-y-4">
+                            ${contentHTML}
+                        </div>
+                        <div class="flex justify-center items-center py-8">
+                            <div class="flex items-center gap-4 p-2 rounded-full bg-bg-element border border-border-color">
+                                <button id="add-paragraph-btn" class="p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить текст">
+                                    <i data-lucide="pilcrow" class="w-5 h-5"></i>
+                                </button>
+                                <button id="add-code-btn" class="p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить блок кода">
+                                    <i data-lucide="code" class="w-5 h-5"></i>
+                                </button>
+                                <button id="add-todolist-btn" class="p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить список задач">
+                                    <i data-lucide="check-square" class="w-5 h-5"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
-                </div>`;
+                </div>
+            `;
         }
         
         function renderRoles() {
@@ -1315,131 +1198,138 @@ html
             lucide.createIcons();
         }
 
-        // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ПРОСТЫХ ЗАМЕТОК
         function setupSimpleNotepadViewEventListeners() {
-            const titleInput = document.getElementById('simple-note-title-input');
+            // --- НОВАЯ ВЕРСИЯ ФУНКЦИИ ---
             const editor = document.getElementById('simple-note-editor');
-            if (!state.activeSessionId || !editor) return;
-        
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-        
-            const autoResizeTextarea = (element) => {
-                if (element.tagName.toLowerCase() !== 'textarea') return;
-                element.style.height = 'auto';
-                element.style.height = (element.scrollHeight) + 'px';
+            if (!editor) return;
+
+            let debounceTimer;
+
+            const autoResizeTextarea = (textarea) => {
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
             };
-            
-            // Инициализация размеров всех textarea при загрузке
-            editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
-        
+
             const saveNote = async () => {
-                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                if (!activeSession) return;
-                
-                // Важно: мы обновляем объект activeSession в `state` напрямую из DOM
-                // перед отправкой в Firestore.
-                const updatedBlocks = Array.from(editor.querySelectorAll('.note-block')).map(blockEl => {
-                    const blockId = blockEl.dataset.blockId;
-                    const blockType = blockEl.dataset.blockType;
-                    const originalBlock = activeSession.contentBlocks.find(b => b.id === blockId) || {};
-                    
-                    switch(blockType) {
-                        case 'text':
-                            return { ...originalBlock, id: blockId, type: 'text', content: blockEl.querySelector('textarea').value };
+                if (!state.activeSessionId) return;
+
+                const titleInput = document.getElementById('simple-note-title-input');
+                const contentContainer = document.getElementById('simple-note-content');
+                const blockElements = contentContainer.querySelectorAll('.content-block');
+
+                const newContent = Array.from(blockElements).map(blockEl => {
+                    const id = blockEl.dataset.blockId;
+                    const type = blockEl.dataset.type;
+                    let value;
+
+                    switch(type) {
+                        case 'paragraph':
                         case 'code':
-                             return { ...originalBlock, id: blockId, type: 'code', lang: blockEl.querySelector('select').value, content: blockEl.querySelector('textarea').value };
-                        case 'tasklist':
-                            const tasks = Array.from(blockEl.querySelectorAll('.task-item')).map(taskEl => ({
-                                text: taskEl.querySelector('input[type="text"]').value,
-                                completed: taskEl.querySelector('input[type="checkbox"]').checked
-                            }));
-                            return { ...originalBlock, id: blockId, type: 'tasklist', tasks: tasks };
-                        default:
-                            return null;
+                            value = blockEl.querySelector('textarea').value;
+                            break;
+                        case 'todolist':
+                            const items = blockEl.querySelectorAll('.todolist-item');
+                            value = Array.from(items).map(item => ({
+                                checked: item.querySelector('input[type="checkbox"]').checked,
+                                text: item.querySelector('input[type="text"]').value
+                            })).filter(item => item.text.trim() !== ''); // Не сохраняем пустые задачи
+                            break;
                     }
-                }).filter(Boolean); // отфильтровываем null
-        
-                activeSession.title = titleInput.value;
-                activeSession.contentBlocks = updatedBlocks;
-                
-                // Удаляем старое поле 'content' если оно все еще есть
-                const updateData = {
-                    title: activeSession.title,
-                    contentBlocks: activeSession.contentBlocks,
-                    content: deleteField(), 
+                    return { id, type, value };
+                });
+
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                await updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: newContent,
                     updatedAt: serverTimestamp()
-                };
-        
-                await updateDoc(sessionRef, updateData);
+                });
+                console.log('Заметка сохранена!');
             };
-        
-            // Сохранение при потере фокуса с любого элемента ввода
-            editor.addEventListener('focusout', saveNote);
-            titleInput?.addEventListener('focusout', saveNote);
-        
-            // Авто-изменение размера при вводе
+
+            const scheduleSave = () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(saveNote, 1500);
+            };
+
+            // Инициализация авто-размера для существующих textarea
+            editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
+            
+            // Глобальный слушатель для всего редактора
             editor.addEventListener('input', (e) => {
-                if (e.target.tagName.toLowerCase() === 'textarea') {
+                if (e.target.tagName === 'TEXTAREA') {
                     autoResizeTextarea(e.target);
                 }
+                scheduleSave();
             });
-        
-            // Обработка кликов (удаление, добавление, отметка задач)
-            editor.addEventListener('click', async (e) => {
-                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                if (!activeSession) return;
-        
-                // Добавление нового блока
-                const addBtn = e.target.closest('.add-block-menu-item');
-                if (addBtn) {
-                    const type = addBtn.dataset.type;
-                    let newBlock;
-                    const newId = 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-        
-                    if (type === 'text') newBlock = { id: newId, type: 'text', content: '' };
-                    else if (type === 'code') newBlock = { id: newId, type: 'code', lang: 'javascript', content: '' };
-                    else if (type === 'tasklist') newBlock = { id: newId, type: 'tasklist', tasks: [{ text: '', completed: false }] };
-        
-                    if (newBlock) {
-                       activeSession.contentBlocks.push(newBlock);
-                       await saveNote(); // Сохраняем и перерисовываем
-                       render(); // Полная перерисовка для добавления нового элемента
-                    }
-                    return;
+
+            editor.addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox') {
+                    scheduleSave();
                 }
-        
-                // Удаление блока
-                const deleteBtn = e.target.closest('.delete-block-btn');
-                if (deleteBtn) {
-                    const blockEl = deleteBtn.closest('.note-block');
-                    const blockId = blockEl.dataset.blockId;
-                    activeSession.contentBlocks = activeSession.contentBlocks.filter(b => b.id !== blockId);
-                    await saveNote();
-                    render();
-                    return;
-                }
+            });
+
+            editor.addEventListener('click', (e) => {
+                const contentContainer = document.getElementById('simple-note-content');
                 
-                // Добавление новой задачи в список
-                const addTaskBtn = e.target.closest('.add-task-item-btn');
-                if (addTaskBtn) {
-                    const blockEl = addTaskBtn.closest('.note-block');
-                    const blockId = blockEl.dataset.blockId;
-                    const block = activeSession.contentBlocks.find(b => b.id === blockId);
-                    if (block && block.type === 'tasklist') {
-                        if (!block.tasks) block.tasks = [];
-                        block.tasks.push({ text: '', completed: false });
-                        await saveNote();
-                        render();
+                const getNewBlock = (type, value) => {
+                    const newBlock = { id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), type, value };
+                    const newBlockHTML = getSimpleNotepadViewHTML({content: [newBlock]}).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
+                    return { element: newBlockHTML, data: newBlock };
+                };
+                
+                // --- Обработка кнопок добавления ---
+                let newBlockInfo;
+                if (e.target.closest('#add-paragraph-btn')) {
+                    newBlockInfo = getNewBlock('paragraph', '');
+                } else if (e.target.closest('#add-code-btn')) {
+                    newBlockInfo = getNewBlock('code', '');
+                } else if (e.target.closest('#add-todolist-btn')) {
+                    newBlockInfo = getNewBlock('todolist', [{text:'', checked:false}]);
+                }
+
+                if (newBlockInfo) {
+                    contentContainer.insertAdjacentHTML('beforeend', newBlockInfo.element);
+                    const newElement = contentContainer.lastElementChild;
+                    const textarea = newElement.querySelector('textarea');
+                    if(textarea) {
+                        autoResizeTextarea(textarea);
+                        textarea.focus();
+                    } else {
+                        newElement.querySelector('input[type="text"]')?.focus();
                     }
+                    lucide.createIcons();
+                    scheduleSave();
                     return;
                 }
 
-                // Отметка задачи выполненной
-                 const checkbox = e.target.closest('.task-item input[type="checkbox"]');
-                 if (checkbox) {
-                     await saveNote(); // Просто сохраняем состояние, так как DOM уже обновился
-                 }
+                // --- Обработка удаления блока ---
+                const deleteBtn = e.target.closest('.delete-block-btn');
+                if (deleteBtn) {
+                    const blockEl = deleteBtn.closest('.content-block');
+                    if (blockEl) {
+                        blockEl.remove();
+                        scheduleSave();
+                    }
+                    return;
+                }
+                
+                // --- Обработка добавления пункта в список задач ---
+                const addTodoItemBtn = e.target.closest('.add-todo-item-btn');
+                if (addTodoItemBtn) {
+                    const todoItemHTML = `
+                        <div class="flex items-center gap-2 todolist-item">
+                            <input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent">
+                            <input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
+                        </div>`;
+                    addTodoItemBtn.insertAdjacentHTML('beforebegin', todoItemHTML);
+                    addTodoItemBtn.previousElementSibling.querySelector('input[type="text"]').focus();
+                    scheduleSave();
+                    return;
+                }
             });
+            
+            lucide.createIcons();
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1763,16 +1653,10 @@ html
                         updatedAt: serverTimestamp() 
                     };
                 } else if (type === 'simplenote') {
-                    // ИЗМЕНЕНИЕ: Новая структура для простых заметок
                     newSessionData = {
                         type: 'simplenote',
-                        title: 'Новая заметка',
-                        // Создаем сразу с одним пустым текстовым блоком для удобства пользователя
-                        contentBlocks: [{
-                           id: 'block_' + Date.now(),
-                           type: 'text',
-                           content: '' 
-                        }],
+                        title: 'Новая простая заметка',
+                        content: '',
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp()
                     };
@@ -1952,32 +1836,12 @@ html
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                let sessionJustCreated = false;
-                const newSessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // Проверяем, не была ли только что создана новая сессия
-                if(newSessions.length > state.sessions.length) {
-                    const currentIds = state.sessions.map(s => s.id);
-                    const isNew = newSessions.find(s => !currentIds.includes(s.id));
-                    if(isNew && isNew.id === state.activeSessionId) {
-                       sessionJustCreated = true;
-                    }
-                }
-
-                state.sessions = newSessions.sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-
+                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
-                
-                // Не перерисовываем, если мы находимся в процессе редактирования простой заметки,
-                // чтобы не сбивать фокус. Перерисовка будет вызвана вручную после сохранения.
-                const isEditingSimpleNote = state.activeTab === 'simplenote' && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT');
-
-                if (!state.isLoading && !isEditingSimpleNote && !sessionJustCreated) {
-                    render();
-                } else if (sessionJustCreated) {
+                if (!state.isLoading) {
                     render();
                 }
             }, error => console.error("Session listener error: ", error));

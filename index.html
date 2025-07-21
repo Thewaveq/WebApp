@@ -447,7 +447,6 @@
             isAuthReady: false,
             isSidebarCollapsed: false,
             isChatWidthCompact: true,
-            simpleNoteScrollPosition: null,
             isSettingsPanelExpanded: false,
         };
         
@@ -871,45 +870,7 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            const itemsHTML = (activeSession.contentItems || [{type: 'text', content: ''}])
-                .map((item, index) => {
-                    // --- ИСПРАВЛЕНИЕ: Добавлена кнопка копирования и относительное позиционирование ---
-                    if (item.type === 'code') {
-                        return `
-                        <div class="note-item group relative" data-item-index="${index}" data-type="code">
-                             <div class="prose max-w-none">
-                                <pre><code class="language-javascript" contenteditable="true" spellcheck="false">${item.content || ''}</code></pre>
-                             </div>
-                             <button class="copy-note-code-btn absolute top-3 right-12 p-1.5 text-text-secondary hover:text-accent transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="copy" class="w-4 h-4"></i></button>
-                             <button class="delete-item-btn absolute top-3 right-2 p-1.5 text-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </div>
-                        `;
-                    }
-                    // По умолчанию 'text'
-                    return `
-                        <div class="note-item group relative" data-item-index="${index}" data-type="text">
-                            <textarea class="w-full bg-input border-t-0 border-l-0 border-r-0 border-b border-border-color p-4 resize-none focus:outline-none focus:ring-0 focus:border-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${item.content || ''}</textarea>
-                             <button class="delete-item-btn absolute top-2 right-2 p-1.5 text-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </div>
-                    `;
-                }).join('');
-
-            return `
-                <div class="flex flex-col h-full">
-                    <div class="p-4 flex-shrink-0">
-                         <input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
-                    </div>
-                    <div id="simple-note-content" class="flex-grow overflow-y-auto px-4">
-                        ${itemsHTML}
-                         <div class="flex justify-center items-center space-x-4 my-4">
-                             <div class="flex-grow border-t border-border-color"></div>
-                             <button id="add-text-item-btn" title="Добавить текстовый блок" class="p-2 rounded-full bg-bg-element hover:bg-accent hover:text-white transition-colors"><i data-lucide="pilcrow" class="w-5 h-5"></i></button>
-                             <button id="add-code-item-btn" title="Добавить блок кода" class="p-2 rounded-full bg-bg-element hover:bg-accent hover:text-white transition-colors"><i data-lucide="code" class="w-5 h-5"></i></button>
-                             <div class="flex-grow border-t border-border-color"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
         }
         
         function renderRoles() {
@@ -1167,143 +1128,18 @@
 
         function setupSimpleNotepadViewEventListeners() {
             const titleInput = document.getElementById('simple-note-title-input');
-            const contentContainer = document.getElementById('simple-note-content');
-            
-            if (!state.activeSessionId || !contentContainer) return;
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-            
-            titleInput?.addEventListener('change', () => {
-                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
-            });
-            
-            // ИЗМЕНЕНИЕ: В эту функцию добавлен параметр `focusedElement`
-            const saveNoteContent = async (focusedElement = null) => {
-                if (!contentContainer) return;
-                
-                // Запоминаем позицию скролла как запасной вариант
-                state.simpleNoteScrollPosition = contentContainer.scrollTop;
-                
-                // ИЗМЕНЕНИЕ: Запоминаем индекс элемента, который потерял фокус
-                if (focusedElement) {
-                    const itemEl = focusedElement.closest('.note-item');
-                    if (itemEl) {
-                        state.focusedItemIndex = parseInt(itemEl.dataset.itemIndex, 10);
-                    }
-                }
-
-                const itemElements = contentContainer.querySelectorAll('.note-item');
-                const contentItems = Array.from(itemElements).map(el => {
-                    const type = el.dataset.type;
-                    let content;
-                    if (type === 'code') {
-                        content = el.querySelector('code').innerText;
-                    } else {
-                        content = el.querySelector('textarea').value;
-                    }
-                    return { type, content };
-                });
-                
-                await updateDoc(sessionRef, {
-                    contentItems: contentItems,
+            const contentTextarea = document.getElementById('simple-note-content-textarea');
+            const saveNote = () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
                     updatedAt: serverTimestamp()
                 });
             };
-
-            const autoResizeTextarea = (textarea) => {
-                textarea.style.height = 'auto';
-                textarea.style.height = (textarea.scrollHeight) + 'px';
-            };
-            
-            contentContainer.querySelectorAll('textarea').forEach(autoResizeTextarea);
-
-            contentContainer.addEventListener('input', e => {
-                if (e.target.tagName.toLowerCase() === 'textarea') {
-                    autoResizeTextarea(e.target);
-                }
-            });
-
-            // ИЗМЕНЕНИЕ: Теперь мы передаем элемент в saveNoteContent
-            contentContainer.addEventListener('focusout', (e) => {
-                 if (e.target.matches('textarea, code')) {
-                    saveNoteContent(e.target); // Передаем сам элемент, потерявший фокус
-                    if(e.target.matches('code')) {
-                       hljs.highlightElement(e.target);
-                    }
-                 }
-            });
-
-            contentContainer.addEventListener('click', async (e) => {
-                const addItem = async (type) => {
-                    // При добавлении блока запоминаем текущую позицию, а не индекс
-                    state.simpleNoteScrollPosition = contentContainer.scrollTop + 50; // небольшой доп. скролл вниз
-                    state.focusedItemIndex = null; // сбрасываем индекс
-                    const newItem = { type: type, content: '' };
-                     await updateDoc(sessionRef, {
-                        contentItems: arrayUnion(newItem),
-                        updatedAt: serverTimestamp()
-                    });
-                };
-                
-                if (e.target.closest('#add-text-item-btn')) {
-                    addItem('text');
-                }
-                
-                if (e.target.closest('#add-code-item-btn')) {
-                    addItem('code');
-                }
-
-                const deleteBtn = e.target.closest('.delete-item-btn');
-                if (deleteBtn) {
-                    // При удалении тоже используем позицию, а не индекс
-                    state.simpleNoteScrollPosition = contentContainer.scrollTop;
-                    state.focusedItemIndex = null;
-
-                    const itemEl = deleteBtn.closest('.note-item');
-                    const itemIndex = parseInt(itemEl.dataset.itemIndex, 10);
-                    
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    const currentItems = activeSession.contentItems || [];
-                    
-                    if (!isNaN(itemIndex) && currentItems[itemIndex]) {
-                         showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
-                             const itemToRemove = currentItems[itemIndex];
-                             await updateDoc(sessionRef, {
-                                 contentItems: arrayRemove(itemToRemove),
-                                 updatedAt: serverTimestamp()
-                             });
-                         });
-                    }
-                }
-
-                const copyBtn = e.target.closest('.copy-note-code-btn');
-                if (copyBtn) {
-                    const codeBlock = copyBtn.closest('.note-item').querySelector('code');
-                    if(codeBlock) {
-                        navigator.clipboard.writeText(codeBlock.innerText);
-                        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                        setTimeout(() => {
-                            copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                            lucide.createIcons();
-                        }, 2000);
-                        lucide.createIcons();
-                    }
-                }
-            });
-            
-            contentContainer.querySelectorAll('pre').forEach((preElement) => {
-                const codeElement = preElement.querySelector('code');
-                if (codeElement && codeElement.innerText.trim() === '') {
-                    preElement.style.paddingTop = '0.5rem';
-                    preElement.style.paddingBottom = '0.5rem';
-                    preElement.style.minHeight = '3rem'; 
-                }
-            });
-
-            contentContainer.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
-
-            lucide.createIcons();
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1816,34 +1652,7 @@
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
-                    // Запоминаем значения перед перерисовкой
-                    const scrollPos = state.simpleNoteScrollPosition;
-                    const focusedIndex = state.focusedItemIndex;
-                    
-                    render(); // Полная перерисовка
-                    
-                    if (state.activeTab === 'simplenote') {
-                        const contentContainer = document.getElementById('simple-note-content');
-                        if (contentContainer) {
-                            // ИЗМЕНЕНИЕ: Логика восстановления позиции
-                            requestAnimationFrame(() => {
-                                if (focusedIndex !== null && focusedIndex !== undefined) {
-                                    // ПРИОРИТЕТ: Найти элемент по индексу и прокрутить к нему
-                                    const elementToFocus = contentContainer.querySelector(`.note-item[data-item-index="${focusedIndex}"]`);
-                                    if (elementToFocus) {
-                                        elementToFocus.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                                    }
-                                } else if (scrollPos !== null) {
-                                    // ЗАПАСНОЙ ВАРИАНТ: Если индекса нет (добавление/удаление), используем позицию
-                                    contentContainer.scrollTop = scrollPos;
-                                }
-                            });
-                        }
-                    }
-
-                    // Сбрасываем временные состояния, чтобы они не мешали следующим обновлениям
-                    state.simpleNoteScrollPosition = null; 
-                    state.focusedItemIndex = null;
+                    render();
                 }
             }, error => console.error("Session listener error: ", error));
         
@@ -1917,7 +1726,9 @@
                 mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
             }
         }
+        
         init();
     </script>
+
 </body>
 </html>

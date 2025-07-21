@@ -287,6 +287,33 @@
                 color: var(--accent);
                 background-color: var(--bg-element);
             }
+
+            /* --- СТИЛИ ДЛЯ РЕДАКТИРУЕМЫХ БЛОКОВ КОДА В ЗАМЕТКАХ --- */
+            .code-block-wrapper {
+                position: relative; /* Для позиционирования placeholder */
+            }
+            
+            .code-block-wrapper pre {
+                margin: 0; /* Убираем отступы по умолчанию у pre */
+            }
+            
+            .code-block-wrapper pre code {
+                display: block; /* Чтобы min-height работал */
+                min-height: 80px; /* Предотвращает схлопывание пустого блока */
+                padding: 1rem;
+                white-space: pre-wrap; /* Позволяет переносить длинные строки при редактировании */
+                word-break: break-all; /* Ломает очень длинные слова/токены, чтобы не вылезали за пределы блока */
+                outline: none; /* Убираем стандартный контур при фокусе */
+                color: #abb2bf; /* БАЗОВЫЙ ЦВЕТ ТЕКСТА для темы atom-one-dark, чтобы он не был прозрачным */
+            }
+            
+            /* --- Placeholder для пустого блока кода --- */
+            .code-block-wrapper pre code[contenteditable=true]:empty::before {
+                content: 'Введите или вставьте код...';
+                color: var(--text-secondary);
+                pointer-events: none; /* Чтобы клик проходил на сам блок */
+                display: block;
+            }
     </style>
 </head>
 <body class="h-dvh w-full flex">
@@ -889,17 +916,26 @@
                         </div>
                     `;
                 } else if (block.type === 'code') {
-                    // Для подсветки синтаксиса оборачиваем `code` в `pre`
-                    // `contenteditable` позволяет редактировать прямо в блоке
+                    // Функция для безопасного вывода текста в HTML, чтобы избежать проблем с символами < > &
+                    const escapeHtml = (unsafe) => {
+                        if (!unsafe) return '';
+                        return unsafe
+                             .replace(/&/g, "&")
+                             .replace(/</g, "<")
+                             .replace(/>/g, ">")
+                             .replace(/"/g, """)
+                             .replace(/'/g, "'");
+                    }
+                    // `hljs` класс нужен для авто-определения языка библиотекой
                     return `
                         <div class="relative group w-full message-container">
                             <div class="code-block-wrapper bg-bg-main rounded-lg border border-border-color focus-within:ring-2 focus-within:ring-accent">
                                 <pre><code 
-                                    class="hljs language-javascript" 
+                                    class="hljs" 
                                     contenteditable="true" 
                                     data-block-id="${block.id}"
                                     spellcheck="false"
-                                >${(block.content || '')}</code></pre>
+                                >${escapeHtml(block.content)}</code></pre>
                             </div>
                             ${commonDeleteButton}
                         </div>
@@ -1188,37 +1224,34 @@
         function setupSimpleNotepadViewEventListeners() {
             const titleInput = document.getElementById('simple-note-title-input');
             const blocksContainer = document.getElementById('simple-note-blocks-container');
-            const mainContainer = document.querySelector('#main-content'); // Для прокрутки
+            const mainContainer = document.querySelector('#main-content'); 
         
             if (!state.activeSessionId || !blocksContainer) return;
         
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
         
-            // --- Функция для автоматического изменения размера textarea ---
             const autoResizeTextarea = (textarea) => {
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             };
         
-            // --- Применяем авто-размер ко всем существующим textarea ---
+            // --- Инициализация существующих блоков ---
             blocksContainer.querySelectorAll('.block-textarea').forEach(autoResizeTextarea);
-            
-            // --- Подсветка всех существующих блоков кода ---
             blocksContainer.querySelectorAll('pre code').forEach(block => {
-                hljs.highlightElement(block);
+                // Используем highlightBlock для лучшей производительности и точности
+                hljs.highlightBlock(block);
             });
         
-            // --- Прокрутка в самый низ при открытии ---
+            // --- Прокрутка в самый низ при загрузке заметки ---
             if (mainContainer) {
-                mainContainer.scrollTop = mainContainer.scrollHeight;
+                setTimeout(() => mainContainer.scrollTop = mainContainer.scrollHeight, 0);
             }
         
-            // --- Сохранение заголовка при изменении ---
             titleInput?.addEventListener('change', () => {
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
-        
-            // --- Делегирование событий для управления блоками ---
+            
+            // --- Делегирование событий ---
             blocksContainer.addEventListener('focusout', async (e) => {
                 const target = e.target;
                 const blockId = target.dataset.blockId;
@@ -1226,39 +1259,34 @@
                 if (blockId && (target.matches('.block-textarea') || target.matches('code'))) {
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || !activeSession.blocks) return;
-        
+                    
+                    // Для code используем innerText, чтобы сохранить только текст, без HTML-тегов подсветки
                     const newContent = target.matches('.block-textarea') ? target.value : target.innerText;
                     
-                    // Подсветка синтаксиса для блоков кода после редактирования
+                    // Повторно подсвечиваем блок кода после того, как пользователь закончил редактирование
                     if (target.matches('code')) {
-                         hljs.highlightElement(target);
+                         hljs.highlightBlock(target);
                     }
                     
                     const updatedBlocks = activeSession.blocks.map(block => {
-                        if (block.id === blockId) {
-                            // Обновляем только если контент изменился
-                            if (block.content !== newContent) {
-                                return { ...block, content: newContent };
-                            }
+                        if (block.id === blockId && block.content !== newContent) {
+                            return { ...block, content: newContent };
                         }
                         return block;
                     });
-                    
-                    // Проверяем, были ли реальные изменения перед записью в БД
+        
                     if (JSON.stringify(updatedBlocks) !== JSON.stringify(activeSession.blocks)) {
                         await updateDoc(sessionRef, { blocks: updatedBlocks, updatedAt: serverTimestamp() });
                     }
                 }
             });
         
-            // --- Авто-размер textarea при вводе ---
             blocksContainer.addEventListener('input', (e) => {
                 if (e.target.matches('.block-textarea')) {
                     autoResizeTextarea(e.target);
                 }
             });
         
-            // --- Обработка кликов (удаление) ---
             blocksContainer.addEventListener('click', (e) => {
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (deleteBtn) {
@@ -1287,7 +1315,7 @@
                     blocks: arrayUnion(newBlock),
                     updatedAt: serverTimestamp()
                 });
-                // Прокрутка вниз после добавления нового блока
+                
                 setTimeout(() => {
                    if (mainContainer) mainContainer.scrollTop = mainContainer.scrollHeight;
                 }, 100);

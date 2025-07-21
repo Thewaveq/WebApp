@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Multi-Tool 2</title>
+    <title>AI Multi-Tool 3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -1318,21 +1318,25 @@
             editor.addEventListener('click', (e) => {
                 const target = e.target;
 
-                // Действие 1: Клик по блоку кода для редактирования.
+                // ИСПРАВЛЕНИЕ №1: Правильный порядок проверки и изоляция событий.
+                
+                // Действие 1 (Высший приоритет): Клик по блоку кода для редактирования.
                 const codeDisplay = target.closest('.code-block-display');
                 if (codeDisplay) {
+                    e.stopPropagation(); // Изолируем это событие
                     const block = codeDisplay.closest('.content-block');
-                    const textarea = block.querySelector('textarea');
+                    const textarea = block.querySelector('.code-editor-textarea');
                     codeDisplay.classList.add('hidden');
                     textarea.classList.remove('hidden');
                     textarea.focus();
                     autoResizeTextarea(textarea);
-                    return;
+                    return; // Завершаем, чтобы другие проверки не сработали.
                 }
 
-                // Действие 2: Удаление блока.
+                // Действие 2: Удаление блока (сработает, только если не был клик по коду).
                 const deleteBlockBtn = target.closest('.delete-block-btn');
                 if (deleteBlockBtn) {
+                    e.stopPropagation();
                     deleteBlockBtn.closest('.content-block')?.remove();
                     scheduleSave();
                     return;
@@ -1341,12 +1345,14 @@
                 // Действие 3: Логика для списка задач.
                 const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
                 if (deleteTodoItemBtn) {
+                    e.stopPropagation();
                     deleteTodoItemBtn.closest('.todolist-item')?.remove();
                     scheduleSave();
                     return;
                 }
                 const addTodoItemBtn = target.closest('.add-todo-item-btn');
                 if (addTodoItemBtn) {
+                    e.stopPropagation();
                     const listContainer = addTodoItemBtn.closest('.content-block').querySelector('.todolist-container');
                     const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
                     listContainer.insertAdjacentHTML('beforeend', newItemHTML);
@@ -1360,31 +1366,34 @@
                 // Действие 4: Добавление нового блока.
                 const addBtn = target.closest('.add-block-btn');
                 if (addBtn) {
+                    e.stopPropagation();
                     const contentContainer = document.getElementById('simple-note-content');
                     const type = addBtn.dataset.addBlock;
-                    const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: type === 'todolist' ? [] : '' }] };
-                    const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
-                    contentContainer.insertAdjacentHTML('beforeend', newBlockHTML);
-                    const newElement = contentContainer.lastElementChild;
+                    
+                    // ИСПРАВЛЕНИЕ №2: Надежный способ добавления элемента без использования .match()
+                    const tempDiv = document.createElement('div');
+                    const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: '' }] };
+                    tempDiv.innerHTML = getSimpleNotepadViewHTML(tempSession);
+                    const newElement = tempDiv.querySelector('.content-block');
 
-                    // ИЗМЕНЕНИЕ: Если добавили блок кода, его надо подсветить.
-                    if (type === 'code') {
-                        const codeTag = newElement.querySelector('pre code');
-                        if (codeTag) hljs.highlightElement(codeTag);
+                    if (newElement) {
+                        contentContainer.append(newElement);
+                        if (type === 'code') {
+                            const codeBlock = newElement.querySelector('pre code');
+                            if (codeBlock) hljs.highlightElement(codeBlock);
+                        }
+                        lucide.createIcons({nodes: [newElement]});
+                        const focusTarget = newElement.querySelector('textarea, input[type="text"]');
+                        if(focusTarget) {
+                            focusTarget.focus();
+                            if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
+                        }
+                        scheduleSave();
                     }
-
-                    lucide.createIcons({nodes: [newElement]});
-                    const focusTarget = newElement.querySelector('textarea, input[type="text"]');
-                    if(focusTarget) {
-                        focusTarget.focus();
-                        if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
-                    }
-                    scheduleSave();
                     return;
                 }
             });
 
-            // Обработчик потери фокуса для поля редактирования кода
             editor.addEventListener('blur', (e) => {
                 if (e.target.matches('.code-editor-textarea')) {
                     const textarea = e.target;
@@ -1393,8 +1402,7 @@
                     const codeElement = codeDisplay.querySelector('code');
                     
                     const newCode = textarea.value;
-
-                    // ИЗМЕНЕНИЕ: Безопасно обновляем содержимое и заново подсвечиваем.
+                    // Обновляем текст и заново подсвечиваем
                     codeElement.textContent = newCode;
                     hljs.highlightElement(codeElement);
                     

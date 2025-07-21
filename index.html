@@ -583,33 +583,33 @@
                     blockWrapper.dataset.type = blockData.type;
                     
                     if (blockData.type === 'code') {
-                        // --- ИЗМЕНЕНИЕ ДЛЯ БЛОКА КОДА ---
-                        blockWrapper.className = "bg-bg-sidebar border border-border-color rounded-lg";
+                        blockWrapper.className = "bg-bg-sidebar border border-border-color rounded-lg group";
                         blockWrapper.innerHTML = `
-                            <div class="flex justify-end items-center p-1.5 border-b border-border-color">
-                                <button class="delete-block-btn p-1 text-text-secondary rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
+                            <div class="h-8 flex justify-end items-center pr-2">
+                                <button class="delete-block-btn p-1.5 text-text-secondary rounded-full hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title="Удалить блок">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <div class="relative group">
-                                <pre class="p-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-b-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
-                                <button class="copy-code-btn absolute top-3 right-3 p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors opacity-0 group-hover:opacity-100" title="Копировать код">
-                                    <i data-lucide="copy" class="w-4 h-4"></i>
-                                </button>
+                            <div class="relative">
+                                <pre class="px-4 pb-4 -mt-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-b-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
+                                <div class="absolute top-0 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button class="copy-code-btn p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors" title="Копировать код">
+                                        <i data-lucide="copy" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
                             </div>`;
                         container.appendChild(blockWrapper);
                         const codeElement = blockWrapper.querySelector('code');
                         hljs.highlightElement(codeElement);
                     } else { // type 'text'
-                        // --- ИЗМЕНЕНИЕ ДЛЯ ТЕКСТОВОГО БЛОКА ---
-                        blockWrapper.className = "bg-bg-sidebar border border-border-color rounded-lg";
+                        blockWrapper.className = "group";
                         blockWrapper.innerHTML = `
-                            <div class="flex justify-end items-center p-1.5 border-b border-border-color">
-                                <button class="delete-block-btn p-1 text-text-secondary rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
+                             <div class="h-8 flex justify-end items-center pr-2">
+                                <button class="delete-block-btn p-1.5 text-text-secondary rounded-full hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title="Удалить блок">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <textarea class="w-full bg-bg-sidebar rounded-b-lg p-4 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>`;
+                            <textarea class="w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed -mt-8 pt-9" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>`;
                         container.appendChild(blockWrapper);
                         const newTextarea = blockWrapper.querySelector('textarea');
                         newTextarea.style.height = 'auto';

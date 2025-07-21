@@ -542,10 +542,10 @@
                         content: block.content ?? block.text ?? '',
                         ...block,
                     };
-                    delete newBlock.text;
-                    delete newBlock.language;
+                    delete newBlock.text; // Удаляем старое поле
+                    delete newBlock.language; // Удаляем неиспользуемое поле языка
                     return newBlock;
-                }).filter(Boolean);
+                }).filter(Boolean); // Убираем невалидные блоки
             }
 
             const activeElement = document.activeElement;
@@ -560,6 +560,7 @@
                 const existingEl = existingBlockElements.get(blockData.id);
 
                 if (existingEl && existingEl.dataset.type === blockData.type) {
+                    // Блок существует, обновляем если он не в фокусе
                     if (blockData.id !== activeBlockId) {
                         if (blockData.type === 'code') {
                             const codeEl = existingEl.querySelector('code');
@@ -574,53 +575,46 @@
                     }
                     existingBlockElements.delete(blockData.id);
                 } else {
+                    // Блока нет, или его тип изменился - создаем заново
                     if (existingEl) existingEl.remove();
 
                     const blockWrapper = document.createElement('div');
                     blockWrapper.dataset.id = blockData.id;
                     blockWrapper.dataset.type = blockData.type;
-                    // 'group' позволяет дочерним элементам реагировать на наведение на этот контейнер
-                    blockWrapper.className = "group bg-bg-sidebar border border-border-color rounded-lg";
                     
-                    // Общая шапка для кнопки удаления
-                    const headerHTML = `
-                        <div class="h-9 flex justify-end items-center px-3 border-b border-border-color opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button class="delete-block-btn p-1 text-text-secondary hover:bg-red-500/20 hover:text-red-400 rounded-md" title="Удалить блок">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    `;
-
-                    let contentHTML = '';
                     if (blockData.type === 'code') {
-                        // Блок с кодом: pre оборачивается в div с relative для позиционирования кнопки копирования
-                        contentHTML = `
-                            <div class="relative">
-                                <pre class="focus:outline-none"><code class="hljs p-4 block text-base leading-relaxed" contenteditable="true" spellcheck="false">${(blockData.content || '').replace(/</g, "<").replace(/>/g, ">")}</code></pre>
-                                <button class="copy-code-btn absolute top-3 right-3 p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors opacity-0 group-hover:opacity-100" title="Копировать код">
+                        // Используем flex-контейнер и добавляем "group" для управления видимостью кнопок при наведении
+                        blockWrapper.className = "code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg flex flex-col group";
+                        blockWrapper.innerHTML = `
+                            <div class="h-8 pr-2 pt-1 flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button class="copy-code-btn p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors" title="Копировать код">
                                     <i data-lucide="copy" class="w-4 h-4"></i>
                                 </button>
+                                <button class="delete-block-btn p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
                             </div>
+                            <pre class="px-4 pb-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-lg -mt-2"><code class="hljs" contenteditable="true" spellcheck="false">${(blockData.content || '').replace(/</g, "<").replace(/>/g, ">")}</code></pre>
                         `;
-                        blockWrapper.innerHTML = headerHTML + contentHTML;
                         container.appendChild(blockWrapper);
                         const codeElement = blockWrapper.querySelector('code');
                         hljs.highlightElement(codeElement);
-
                     } else { // type 'text'
-                        // Блок с текстом: textarea идет после шапки
-                        contentHTML = `
-                            <div>
-                                <textarea class="w-full bg-bg-sidebar rounded-b-lg p-4 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>
+                        // Аналогичная структура для текстового поля
+                        blockWrapper.className = "bg-input border border-border-color rounded-lg flex flex-col group";
+                        blockWrapper.innerHTML = `
+                            <div class="h-8 pr-2 pt-1 flex justify-end items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button class="delete-block-btn p-1.5 bg-bg-element text-text-secondary rounded-md border border-border-color hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
                             </div>
+                            <textarea class="w-full bg-transparent px-4 pb-4 resize-none focus:outline-none text-base leading-relaxed -mt-2" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>
                         `;
-                        blockWrapper.innerHTML = headerHTML + contentHTML;
                         container.appendChild(blockWrapper);
                         const newTextarea = blockWrapper.querySelector('textarea');
                         newTextarea.style.height = 'auto';
                         newTextarea.style.height = (newTextarea.scrollHeight) + 'px';
                     }
-                    
                     lucide.createIcons({ nodes: [blockWrapper] });
                     existingBlockElements.delete(blockData.id);
                 }

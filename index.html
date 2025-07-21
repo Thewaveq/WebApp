@@ -1389,15 +1389,25 @@
                     target.style.height = (target.scrollHeight) + 'px';
                     debouncedSave(blockId, { content: target.value });
                 } else if (blockType === 'code' && target.tagName === 'CODE') {
+                    // Используем innerText для получения текстового содержимого без HTML тегов
                     debouncedSave(blockId, { content: target.innerText });
                 }
             });
-
+            
+            // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // Этот обработчик срабатывает, когда пользователь убирает курсор с блока кода
             contentContainer?.addEventListener('focusout', e => {
-                 const target = e.target;
-                 if (target.tagName === 'CODE' && target.closest('[data-type="code"]')) {
-                     hljs.highlightElement(target);
-                 }
+                const codeElement = e.target;
+                // Проверяем, что это действительно блок кода
+                if (codeElement.tagName === 'CODE' && codeElement.closest('[data-type="code"]')) {
+                    // Проверяем, доступна ли библиотека highlight.js
+                    if(window.hljs) {
+                         // Принудительно заново применяем подсветку к элементу.
+                         // Библиотека сама прочитает текстовое содержимое и заменит его
+                         // на HTML с тегами <span> для подсветки.
+                         hljs.highlightElement(codeElement);
+                    }
+                }
             });
             
             contentContainer?.addEventListener('change', e => {
@@ -1408,7 +1418,9 @@
                     const newLang = target.value;
                     const codeEl = blockWrapper.querySelector('code');
                     codeEl.className = `hljs language-${newLang}`;
-                    hljs.highlightElement(codeEl);
+                     if(window.hljs) {
+                        hljs.highlightElement(codeEl);
+                     }
                     debouncedSave(blockId, { language: newLang });
                 }
             });

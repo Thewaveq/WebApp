@@ -1176,10 +1176,13 @@
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
             
+            // ИЗМЕНЕНИЕ: Эта функция теперь тоже устанавливает намерение прокрутки
             const saveNoteContent = async () => {
                 if (!contentContainer) return;
                 
+                // Сохраняем позицию и устанавливаем намерение "восстановить"
                 state.simpleNoteScrollPosition = contentContainer.scrollTop;
+                state.scrollAction = 'restore';
 
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
@@ -1212,6 +1215,7 @@
                 }
             });
 
+            // Вызываем нашу обновленную функцию сохранения
             contentContainer.addEventListener('focusout', (e) => {
                  if (e.target.matches('textarea, code')) {
                     saveNoteContent();
@@ -1222,9 +1226,10 @@
             });
 
             contentContainer.addEventListener('click', async (e) => {
+                // ИЗМЕНЕНИЕ: Добавление блока теперь устанавливает намерение "прокрутить вниз"
                 const addItem = async (type) => {
                     const newItem = { type: type, content: '' };
-                    state.simpleNoteScrollPosition = contentContainer.scrollTop;
+                    state.scrollAction = 'scrollToBottom'; // <-- Устанавливаем намерение
                      await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
                         updatedAt: serverTimestamp()
@@ -1250,7 +1255,9 @@
                     if (!isNaN(itemIndex) && currentItems[itemIndex]) {
                          showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                              const itemToRemove = currentItems[itemIndex];
+                             // ИЗМЕНЕНИЕ: Удаление блока устанавливает намерение "восстановить"
                              state.simpleNoteScrollPosition = contentContainer.scrollTop;
+                             state.scrollAction = 'restore'; // <-- Устанавливаем намерение
                              await updateDoc(sessionRef, {
                                  contentItems: arrayRemove(itemToRemove),
                                  updatedAt: serverTimestamp()
@@ -1274,11 +1281,9 @@
                 }
             });
             
-            // --- ИСПРАВЛЕНИЕ: Динамически изменяем стиль пустых блоков кода ---
             contentContainer.querySelectorAll('pre').forEach((preElement) => {
                 const codeElement = preElement.querySelector('code');
                 if (codeElement && codeElement.innerText.trim() === '') {
-                    // Уменьшаем вертикальные отступы и задаем минимальную высоту
                     preElement.style.paddingTop = '0.5rem';
                     preElement.style.paddingBottom = '0.5rem';
                     preElement.style.minHeight = '3rem'; 
@@ -1801,22 +1806,29 @@
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
+                
+                // ИЗМЕНЕНИЕ: Полностью переработана логика восстановления прокрутки
                 if (!state.isLoading) {
-                    // --- УЛУЧШЕНИЕ: Сохранение и восстановление позиции скролла ---
+                    const scrollAction = state.scrollAction;
                     const scrollPos = state.simpleNoteScrollPosition;
                     const wasSimpleNote = state.activeTab === 'simplenote';
-                    
-                    render(); // Эта функция заменяет DOM, сбрасывая скролл
 
-                    // Если мы были на вкладке заметок и позиция была сохранена, восстанавливаем её.
-                    if (wasSimpleNote && scrollPos !== null) {
-                        // Используем requestAnimationFrame, чтобы гарантировать, что DOM отрисован перед прокруткой.
+                    render(); // Перерисовываем интерфейс
+
+                    // Если мы были на нужной вкладке и есть сохраненное действие...
+                    if (wasSimpleNote && scrollAction) {
                         requestAnimationFrame(() => {
                             const contentContainer = document.getElementById('simple-note-content');
                             if (contentContainer) {
-                                contentContainer.scrollTop = scrollPos;
+                                // Выполняем действие в зависимости от намерения
+                                if (scrollAction === 'scrollToBottom') {
+                                    contentContainer.scrollTop = contentContainer.scrollHeight;
+                                } else if (scrollAction === 'restore' && scrollPos !== null) {
+                                    contentContainer.scrollTop = scrollPos;
+                                }
                             }
-                            // Сбрасываем сохраненную позицию *после* попытки её восстановить.
+                            // Очищаем состояние после выполнения, чтобы оно не сработало снова
+                            state.scrollAction = null;
                             state.simpleNoteScrollPosition = null; 
                         });
                     }
@@ -1847,7 +1859,21 @@
                 chatObserver = null;
             }
             userId = null;
-            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
+            // ИЗМЕНЕНИЕ: Добавлены scrollAction и simpleNoteScrollPosition для корректного сброса
+            state = { 
+                activeTab: 'chat', 
+                activeSessionId: null, 
+                sessions: [], 
+                providers: [], 
+                roles: [], 
+                isLoading: false, 
+                isAuthReady: false, 
+                isSidebarCollapsed: false,
+                isChatWidthCompact: true,
+                simpleNoteScrollPosition: null,
+                scrollAction: null, // 'restore' или 'scrollToBottom'
+                isSettingsPanelExpanded: false,
+            };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');

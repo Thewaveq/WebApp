@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Multi-Tool 1</title>
+    <title>AI Multi-Tool 2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -1218,33 +1218,31 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            // --- ФИНАЛЬНАЯ, СТРУКТУРНО ИСПРАВЛЕННАЯ ВЕРСИЯ ---
             const editor = document.getElementById('simple-note-editor');
             if (!editor) return;
-        
+
             let debounceTimer;
-        
+
             const autoResizeTextarea = (textarea) => {
                 if(!textarea) return;
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             };
-        
+
             const saveNote = async () => {
                 if (!state.activeSessionId) return;
                 const titleInput = document.getElementById('simple-note-title-input');
                 const contentContainer = document.getElementById('simple-note-content');
                 if (!titleInput || !contentContainer) return;
-        
+
                 const blockElements = contentContainer.querySelectorAll('.content-block');
                 const newContent = Array.from(blockElements).map(blockEl => {
                     const id = blockEl.dataset.blockId;
                     const type = blockEl.dataset.type;
                     let value;
-        
+
                     switch(type) {
                         case 'code':
-                            // Значение берется из textarea, даже если она скрыта
                             value = blockEl.querySelector('textarea').value;
                             break;
                         case 'paragraph':
@@ -1260,34 +1258,34 @@
                     }
                     return { id, type, value };
                 });
-        
+
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 await updateDoc(sessionRef, { title: titleInput.value, content: newContent, updatedAt: serverTimestamp() });
             };
-        
+
             const scheduleSave = () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(saveNote, 1500);
             };
             
             editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
-        
+
             editor.addEventListener('input', (e) => {
                 if (e.target.matches('textarea, #simple-note-title-input, .todolist-item input[type="text"]')) {
                     if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
                     scheduleSave();
                 }
             });
-        
+
             editor.addEventListener('change', (e) => {
                 if (e.target.matches('input[type="checkbox"]')) scheduleSave();
             });
-        
+
             editor.addEventListener('keydown', (e) => {
                 const targetInput = e.target;
                 if (!targetInput.matches('.todolist-item input[type="text"]')) return;
                 const currentItem = targetInput.closest('.todolist-item');
-        
+
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     const listContainer = currentItem.parentElement;
@@ -1311,17 +1309,9 @@
             editor.addEventListener('click', (e) => {
                 const target = e.target;
                 
-                // --- Логика разделена на независимые блоки для избежания конфликтов ---
-        
-                // Действие 1: Удаление блока (самый высокий приоритет)
-                const deleteBlockBtn = target.closest('.delete-block-btn');
-                if (deleteBlockBtn) {
-                    deleteBlockBtn.closest('.content-block')?.remove();
-                    scheduleSave();
-                    return; // Прерываем выполнение, чтобы другие обработчики не сработали
-                }
-        
-                // Действие 2: Клик по блоку кода для переключения в режим редактирования
+                // --- ИСПРАВЛЕННАЯ ЛОГИКА С ПРАВИЛЬНЫМ ПРИОРИТЕТОМ ---
+
+                // Действие 1 (ВЫСШИЙ ПРИОРИТЕТ): Клик по блоку кода для редактирования.
                 const codeDisplay = target.closest('.code-block-display');
                 if (codeDisplay) {
                     const block = codeDisplay.closest('.content-block');
@@ -1330,10 +1320,18 @@
                     textarea.classList.remove('hidden');
                     textarea.focus();
                     autoResizeTextarea(textarea);
-                    return; // Прерываем выполнение
+                    return; // Завершаем, чтобы другие проверки не сработали.
+                }
+
+                // Действие 2: Удаление блока. Эта проверка сработает, только если не сработала первая.
+                const deleteBlockBtn = target.closest('.delete-block-btn');
+                if (deleteBlockBtn) {
+                    deleteBlockBtn.closest('.content-block')?.remove();
+                    scheduleSave();
+                    return;
                 }
                 
-                // Действие 3: Логика для списка задач (удаление/добавление)
+                // Действие 3: Клик по кнопкам в списке задач.
                 const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
                 if (deleteTodoItemBtn) {
                     deleteTodoItemBtn.closest('.todolist-item')?.remove();
@@ -1351,15 +1349,13 @@
                     scheduleSave();
                     return;
                 }
-        
-                // Действие 4: Добавление нового блока
+
+                // Действие 4: Добавление нового блока.
                 const addBtn = target.closest('.add-block-btn');
                 if (addBtn) {
                     const contentContainer = document.getElementById('simple-note-content');
                     const type = addBtn.dataset.addBlock;
-                    // Создаем временный объект для рендеринга только одного блока, чтобы извлечь его HTML
                     const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: type === 'todolist' ? [] : '' }] };
-                    // Используем .match() для надежного извлечения HTML всего блока
                     const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
                     contentContainer.insertAdjacentHTML('beforeend', newBlockHTML);
                     const newElement = contentContainer.lastElementChild;
@@ -1370,10 +1366,10 @@
                         if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
                     scheduleSave();
-                    // Здесь return не обязателен, т.к. это последняя проверка
+                    return;
                 }
             });
-        
+
             // Обработчик потери фокуса для поля редактирования кода
             editor.addEventListener('blur', (e) => {
                 if (e.target.matches('.code-editor-textarea')) {
@@ -1383,18 +1379,17 @@
                     const codeElement = codeDisplay.querySelector('code');
                     
                     const newCode = textarea.value;
-                    // Проверка на существование hljs перед использованием
                     if (typeof hljs !== 'undefined') {
-                        codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
+                       codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
                     } else {
-                        codeElement.textContent = newCode;
+                       codeElement.textContent = newCode;
                     }
                     
                     textarea.classList.add('hidden');
                     codeDisplay.classList.remove('hidden');
                     scheduleSave();
                 }
-            }, true); // Используем capturing фазу, чтобы сработать до других возможных blur-событий
+            }, true);
             
             lucide.createIcons();
         }

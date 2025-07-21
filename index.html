@@ -629,14 +629,8 @@
                 chatObserver = null;
             }
         
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-        
-            // Проблема с прокруткой была здесь.
-            // Убираем неработающую логику сохранения/восстановления прокрутки,
-            // так как новая функция attachFirestoreListeners больше не будет вызывать
-            // полную перерисовку при обновлении сообщений.
-        
             mainContent.innerHTML = '';
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
             switch (state.activeTab) {
                 case 'chat':
@@ -669,13 +663,6 @@
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
-    
-                        // Сразу прокручиваем в самый низ при открытии чата
-                        const messagesContainer = document.getElementById('chat-messages');
-                        if (messagesContainer) {
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        }
-    
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
                     }
@@ -690,9 +677,12 @@
                     break;
                 case 'simplenote':
                      if (activeSession) {
+                        // Сначала создаем каркас
                         mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
+                        // Затем наполняем его содержимым
                         renderSimpleNoteContent(activeSession);
                         setupSimpleNotepadViewEventListeners();
+                        // Прокручиваем вниз после рендеринга, чтобы увидеть конец заметки
                         setTimeout(() => {
                             const container = document.getElementById('simple-note-content-container');
                             if (container) {
@@ -912,9 +902,10 @@
             const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5;
             const existingMessageElements = messagesContainer.querySelectorAll('.message-placeholder, .message-container');
 
-            if (sessionMessages.length < existingMessageElements.length) {
+            // Эта логика вызывается при первом рендере или при удалении сообщений (регенерации)
+            if (sessionMessages.length < existingMessageElements.length || existingMessageElements.length === 0) {
                 if (chatObserver) chatObserver.disconnect();
-                messagesContainer.innerHTML = '';
+                messagesContainer.innerHTML = ''; // Очищаем контейнер
                 
                 const observerCallback = (entries, observer) => {
                     entries.forEach(entry => {
@@ -924,7 +915,7 @@
                             const index = parseInt(placeholder.dataset.messageIndex, 10);
                             const messageElement = createMessageElement(msg, index);
                             placeholder.parentNode.replaceChild(messageElement, placeholder);
-                            observer.unobserve(messageElement);
+                            observer.unobserve(messageElement); // Важно, чтобы не вызывать повторно
                         }
                     });
                 };
@@ -939,12 +930,10 @@
                     chatObserver.observe(placeholder);
                 });
 
-            } else {
+            } else { // Эта логика вызывается, когда добавляются новые сообщения
                 const messagesToAdd = sessionMessages.slice(existingMessageElements.length);
                 if (messagesToAdd.length > 0) {
-                    const loadingIndicator = document.getElementById('loading-message-placeholder');
-                    if(loadingIndicator) loadingIndicator.remove();
-
+                    // **ИСПРАВЛЕНИЕ:** Удалена строка, которая преждевременно убирала индикатор загрузки
                     messagesToAdd.forEach((msg, i) => {
                         const newIndex = existingMessageElements.length + i;
                         const messageElement = createMessageElement(msg, newIndex);
@@ -954,7 +943,10 @@
             }
 
             if (isScrolledToBottom) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                // Задержка нужна, чтобы DOM успел обновиться после вставки плейсхолдеров
+                setTimeout(() => {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, 0);
             }
         }
     
@@ -1953,64 +1945,17 @@
             if (!userId) return;
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
-            // Эта функция - ключевое исправление.
-            // Она теперь корректно обрабатывает изменения, обновляя только то, что нужно,
-            // и не ломая при этом индикатор загрузки и позицию прокрутки.
+            // **ИСПРАВЛЕНИЕ:** Возвращена простая и надежная логика из старой версии.
+            // Она вызывает полную перерисовку, что корректно обрабатывает скролл и другие состояния.
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                let needsSidebarRender = false;
-                let activeSessionUpdated = false;
-    
-                snapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    const id = change.doc.id;
-    
-                    if (change.type === "added") {
-                        state.sessions.push({ id, ...data });
-                        needsSidebarRender = true;
-                    }
-                    if (change.type === "modified") {
-                        const index = state.sessions.findIndex(s => s.id === id);
-                        if (index > -1) {
-                            state.sessions[index] = { id, ...data };
-                        }
-                        
-                        if (id === state.activeSessionId) {
-                            // Если изменился активный документ, мы не будем перерисовывать всё,
-                            // а только обновим его содержимое.
-                            activeSessionUpdated = true;
-                        } else {
-                            // Если изменился другой документ, возможно, нужно обновить сайдбар (порядок сортировки).
-                            needsSidebarRender = true;
-                        }
-                    }
-                    if (change.type === "removed") {
-                        state.sessions = state.sessions.filter(s => s.id !== id);
-                        if (id === state.activeSessionId) {
-                            state.activeSessionId = null;
-                        }
-                        needsSidebarRender = true;
-                    }
-                });
-    
-                state.sessions.sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                
-                if (needsSidebarRender) {
-                    // Полная перерисовка нужна только если изменился список чатов или мы переключились на другой.
+                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+                const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
+                if (!activeSessionExists) {
+                    state.activeSessionId = null;
+                }
+                // Не перерисовываем, если идет загрузка ответа модели, чтобы избежать моргания
+                if (!state.isLoading) {
                     render();
-                } else if (activeSessionUpdated) {
-                    // А если пришло обновление для текущего чата/заметки - обновляем только его содержимое.
-                    // Это исправляет и прокрутку, и индикатор.
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (activeSession) {
-                         if (activeSession.type === 'simplenote') {
-                            renderSimpleNoteContent(activeSession);
-                        } else if (activeSession.type === 'chat') {
-                            renderChatMessages(activeSession);
-                        } else {
-                            // Для других типов, если понадобится, можно оставить полную перерисовку.
-                            render();
-                        }
-                    }
                 }
             }, error => console.error("Session listener error: ", error));
         

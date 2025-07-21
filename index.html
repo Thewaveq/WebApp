@@ -447,6 +447,7 @@
             isAuthReady: false,
             isSidebarCollapsed: false,
             isChatWidthCompact: true,
+            simpleNoteScrollPosition: null,
             isSettingsPanelExpanded: false,
         };
         
@@ -1176,6 +1177,10 @@
             });
             
             const saveNoteContent = async () => {
+                if (!contentContainer) return;
+                
+                state.simpleNoteScrollPosition = contentContainer.scrollTop;
+
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
                     const type = el.dataset.type;
@@ -1216,20 +1221,14 @@
                  }
             });
 
-            // --- ИСПРАВЛЕНИЕ: Перехват событий вынесен в один обработчик ---
             contentContainer.addEventListener('click', async (e) => {
                 const addItem = async (type) => {
                     const newItem = { type: type, content: '' };
+                    state.simpleNoteScrollPosition = contentContainer.scrollTop;
                      await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
                         updatedAt: serverTimestamp()
                     });
-                    
-                    // --- ИСПРАВЛЕНИЕ: Прокрутка к новому элементу после ререндеринга ---
-                    setTimeout(() => {
-                        const newElement = contentContainer.querySelector('.note-item:last-of-type');
-                        newElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 200);
                 };
                 
                 if (e.target.closest('#add-text-item-btn')) {
@@ -1251,6 +1250,7 @@
                     if (!isNaN(itemIndex) && currentItems[itemIndex]) {
                          showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                              const itemToRemove = currentItems[itemIndex];
+                             state.simpleNoteScrollPosition = contentContainer.scrollTop;
                              await updateDoc(sessionRef, {
                                  contentItems: arrayRemove(itemToRemove),
                                  updatedAt: serverTimestamp()
@@ -1258,8 +1258,7 @@
                          });
                     }
                 }
-                
-                // --- ИСПРАВЛЕНИЕ: Логика для кнопки копирования ---
+
                 const copyBtn = e.target.closest('.copy-note-code-btn');
                 if (copyBtn) {
                     const codeBlock = copyBtn.closest('.note-item').querySelector('code');
@@ -1275,6 +1274,17 @@
                 }
             });
             
+            // --- ИСПРАВЛЕНИЕ: Динамически изменяем стиль пустых блоков кода ---
+            contentContainer.querySelectorAll('pre').forEach((preElement) => {
+                const codeElement = preElement.querySelector('code');
+                if (codeElement && codeElement.innerText.trim() === '') {
+                    // Уменьшаем вертикальные отступы и задаем минимальную высоту
+                    preElement.style.paddingTop = '0.5rem';
+                    preElement.style.paddingBottom = '0.5rem';
+                    preElement.style.minHeight = '3rem'; 
+                }
+            });
+
             contentContainer.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightElement(block);
             });
@@ -1792,7 +1802,17 @@
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
+                    // --- ИСПРАВЛЕНИЕ: Сохраняем и восстанавливаем позицию скролла ---
+                    const scrollPos = state.simpleNoteScrollPosition;
                     render();
+                    if (scrollPos !== null && state.activeTab === 'simplenote') {
+                        const contentContainer = document.getElementById('simple-note-content');
+                        if (contentContainer) {
+                            contentContainer.scrollTop = scrollPos;
+                        }
+                        // Сбрасываем сохраненную позицию, чтобы она не применялась при обычном переключении вкладок
+                        state.simpleNoteScrollPosition = null; 
+                    }
                 }
             }, error => console.error("Session listener error: ", error));
         

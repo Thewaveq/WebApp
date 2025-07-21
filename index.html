@@ -1441,74 +1441,45 @@
             });
     
             const createNewItem = async (type) => {
-                // --- НАЧАЛО ИСПРАВЛЕННОЙ ЛОГИКИ ---
-
-                // 1. Создаем временный ID и базовый объект для немедленного отображения
-                const tempId = `temp_${Date.now()}`;
-                let title = 'Новый элемент';
-                let tempSessionObject = {
-                    id: tempId,
-                    type: type,
-                    // Имитируем объект timestamp, чтобы сортировка работала сразу
-                    updatedAt: { toMillis: () => Date.now() }
-                };
-                let firebaseData = {};
-    
+                let newSessionData;
                 if (type === 'chat') {
-                    title = 'Новый чат';
                     let providerId = null;
                     let modelName = null;
                     if (state.providers.length > 0) {
                         const firstProvider = state.providers[0];
                         providerId = firstProvider.id;
                         const models = firstProvider.models || [];
-                        if (models.length > 0) modelName = models[0];
+                        if (models.length > 0) {
+                            modelName = models[0];
+                        }
                     }
-                    tempSessionObject = { ...tempSessionObject, title, messages: [], providerId, modelName, roleId: '' };
-                    firebaseData = { type: 'chat', title, messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else if (type === 'notepad') {
-                    title = 'Новая папка';
-                    tempSessionObject = { ...tempSessionObject, title, cards: [] };
-                    firebaseData = { type: 'notepad', title, cards: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    newSessionData = { 
+                        type: 'notepad', 
+                        title: 'Новая папка', 
+                        cards: [],
+                        createdAt: serverTimestamp(), 
+                        updatedAt: serverTimestamp() 
+                    };
                 } else if (type === 'simplenote') {
-                    title = 'Новая простая заметка';
-                    tempSessionObject = { ...tempSessionObject, title, content: '' };
-                    firebaseData = { type: 'simplenote', title, content: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    newSessionData = {
+                        type: 'simplenote',
+                        title: 'Новая простая заметка',
+                        content: '',
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    };
                 }
-    
-                // 2. Немедленно обновляем ЛОКАЛЬНОЕ СОСТОЯНИЕ
-                state.activeSessionId = tempId;
-                state.sessions.unshift(tempSessionObject); // Добавляем в начало массива состояния
-    
-                // 3. Вызываем полный ререндеринг на основе обновленного состояния. "Прыжка" не будет.
+                
+                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                state.activeSessionId = newSessionRef.id;
+                
                 render();
-    
                 if (window.innerWidth < 1024) { 
                     sidebar.classList.remove('open'); 
                     sidebarBackdrop.classList.add('hidden'); 
                 }
-    
-                // 4. Асинхронно отправляем реальные данные в Firebase
-                try {
-                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), firebaseData);
-                    
-                    // 5. Как только мы получили реальный ID, обновляем его в нашем состоянии,
-                    // чтобы активная сессия не была потеряна до того, как сработает onSnapshot.
-                    state.activeSessionId = newSessionRef.id;
-                    const sessionInState = state.sessions.find(s => s.id === tempId);
-                    if (sessionInState) {
-                        sessionInState.id = newSessionRef.id;
-                    }
-
-                } catch (error) {
-                    console.error("Ошибка при создании нового элемента:", error);
-                    // В случае ошибки, откатываем изменение состояния и ререндерим
-                    state.sessions = state.sessions.filter(s => s.id !== tempId);
-                    state.activeSessionId = state.sessions.length > 0 ? state.sessions[0].id : null;
-                    render();
-                    showModalAlert('Не удалось создать новый элемент.');
-                }
-                // --- КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ ---
             };
     
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
@@ -1566,7 +1537,9 @@
                             async () => {
                                 const messagesForRegen = activeSession.messages.slice(0, messageIndex);
                                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                                // 1. Немедленно обновляем UI, удаляя старые сообщения
                                 await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                                // 2. Запускаем генерацию нового ответа
                                 await generateAssistantResponse(messagesForRegen);
                             }
                         );
@@ -1614,7 +1587,9 @@
                             messagesForSubmit.push({ role: 'user', content: newContent });
                             
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            // 1. Немедленно обновляем UI с новым сообщением пользователя и удаляем старые
                             await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
+                            // 2. Запускаем генерацию ответа
                             await generateAssistantResponse(messagesForSubmit);
                         }
                     });

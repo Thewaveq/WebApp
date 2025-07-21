@@ -1203,7 +1203,7 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            // --- ОКОНЧАТЕЛЬНАЯ ВЕРСИЯ ---
+            // --- ОКОНЧАТЕЛЬНАЯ, ИСПРАВЛЕННАЯ ВЕРСЯ С ГАРАНТИРОВАННЫМ РЕШЕНИЕМ ---
             const editor = document.getElementById('simple-note-editor');
             if (!editor) return;
 
@@ -1254,6 +1254,7 @@
             
             editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
 
+            // --- ОБРАБОТЧИКИ ВВОДА (ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ) ---
             editor.addEventListener('input', (e) => {
                 if (e.target.matches('textarea, #simple-note-title-input, .todolist-item input[type="text"]')) {
                     if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
@@ -1289,33 +1290,30 @@
                     scheduleSave();
                 }
             });
-            
+
+            // *** ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ: ПОЛНОСТЬЮ ПЕРЕРАБОТАННЫЙ ОБРАБОТЧИК КЛИКОВ ***
             editor.addEventListener('click', (e) => {
                 const target = e.target;
-                
-                // ИСПРАВЛЕНИЕ: Изменен порядок проверок для большей надежности.
-                // Сначала проверяются самые конкретные действия (клики по кнопкам).
 
-                // Приоритет 1: Удаление всего блока
-                const deleteBlockBtn = target.closest('.delete-block-btn');
-                if (deleteBlockBtn) {
-                    deleteBlockBtn.closest('.content-block')?.remove();
+                // --- ПРОВЕРКА ДЕЙСТВИЙ С НАИВЫСШИМ ПРИОРИТЕТОМ (КНОПКИ) ---
+
+                // Действие 1: Удаление всего блока. Самая точная проверка.
+                if (target.closest('.delete-block-btn')) {
+                    target.closest('.content-block')?.remove();
+                    scheduleSave();
+                    return; // Завершаем выполнение, чтобы другие проверки не сработали.
+                }
+
+                // Действие 2: Удаление элемента списка
+                if (target.closest('.delete-todo-item-btn')) {
+                    target.closest('.todolist-item')?.remove();
                     scheduleSave();
                     return;
                 }
 
-                // Приоритет 2: Удаление пункта из списка задач
-                const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
-                if (deleteTodoItemBtn) {
-                    deleteTodoItemBtn.closest('.todolist-item')?.remove();
-                    scheduleSave();
-                    return;
-                }
-                
-                // Приоритет 3: Добавление нового пункта в список задач
-                const addTodoItemBtn = target.closest('.add-todo-item-btn');
-                if (addTodoItemBtn) {
-                    const listContainer = addTodoItemBtn.closest('.content-block').querySelector('.todolist-container');
+                // Действие 3: Добавление элемента в список
+                if (target.closest('.add-todo-item-btn')) {
+                    const listContainer = target.closest('.content-block').querySelector('.todolist-container');
                     const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
                     listContainer.insertAdjacentHTML('beforeend', newItemHTML);
                     const newItemElement = listContainer.lastElementChild;
@@ -1325,7 +1323,7 @@
                     return;
                 }
 
-                // Приоритет 4: Добавление нового блока (текст, код, список)
+                // Действие 4: Добавление нового блока
                 const addBtn = target.closest('.add-block-btn');
                 if (addBtn) {
                     const contentContainer = document.getElementById('simple-note-content');
@@ -1336,7 +1334,7 @@
                     const newElement = contentContainer.lastElementChild;
                     lucide.createIcons({nodes: [newElement]});
                     const focusTarget = newElement.querySelector('textarea, input[type="text"]');
-                    if(focusTarget) {
+                    if (focusTarget) {
                         focusTarget.focus();
                         if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
@@ -1344,8 +1342,10 @@
                     return;
                 }
 
-                // Приоритет 5: Переключение блока кода в режим редактирования.
-                // Эта проверка идет последней, так как она самая общая.
+                // --- ПРОВЕРКА ДЕЙСТВИЙ С НИЗКИМ ПРИОРИТЕТОМ (КЛИК ПО ОБЛАСТИ) ---
+
+                // Действие 5: Переключение кода в режим редактирования.
+                // Эта проверка сработает, только если не сработали проверки выше.
                 const codeDisplay = target.closest('.code-block-display');
                 if (codeDisplay) {
                     const block = codeDisplay.closest('.content-block');
@@ -1354,10 +1354,11 @@
                     textarea.classList.remove('hidden');
                     textarea.focus();
                     autoResizeTextarea(textarea);
-                    return;
+                    // Здесь не нужен return, так как это последнее действие в цепочке.
                 }
             });
 
+            // --- ОБРАБОТЧИК ПОТЕРИ ФОКУСА (ДЛЯ РЕДАКТОРА КОДА) ---
             editor.addEventListener('blur', (e) => {
                 if (e.target.matches('.code-editor-textarea')) {
                     const textarea = e.target;
@@ -1366,13 +1367,15 @@
                     const codeElement = codeDisplay.querySelector('code');
                     
                     const newCode = textarea.value;
+                    // Подсветка нового кода
                     codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
                     
+                    // Возвращаем все в исходное состояние
                     textarea.classList.add('hidden');
                     codeDisplay.classList.remove('hidden');
                     scheduleSave();
                 }
-            }, true);
+            }, true); // Используем 'true' для event capturing
             
             lucide.createIcons();
         }

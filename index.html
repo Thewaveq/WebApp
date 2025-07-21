@@ -872,13 +872,15 @@
         function getSimpleNotepadViewHTML(activeSession) {
             const itemsHTML = (activeSession.contentItems || [{type: 'text', content: ''}])
                 .map((item, index) => {
+                    // --- ИСПРАВЛЕНИЕ: Добавлена кнопка копирования и относительное позиционирование ---
                     if (item.type === 'code') {
                         return `
-                        <div class="note-item group" data-item-index="${index}" data-type="code">
-                             <div class="relative prose max-w-none">
+                        <div class="note-item group relative" data-item-index="${index}" data-type="code">
+                             <div class="prose max-w-none">
                                 <pre><code class="language-javascript" contenteditable="true" spellcheck="false">${item.content || ''}</code></pre>
                              </div>
-                             <button class="delete-item-btn absolute top-2 right-2 p-1.5 text-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                             <button class="copy-note-code-btn absolute top-3 right-12 p-1.5 text-text-secondary hover:text-accent transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                             <button class="delete-item-btn absolute top-3 right-2 p-1.5 text-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                         `;
                     }
@@ -1166,16 +1168,14 @@
             const titleInput = document.getElementById('simple-note-title-input');
             const contentContainer = document.getElementById('simple-note-content');
             
-            if (!state.activeSessionId) return;
+            if (!state.activeSessionId || !contentContainer) return;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             
-            // --- Сохранение заголовка ---
             titleInput?.addEventListener('change', () => {
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
             
             const saveNoteContent = async () => {
-                if (!contentContainer) return;
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
                     const type = el.dataset.type;
@@ -1194,7 +1194,6 @@
                 });
             };
 
-            // --- Динамическая высота для textarea ---
             const autoResizeTextarea = (textarea) => {
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
@@ -1208,27 +1207,29 @@
                 }
             });
 
-            // --- Сохранение при потере фокуса ---
             contentContainer.addEventListener('focusout', (e) => {
                  if (e.target.matches('textarea, code')) {
                     saveNoteContent();
                     if(e.target.matches('code')) {
-                       // Перезапускаем подсветку после редактирования
                        hljs.highlightElement(e.target);
                     }
                  }
             });
 
-            // --- Обработка кнопок добавления и удаления ---
+            // --- ИСПРАВЛЕНИЕ: Перехват событий вынесен в один обработчик ---
             contentContainer.addEventListener('click', async (e) => {
-                 const currentItemCount = contentContainer.querySelectorAll('.note-item').length;
-
                 const addItem = async (type) => {
                     const newItem = { type: type, content: '' };
                      await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
                         updatedAt: serverTimestamp()
                     });
+                    
+                    // --- ИСПРАВЛЕНИЕ: Прокрутка к новому элементу после ререндеринга ---
+                    setTimeout(() => {
+                        const newElement = contentContainer.querySelector('.note-item:last-of-type');
+                        newElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 200);
                 };
                 
                 if (e.target.closest('#add-text-item-btn')) {
@@ -1257,9 +1258,23 @@
                          });
                     }
                 }
+                
+                // --- ИСПРАВЛЕНИЕ: Логика для кнопки копирования ---
+                const copyBtn = e.target.closest('.copy-note-code-btn');
+                if (copyBtn) {
+                    const codeBlock = copyBtn.closest('.note-item').querySelector('code');
+                    if(codeBlock) {
+                        navigator.clipboard.writeText(codeBlock.innerText);
+                        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                            lucide.createIcons();
+                        }, 2000);
+                        lucide.createIcons();
+                    }
+                }
             });
             
-            // --- Инициализация подсветки кода ---
             contentContainer.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightElement(block);
             });

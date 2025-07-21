@@ -1176,10 +1176,20 @@
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
             
-            const saveNoteContent = async () => {
+            // ИЗМЕНЕНИЕ: В эту функцию добавлен параметр `focusedElement`
+            const saveNoteContent = async (focusedElement = null) => {
                 if (!contentContainer) return;
                 
+                // Запоминаем позицию скролла как запасной вариант
                 state.simpleNoteScrollPosition = contentContainer.scrollTop;
+                
+                // ИЗМЕНЕНИЕ: Запоминаем индекс элемента, который потерял фокус
+                if (focusedElement) {
+                    const itemEl = focusedElement.closest('.note-item');
+                    if (itemEl) {
+                        state.focusedItemIndex = parseInt(itemEl.dataset.itemIndex, 10);
+                    }
+                }
 
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
@@ -1212,9 +1222,10 @@
                 }
             });
 
+            // ИЗМЕНЕНИЕ: Теперь мы передаем элемент в saveNoteContent
             contentContainer.addEventListener('focusout', (e) => {
                  if (e.target.matches('textarea, code')) {
-                    saveNoteContent();
+                    saveNoteContent(e.target); // Передаем сам элемент, потерявший фокус
                     if(e.target.matches('code')) {
                        hljs.highlightElement(e.target);
                     }
@@ -1223,8 +1234,10 @@
 
             contentContainer.addEventListener('click', async (e) => {
                 const addItem = async (type) => {
+                    // При добавлении блока запоминаем текущую позицию, а не индекс
+                    state.simpleNoteScrollPosition = contentContainer.scrollTop + 50; // небольшой доп. скролл вниз
+                    state.focusedItemIndex = null; // сбрасываем индекс
                     const newItem = { type: type, content: '' };
-                    state.simpleNoteScrollPosition = contentContainer.scrollTop;
                      await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
                         updatedAt: serverTimestamp()
@@ -1241,6 +1254,10 @@
 
                 const deleteBtn = e.target.closest('.delete-item-btn');
                 if (deleteBtn) {
+                    // При удалении тоже используем позицию, а не индекс
+                    state.simpleNoteScrollPosition = contentContainer.scrollTop;
+                    state.focusedItemIndex = null;
+
                     const itemEl = deleteBtn.closest('.note-item');
                     const itemIndex = parseInt(itemEl.dataset.itemIndex, 10);
                     
@@ -1250,7 +1267,6 @@
                     if (!isNaN(itemIndex) && currentItems[itemIndex]) {
                          showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                              const itemToRemove = currentItems[itemIndex];
-                             state.simpleNoteScrollPosition = contentContainer.scrollTop;
                              await updateDoc(sessionRef, {
                                  contentItems: arrayRemove(itemToRemove),
                                  updatedAt: serverTimestamp()
@@ -1274,11 +1290,9 @@
                 }
             });
             
-            // --- ИСПРАВЛЕНИЕ: Динамически изменяем стиль пустых блоков кода ---
             contentContainer.querySelectorAll('pre').forEach((preElement) => {
                 const codeElement = preElement.querySelector('code');
                 if (codeElement && codeElement.innerText.trim() === '') {
-                    // Уменьшаем вертикальные отступы и задаем минимальную высоту
                     preElement.style.paddingTop = '0.5rem';
                     preElement.style.paddingBottom = '0.5rem';
                     preElement.style.minHeight = '3rem'; 
@@ -1802,24 +1816,34 @@
                     state.activeSessionId = null;
                 }
                 if (!state.isLoading) {
-                    // Сохраняем текущую позицию скролла перед полной перерисовкой
+                    // Запоминаем значения перед перерисовкой
                     const scrollPos = state.simpleNoteScrollPosition;
-                    render();
+                    const focusedIndex = state.focusedItemIndex;
                     
-                    // Проверяем, нужно ли восстанавливать позицию
-                    if (scrollPos !== null && state.activeTab === 'simplenote') {
+                    render(); // Полная перерисовка
+                    
+                    if (state.activeTab === 'simplenote') {
                         const contentContainer = document.getElementById('simple-note-content');
                         if (contentContainer) {
-                            // ИЗМЕНЕНИЕ: Оборачиваем установку скролла в requestAnimationFrame.
-                            // Это гарантирует, что DOM (включая все textarea) уже отрисован
-                            // и имеет правильную высоту перед тем, как мы установим позицию прокрутки.
+                            // ИЗМЕНЕНИЕ: Логика восстановления позиции
                             requestAnimationFrame(() => {
-                                contentContainer.scrollTop = scrollPos;
+                                if (focusedIndex !== null && focusedIndex !== undefined) {
+                                    // ПРИОРИТЕТ: Найти элемент по индексу и прокрутить к нему
+                                    const elementToFocus = contentContainer.querySelector(`.note-item[data-item-index="${focusedIndex}"]`);
+                                    if (elementToFocus) {
+                                        elementToFocus.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                                    }
+                                } else if (scrollPos !== null) {
+                                    // ЗАПАСНОЙ ВАРИАНТ: Если индекса нет (добавление/удаление), используем позицию
+                                    contentContainer.scrollTop = scrollPos;
+                                }
                             });
                         }
-                        // Сбрасываем сохраненную позицию, чтобы она не применялась при следующих обновлениях, не связанных с заметками.
-                        state.simpleNoteScrollPosition = null; 
                     }
+
+                    // Сбрасываем временные состояния, чтобы они не мешали следующим обновлениям
+                    state.simpleNoteScrollPosition = null; 
+                    state.focusedItemIndex = null;
                 }
             }, error => console.error("Session listener error: ", error));
         

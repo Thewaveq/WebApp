@@ -587,6 +587,10 @@
                      if (activeSession) {
                         mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
                         setupSimpleNotepadViewEventListeners();
+                        // ИЗМЕНЕНИЕ: Запускаем подсветку после рендера
+                        mainContent.querySelectorAll('pre code').forEach((block) => {
+                           hljs.highlightElement(block);
+                        });
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('simplenote');
                     }
@@ -885,30 +889,37 @@
             }
             
             const generateBlockHTML = (block) => {
-                // Кнопка удаления теперь отдельный элемент, который будет размещен сбоку.
                 const deleteButtonHTML = `<div class="block-actions flex-shrink-0 pl-2"><button class="delete-block-btn p-1.5 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-red-500/10" data-block-id="${block.id}" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
                 
-                // Весь блок теперь обернут во flex-контейнер для разделения контента и кнопки.
                 const baseBlockWrapperStart = `<div class="content-block group flex items-start" data-block-id="${block.id}" data-type="${block.type}">`;
-                const contentWrapperStart = `<div class="content-wrapper flex-grow min-w-0">`; // min-w-0 для правильного сжатия flex-элемента
+                const contentWrapperStart = `<div class="content-wrapper flex-grow min-w-0">`;
                 const contentWrapperEnd = `</div>`;
                 const baseBlockWrapperEnd = `</div>`;
-        
+
+                // Функция для безопасного экранирования HTML
+                const escapeHtml = (unsafe) => {
+                    if (typeof unsafe !== 'string') return '';
+                    return unsafe
+                         .replace(/&/g, "&")
+                         .replace(/</g, "<")
+                         .replace(/>/g, ">")
+                         .replace(/"/g, """)
+                         .replace(/'/g, "'");
+                }
+
                 switch(block.type) {
                     case 'code':
                         const codeValue = block.value || '';
-                        // Проверка на существование hljs перед использованием
-                        const highlightedCode = typeof hljs !== 'undefined' 
-                            ? hljs.highlight(codeValue, {language: 'javascript', ignoreIllegals: true}).value
-                            : codeValue.replace(/</g, "<").replace(/>/g, ">"); // Простое экранирование если hljs не доступен
-        
+                        // ИЗМЕНЕНИЕ: Мы больше не вызываем highlight.js здесь.
+                        // Вместо этого мы вставляем экранированный текст кода.
+                        // Подсветка будет применена позже, когда блок уже будет в DOM.
                         return `
                             ${baseBlockWrapperStart}
                                 ${contentWrapperStart}
                                     <div class="code-block-display cursor-pointer" title="Нажмите, чтобы редактировать">
-                                        <pre class="hljs rounded-lg p-4"><code class="language-javascript">${highlightedCode}</code></pre>
+                                        <pre class="hljs rounded-lg p-4"><code class="language-javascript">${escapeHtml(codeValue)}</code></pre>
                                     </div>
-                                    <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed hidden" rows="5">${codeValue}</textarea>
+                                    <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed hidden" rows="5">${escapeHtml(codeValue)}</textarea>
                                 ${contentWrapperEnd}
                                 ${deleteButtonHTML}
                             ${baseBlockWrapperEnd}`;
@@ -917,7 +928,7 @@
                             .map((item) => `
                                 <div class="todolist-item group flex items-center gap-2">
                                     <input type="checkbox" ${item.checked ? 'checked' : ''} class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0">
-                                    <input type="text" value="${item.text || ''}" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
+                                    <input type="text" value="${escapeHtml(item.text || '')}" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
                                     <button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button>
                                 </div>
                             `).join('');
@@ -936,15 +947,15 @@
                          return `
                             ${baseBlockWrapperStart}
                                 ${contentWrapperStart}
-                                    <textarea class="w-full bg-transparent p-2 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${block.value || ''}</textarea>
+                                    <textarea class="w-full bg-transparent p-2 resize-none focus:outline-none text-base leading-relaxed" placeholder="Начните писать..." rows="1">${escapeHtml(block.value || '')}</textarea>
                                 ${contentWrapperEnd}
                                 ${deleteButtonHTML}
                             ${baseBlockWrapperEnd}`;
                 }
             };
-        
+
             const contentHTML = contentBlocks.map(generateBlockHTML).join('');
-        
+
             return `
                 <div class="flex flex-col h-full">
                     <div id="simple-note-editor" class="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 max-w-4xl mx-auto w-full">
@@ -1243,8 +1254,6 @@
 
                     switch(type) {
                         case 'code':
-                            value = blockEl.querySelector('textarea').value;
-                            break;
                         case 'paragraph':
                             value = blockEl.querySelector('textarea').value;
                             break;
@@ -1308,22 +1317,20 @@
             
             editor.addEventListener('click', (e) => {
                 const target = e.target;
-                
-                // --- ИСПРАВЛЕННАЯ ЛОГИКА С ПРАВИЛЬНЫМ ПРИОРИТЕТОМ ---
 
-                // Действие 1 (ВЫСШИЙ ПРИОРИТЕТ): Клик по блоку кода для редактирования.
+                // Действие 1: Клик по блоку кода для редактирования.
                 const codeDisplay = target.closest('.code-block-display');
                 if (codeDisplay) {
                     const block = codeDisplay.closest('.content-block');
-                    const textarea = block.querySelector('.code-editor-textarea');
+                    const textarea = block.querySelector('textarea');
                     codeDisplay.classList.add('hidden');
                     textarea.classList.remove('hidden');
                     textarea.focus();
                     autoResizeTextarea(textarea);
-                    return; // Завершаем, чтобы другие проверки не сработали.
+                    return;
                 }
 
-                // Действие 2: Удаление блока. Эта проверка сработает, только если не сработала первая.
+                // Действие 2: Удаление блока.
                 const deleteBlockBtn = target.closest('.delete-block-btn');
                 if (deleteBlockBtn) {
                     deleteBlockBtn.closest('.content-block')?.remove();
@@ -1331,7 +1338,7 @@
                     return;
                 }
                 
-                // Действие 3: Клик по кнопкам в списке задач.
+                // Действие 3: Логика для списка задач.
                 const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
                 if (deleteTodoItemBtn) {
                     deleteTodoItemBtn.closest('.todolist-item')?.remove();
@@ -1359,6 +1366,13 @@
                     const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
                     contentContainer.insertAdjacentHTML('beforeend', newBlockHTML);
                     const newElement = contentContainer.lastElementChild;
+
+                    // ИЗМЕНЕНИЕ: Если добавили блок кода, его надо подсветить.
+                    if (type === 'code') {
+                        const codeTag = newElement.querySelector('pre code');
+                        if (codeTag) hljs.highlightElement(codeTag);
+                    }
+
                     lucide.createIcons({nodes: [newElement]});
                     const focusTarget = newElement.querySelector('textarea, input[type="text"]');
                     if(focusTarget) {
@@ -1379,11 +1393,10 @@
                     const codeElement = codeDisplay.querySelector('code');
                     
                     const newCode = textarea.value;
-                    if (typeof hljs !== 'undefined') {
-                       codeElement.innerHTML = hljs.highlight(newCode, {language: 'javascript', ignoreIllegals: true}).value;
-                    } else {
-                       codeElement.textContent = newCode;
-                    }
+
+                    // ИЗМЕНЕНИЕ: Безопасно обновляем содержимое и заново подсвечиваем.
+                    codeElement.textContent = newCode;
+                    hljs.highlightElement(codeElement);
                     
                     textarea.classList.add('hidden');
                     codeDisplay.classList.remove('hidden');

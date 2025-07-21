@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -287,49 +288,118 @@
                 color: var(--accent);
                 background-color: var(--bg-element);
             }
-
-            .note-block-wrapper {
-                position: relative;
-                padding-top: 8px;
-                padding-bottom: 8px;
-                /* Четкий визуальный разделитель */
-                border-bottom: 1px solid var(--border-color);
-            }
-            .note-block-wrapper:last-child {
-                border-bottom: none; /* У последнего блока разделителя нет */
-            }
             
-            /* Кнопка удаления, которая появляется при наведении */
-            .note-block-wrapper .delete-block-btn {
-                display: none;
+            /* --- СТИЛИ ДЛЯ ПРОСТЫХ ЗАМЕТОК (БЛОЧНЫЙ РЕДАКТОР) --- */
+            .note-block {
+                position: relative;
+                padding-left: 2rem; 
+                margin-bottom: 0.5rem;
+            }
+            .note-block:hover .delete-block-btn {
+                opacity: 1;
+            }
+            .delete-block-btn {
                 position: absolute;
-                left: -2.5rem;
+                left: 0;
                 top: 50%;
                 transform: translateY(-50%);
-                padding: 4px;
+                opacity: 0;
+                transition: opacity 0.2s;
                 color: var(--text-secondary);
-                border-radius: 9999px;
-                cursor: pointer;
-            }
-            .note-block-wrapper:hover .delete-block-btn {
-                display: flex;
+                padding: 0.25rem;
             }
             .delete-block-btn:hover {
-                background-color: var(--danger);
-                color: white;
+                color: var(--danger);
             }
-            
-            /* "Подвал" для кнопки "+" */
-            #editor-footer {
-                position: sticky;
-                bottom: 0;
-                padding-top: 1rem;
-                background-color: var(--bg-main);
-                z-index: 10;
+            .note-block textarea {
+                background-color: transparent;
+                width: 100%;
+                resize: none;
+                overflow: hidden;
+                padding: 0.25rem 0;
             }
-            #block-inserter-menu {
-                bottom: 100%; /* Меню появляется НАД кнопкой */
+            .note-block textarea:focus {
+                outline: none;
+                background-color: rgba(59, 130, 246, 0.1); /* Slight blue bg on focus */
+                border-radius: 4px;
+            }
+            .add-block-container {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 1rem 0;
+                margin-top: 1rem;
+            }
+            .add-block-btn {
+                color: var(--text-secondary);
+                border: 2px dashed var(--border-color);
+                border-radius: 9999px;
+                width: 2rem;
+                height: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            }
+            .add-block-container:hover .add-block-btn {
+                 color: var(--accent);
+                 border-color: var(--accent);
+            }
+            .add-block-menu {
+                display: none;
+                position: absolute;
+                bottom: 100%; /* Position above the '+' button */
                 margin-bottom: 0.5rem;
+                background-color: var(--bg-element);
+                border: 1px solid var(--border-color);
+                border-radius: 0.5rem;
+                padding: 0.5rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .add-block-container:hover .add-block-menu {
+                display: flex;
+            }
+            .add-block-menu-item {
+                background-color: var(--bg-input);
+                color: var(--text-primary);
+                padding: 0.5rem 0.75rem;
+                border-radius: 0.3rem;
+                cursor: pointer;
+                transition: background-color 0.2s;
+                text-align: left;
+                width: 100%;
+                display: flex;
+                align-items: center;
+            }
+            .add-block-menu-item:hover {
+                background-color: var(--accent);
+            }
+            .task-item {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 0.25rem;
+            }
+            .task-item input[type="checkbox"] {
+                width: 1rem;
+                height: 1rem;
+                accent-color: var(--accent);
+                background-color: var(--bg-input);
+                border-radius: 0.2rem;
+            }
+            .task-item input[type="text"] {
+                flex-grow: 1;
+                background: transparent;
+                border: none;
+                outline: none;
+            }
+            .task-item.completed input[type="text"] {
+                text-decoration: line-through;
+                color: var(--text-secondary);
             }
     </style>
 </head>
@@ -338,7 +408,7 @@
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden lg:hidden"></div>
     <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
         <div class="p-4 border-b border-border-color flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool V26.</h1>
+            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool V23.</h1>
         </div>
         <div class="p-2 flex-shrink-0">
             <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
@@ -912,41 +982,84 @@
                 </div>
             `;
         }
-
-        function getSimpleNotepadViewHTML(activeSession) {
-            // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
-            const blockInserterMenuHTML = `
-                <div id="block-inserter-menu" class="absolute z-20 w-48 bg-bg-element border border-border-color rounded-md shadow-lg py-1 hidden">
-                    <button data-block-type="paragraph" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="pilcrow" class="w-4 h-4 mr-2"></i>Текст</button>
-                    <button data-block-type="quote" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="quote" class="w-4 h-4 mr-2"></i>Цитата</button>
-                    <button data-block-type="code" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="code-2" class="w-4 h-4 mr-2"></i>Блок кода</button>
-                    <button data-block-type="todolist" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="check-square" class="w-4 h-4 mr-2"></i>Список задач</button>
-                </div>
-            `;
+        
+        // НОВАЯ ФУНКЦИЯ ДЛЯ ПРОСТЫХ ЗАМЕТОК
+        function getSimpleNotepadViewHTML(session) {
+            // "Мягкая миграция" старых заметок. Если contentBlocks нет, а content есть - конвертируем.
+            if (!session.contentBlocks && typeof session.content === 'string') {
+                session.contentBlocks = [{
+                    id: 'block_' + Date.now(),
+                    type: 'text',
+                    content: session.content
+                }];
+                // Удаляем старое поле, чтобы в будущем не было конфликтов
+                delete session.content;
+            } else if (!session.contentBlocks) {
+                // Если заметка совсем пустая
+                session.contentBlocks = [];
+            }
+        
+            const blocksHTML = session.contentBlocks.map(block => {
+                switch(block.type) {
+                    case 'text':
+                        return `
+                            <div class="note-block" data-block-id="${block.id}" data-block-type="text">
+                                <button class="delete-block-btn" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                <textarea class="text-base leading-relaxed" placeholder="Введите текст..." rows="1">${block.content || ''}</textarea>
+                            </div>`;
+                    case 'code':
+                        return `
+                             <div class="note-block bg-bg-input rounded-md p-2" data-block-id="${block.id}" data-block-type="code">
+                                <button class="delete-block-btn" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                <div class="pl-4">
+                                    <select class="code-lang-select bg-bg-element text-xs rounded mb-2 p-1">
+                                        <option ${block.lang === 'javascript' ? 'selected' : ''} value="javascript">JavaScript</option>
+                                        <option ${block.lang === 'python' ? 'selected' : ''} value="python">Python</option>
+                                        <option ${block.lang === 'html' ? 'selected' : ''} value="html">HTML</option>
+                                        <option ${block.lang === 'css' ? 'selected' : ''} value="css">CSS</option>
+                                        <option ${block.lang === 'bash' ? 'selected' : ''} value="bash">Bash</option>
+                                        <option ${block.lang === 'json' ? 'selected' : ''} value="json">JSON</option>
+                                    </select>
+                                    <textarea class="font-mono text-sm leading-relaxed" placeholder="Вставьте ваш код..." rows="3">${block.content || ''}</textarea>
+                                </div>
+                             </div>`;
+                    case 'tasklist':
+                         const tasksHTML = (block.tasks || []).map((task, index) => `
+                            <div class="task-item ${task.completed ? 'completed' : ''}" data-task-index="${index}">
+                                <input type="checkbox" ${task.completed ? 'checked' : ''}>
+                                <input type="text" value="${task.text}" placeholder="Новая задача...">
+                            </div>
+                        `).join('');
+                        return `
+                            <div class="note-block" data-block-id="${block.id}" data-block-type="tasklist">
+                               <button class="delete-block-btn" title="Удалить блок"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                               <div class="tasks-container">${tasksHTML}</div>
+                               <button class="add-task-item-btn text-xs text-text-secondary hover:text-accent ml-8 mt-1">+ Добавить пункт</button>
+                            </div>`;
+                    default:
+                        return '';
+                }
+            }).join('');
         
             return `
                 <div class="flex flex-col h-full">
-                    <div class="flex-shrink-0 p-4 border-b border-border-color">
-                        <input type="text" id="simple-note-title-input" 
-                               class="bg-transparent text-2xl font-bold focus:outline-none w-full" 
-                               value="${activeSession.title || ''}" 
-                               placeholder="Название заметки">
+                    <div class="p-4 flex-shrink-0">
+                         <input type="text" id="simple-note-title-input" class="bg-transparent text-3xl font-bold focus:outline-none w-full px-1" value="${session.title || ''}" placeholder="Название заметки">
                     </div>
-                    <div id="simple-note-editor-wrapper" class="flex-grow overflow-y-auto p-4 flex flex-col">
-                        <div id="simple-note-editor" class="prose prose-invert max-w-none focus:outline-none flex-grow">
-                            <!-- Блоки рендерятся сюда -->
-                        </div>
-                        <div id="editor-footer" class="relative">
-                             <button id="add-block-btn" class="w-full flex items-center justify-start text-text-secondary hover:text-text-primary transition-colors p-2 rounded-md hover:bg-bg-element">
-                                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
-                                <span>Добавить блок</span>
-                            </button>
-                            ${blockInserterMenuHTML}
+                    <div id="simple-note-editor" class="flex-grow overflow-y-auto px-4 lg:px-8">
+                        ${blocksHTML}
+                        <div class="add-block-container group">
+                             <div class="add-block-menu">
+                                <button class="add-block-menu-item" data-type="text"><i data-lucide="pilcrow" class="w-4 h-4 mr-2"></i>Текст</button>
+                                <button class="add-block-menu-item" data-type="code"><i data-lucide="code" class="w-4 h-4 mr-2"></i>Блок кода</button>
+                                <button class="add-block-menu-item" data-type="tasklist"><i data-lucide="check-square" class="w-4 h-4 mr-2"></i>Список задач</button>
+                            </div>
+                            <div class="add-block-btn">
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
+                </div>`;
         }
         
         function renderRoles() {
@@ -1202,151 +1315,131 @@
             lucide.createIcons();
         }
 
+        // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ПРОСТЫХ ЗАМЕТОК
         function setupSimpleNotepadViewEventListeners() {
-            // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
             const titleInput = document.getElementById('simple-note-title-input');
             const editor = document.getElementById('simple-note-editor');
-            const addBtn = document.getElementById('add-block-btn');
-            const inserterMenu = document.getElementById('block-inserter-menu');
+            if (!state.activeSessionId || !editor) return;
         
-            if (!editor || !state.activeSessionId) return;
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
         
-            let blocks = [];
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-        
-            // --- Надежное сохранение ---
-            const debounce = (func, delay) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => func.apply(this, a), delay); }; };
-            const saveNote = async () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                await updateDoc(sessionRef, { title: titleInput.value, content: blocks, updatedAt: serverTimestamp() });
-            };
-            const debouncedSave = debounce(saveNote, 1500);
-        
-            // --- Функции, которые РАБОТАЮТ ---
-            const createBlockElement = (block) => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'note-block-wrapper';
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-block-btn';
-                deleteBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
-                wrapper.appendChild(deleteBtn);
-        
-                let contentEl;
-                if (block.type === 'paragraph') { contentEl = document.createElement('p'); contentEl.innerText = block.content; }
-                if (block.type === 'quote') { contentEl = document.createElement('blockquote'); const p = document.createElement('p'); p.innerText = block.content; contentEl.appendChild(p); }
-                if (block.type === 'code') { contentEl = document.createElement('pre'); const code = document.createElement('code'); code.innerText = block.content; contentEl.appendChild(code); }
-                if (block.type === 'todolist') {
-                    contentEl = document.createElement('div');
-                    (block.content || []).forEach(item => {
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'flex items-center todo-item py-1';
-                        itemDiv.innerHTML = `<input type="checkbox" class="mr-3 w-4 h-4" ${item.checked ? 'checked' : ''}>`;
-                        const textSpan = document.createElement('span');
-                        textSpan.className = `todo-item-text ${item.checked ? 'checked' : ''}`;
-                        textSpan.innerText = item.text;
-                        itemDiv.appendChild(textSpan);
-                        contentEl.appendChild(itemDiv);
-                    });
-                }
-                
-                contentEl.querySelectorAll('p, code, span.todo-item-text').forEach(el => el.contentEditable = 'true');
-                wrapper.appendChild(contentEl);
-                return wrapper;
+            const autoResizeTextarea = (element) => {
+                if (element.tagName.toLowerCase() !== 'textarea') return;
+                element.style.height = 'auto';
+                element.style.height = (element.scrollHeight) + 'px';
             };
             
-            const insertNewBlock = (type, index) => {
-                const newBlockData = { id: 'block_' + Date.now(), type, content: type === 'todolist' ? [{ text: '', checked: false }] : '' };
-                blocks.splice(index, 0, newBlockData);
-                const newElement = createBlockElement(newBlockData);
-                editor.insertBefore(newElement, editor.children[index] || null);
-                lucide.createIcons({ nodes: [newElement] });
-                newElement.querySelector('[contenteditable]').focus();
-                debouncedSave();
+            // Инициализация размеров всех textarea при загрузке
+            editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
+        
+            const saveNote = async () => {
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                if (!activeSession) return;
+                
+                // Важно: мы обновляем объект activeSession в `state` напрямую из DOM
+                // перед отправкой в Firestore.
+                const updatedBlocks = Array.from(editor.querySelectorAll('.note-block')).map(blockEl => {
+                    const blockId = blockEl.dataset.blockId;
+                    const blockType = blockEl.dataset.blockType;
+                    const originalBlock = activeSession.contentBlocks.find(b => b.id === blockId) || {};
+                    
+                    switch(blockType) {
+                        case 'text':
+                            return { ...originalBlock, id: blockId, type: 'text', content: blockEl.querySelector('textarea').value };
+                        case 'code':
+                             return { ...originalBlock, id: blockId, type: 'code', lang: blockEl.querySelector('select').value, content: blockEl.querySelector('textarea').value };
+                        case 'tasklist':
+                            const tasks = Array.from(blockEl.querySelectorAll('.task-item')).map(taskEl => ({
+                                text: taskEl.querySelector('input[type="text"]').value,
+                                completed: taskEl.querySelector('input[type="checkbox"]').checked
+                            }));
+                            return { ...originalBlock, id: blockId, type: 'tasklist', tasks: tasks };
+                        default:
+                            return null;
+                    }
+                }).filter(Boolean); // отфильтровываем null
+        
+                activeSession.title = titleInput.value;
+                activeSession.contentBlocks = updatedBlocks;
+                
+                // Удаляем старое поле 'content' если оно все еще есть
+                const updateData = {
+                    title: activeSession.title,
+                    contentBlocks: activeSession.contentBlocks,
+                    content: deleteField(), 
+                    updatedAt: serverTimestamp()
+                };
+        
+                await updateDoc(sessionRef, updateData);
             };
         
-            const removeBlock = (element) => {
-                const index = Array.from(editor.children).indexOf(element);
-                if (index > -1 && blocks.length > 1) {
-                    blocks.splice(index, 1);
-                    element.remove();
-                    debouncedSave();
-                }
-            };
+            // Сохранение при потере фокуса с любого элемента ввода
+            editor.addEventListener('focusout', saveNote);
+            titleInput?.addEventListener('focusout', saveNote);
         
-            // --- Инициализация и обработчики ---
-            // Надежная инициализация: всегда создает рабочий массив
-            const initialContent = activeSession?.content;
-            if (Array.isArray(initialContent) && initialContent.length > 0) {
-                blocks = initialContent;
-            } else {
-                blocks = [{ id: 'block_init', type: 'paragraph', content: (typeof initialContent === 'string' ? initialContent : '') }];
-            }
-            editor.innerHTML = '';
-            blocks.forEach(block => editor.appendChild(createBlockElement(block)));
-            lucide.createIcons();
-        
-            // Обработчик, который НАКОНЕЦ-ТО РАБОТАЕТ
+            // Авто-изменение размера при вводе
             editor.addEventListener('input', (e) => {
-                const target = e.target;
-                if (!target.isContentEditable) return;
-                
-                const wrapper = target.closest('.note-block-wrapper');
-                const index = Array.from(editor.children).indexOf(wrapper);
-                if (index === -1) return;
-                
-                const block = blocks[index];
-                if (block.type === 'todolist') {
-                    block.content = Array.from(wrapper.querySelectorAll('.todo-item')).map(item => ({
-                        text: item.querySelector('.todo-item-text').innerText,
-                        checked: item.querySelector('input').checked,
-                    }));
-                } else {
-                    block.content = target.innerText;
-                }
-                debouncedSave();
-            });
-        
-            editor.addEventListener('keydown', (e) => {
-                const target = e.target;
-                if (!target.isContentEditable) return;
-        
-                const wrapper = target.closest('.note-block-wrapper');
-                const index = Array.from(editor.children).indexOf(wrapper);
-        
-                if (e.key === 'Enter' && !e.shiftKey && !wrapper.querySelector('pre')) {
-                    e.preventDefault();
-                    insertNewBlock('paragraph', index + 1);
-                }
-                if (e.key === 'Backspace' && target.innerText === '' && blocks.length > 1) {
-                    e.preventDefault();
-                    removeBlock(wrapper);
+                if (e.target.tagName.toLowerCase() === 'textarea') {
+                    autoResizeTextarea(e.target);
                 }
             });
         
-            editor.addEventListener('click', (e) => {
+            // Обработка кликов (удаление, добавление, отметка задач)
+            editor.addEventListener('click', async (e) => {
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                if (!activeSession) return;
+        
+                // Добавление нового блока
+                const addBtn = e.target.closest('.add-block-menu-item');
+                if (addBtn) {
+                    const type = addBtn.dataset.type;
+                    let newBlock;
+                    const newId = 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        
+                    if (type === 'text') newBlock = { id: newId, type: 'text', content: '' };
+                    else if (type === 'code') newBlock = { id: newId, type: 'code', lang: 'javascript', content: '' };
+                    else if (type === 'tasklist') newBlock = { id: newId, type: 'tasklist', tasks: [{ text: '', completed: false }] };
+        
+                    if (newBlock) {
+                       activeSession.contentBlocks.push(newBlock);
+                       await saveNote(); // Сохраняем и перерисовываем
+                       render(); // Полная перерисовка для добавления нового элемента
+                    }
+                    return;
+                }
+        
+                // Удаление блока
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (deleteBtn) {
-                    removeBlock(deleteBtn.parentElement);
+                    const blockEl = deleteBtn.closest('.note-block');
+                    const blockId = blockEl.dataset.blockId;
+                    activeSession.contentBlocks = activeSession.contentBlocks.filter(b => b.id !== blockId);
+                    await saveNote();
+                    render();
+                    return;
                 }
-            });
-            
-            // Управление меню добавления
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                inserterMenu.classList.toggle('hidden');
-            });
-            inserterMenu.addEventListener('click', (e) => {
-                const typeBtn = e.target.closest('[data-block-type]');
-                if (typeBtn) {
-                    insertNewBlock(typeBtn.dataset.blockType, blocks.length);
-                    inserterMenu.classList.add('hidden');
+                
+                // Добавление новой задачи в список
+                const addTaskBtn = e.target.closest('.add-task-item-btn');
+                if (addTaskBtn) {
+                    const blockEl = addTaskBtn.closest('.note-block');
+                    const blockId = blockEl.dataset.blockId;
+                    const block = activeSession.contentBlocks.find(b => b.id === blockId);
+                    if (block && block.type === 'tasklist') {
+                        if (!block.tasks) block.tasks = [];
+                        block.tasks.push({ text: '', completed: false });
+                        await saveNote();
+                        render();
+                    }
+                    return;
                 }
+
+                // Отметка задачи выполненной
+                 const checkbox = e.target.closest('.task-item input[type="checkbox"]');
+                 if (checkbox) {
+                     await saveNote(); // Просто сохраняем состояние, так как DOM уже обновился
+                 }
             });
-            document.addEventListener('click', () => inserterMenu.classList.add('hidden'));
-        
-            titleInput.addEventListener('input', debouncedSave);
-            // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1670,10 +1763,16 @@
                         updatedAt: serverTimestamp() 
                     };
                 } else if (type === 'simplenote') {
+                    // ИЗМЕНЕНИЕ: Новая структура для простых заметок
                     newSessionData = {
                         type: 'simplenote',
-                        title: 'Новая простая заметка',
-                        content: '',
+                        title: 'Новая заметка',
+                        // Создаем сразу с одним пустым текстовым блоком для удобства пользователя
+                        contentBlocks: [{
+                           id: 'block_' + Date.now(),
+                           type: 'text',
+                           content: '' 
+                        }],
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp()
                     };
@@ -1853,12 +1952,32 @@
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+                let sessionJustCreated = false;
+                const newSessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Проверяем, не была ли только что создана новая сессия
+                if(newSessions.length > state.sessions.length) {
+                    const currentIds = state.sessions.map(s => s.id);
+                    const isNew = newSessions.find(s => !currentIds.includes(s.id));
+                    if(isNew && isNew.id === state.activeSessionId) {
+                       sessionJustCreated = true;
+                    }
+                }
+
+                state.sessions = newSessions.sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
-                if (!state.isLoading) {
+                
+                // Не перерисовываем, если мы находимся в процессе редактирования простой заметки,
+                // чтобы не сбивать фокус. Перерисовка будет вызвана вручную после сохранения.
+                const isEditingSimpleNote = state.activeTab === 'simplenote' && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT');
+
+                if (!state.isLoading && !isEditingSimpleNote && !sessionJustCreated) {
+                    render();
+                } else if (sessionJustCreated) {
                     render();
                 }
             }, error => console.error("Session listener error: ", error));

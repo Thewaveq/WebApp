@@ -723,16 +723,36 @@
             
             const rawHtml = marked.parse(processedContent);
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-            
+
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = 'absolute top-2 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
+
+            if (isUser) {
+                const editButton = document.createElement('button');
+                editButton.className = 'edit-message-btn p-1 text-text-secondary hover:text-accent';
+                editButton.title = 'Редактировать и отправить заново';
+                editButton.dataset.messageIndex = index;
+                editButton.innerHTML = `<i data-lucide="pencil" class="w-4 h-4"></i>`;
+                actionsContainer.appendChild(editButton);
+            } else {
+                const regenerateButton = document.createElement('button');
+                regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary hover:text-accent';
+                regenerateButton.title = 'Перегенерировать ответ';
+                regenerateButton.dataset.messageIndex = index;
+                regenerateButton.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i>`;
+                actionsContainer.appendChild(regenerateButton);
+            }
+
             const deleteButton = document.createElement('button');
-            const deleteButtonPosition = 'right-2'; 
-            deleteButton.className = `delete-message-btn absolute bottom-1 ${deleteButtonPosition} p-1 text-text-secondary hover:text-red-400 hidden group-hover:flex`;
+            deleteButton.className = `delete-message-btn p-1 text-text-secondary hover:text-red-400`;
+            deleteButton.title = 'Удалить сообщение';
             deleteButton.dataset.messageIndex = index;
             deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
-
+            actionsContainer.appendChild(deleteButton);
+            
             messageWrapper.appendChild(headerDiv);
             messageWrapper.appendChild(contentDiv);
-            messageWrapper.appendChild(deleteButton);
+            messageWrapper.appendChild(actionsContainer);
 
             messageWrapper.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
@@ -1126,18 +1146,39 @@
             document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
         }
         
-        async function handleChatSubmit(e) {
+        async function handleChatSubmit(e, regenerationConfig = null) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
             const messagesContainer = document.getElementById('chat-messages');
-            const messageContent = input.value.trim();
-            if (!messageContent || state.isLoading) return;
-
+        
+            let messagesToSubmit;
+            const isRegeneration = regenerationConfig !== null;
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+        
+            if (state.isLoading) return;
+        
+            if (isRegeneration) {
+                messagesToSubmit = regenerationConfig.messages;
+                if(regenerationConfig.uiCleanup) regenerationConfig.uiCleanup();
+            } else {
+                const messageContent = input.value.trim();
+                if (!messageContent) return;
+                
+                const userMessage = { role: 'user', content: messageContent };
+                messagesToSubmit = [...(activeSession.messages || []), userMessage];
+                
+                const userMessageElement = createMessageElement(userMessage, messagesToSubmit.length - 1);
+                messagesContainer.querySelectorAll('.message-placeholder').forEach(p => p.remove());
+                messagesContainer.appendChild(userMessageElement);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                input.value = '';
+                input.style.height = 'auto';
+            }
+        
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
             const modelName = activeSession.modelName;
-
+        
             if (!provider) {
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
                 return;
@@ -1146,32 +1187,20 @@
                 showModalAlert("Пожалуйста, выберите модель для этого провайдера.");
                 return;
             }
-
             const apiKeys = provider.apiKeys || [];
             if (apiKeys.length === 0) {
                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
                 return;
             }
-
-            const userMessage = { role: 'user', content: messageContent };
-            const currentMessages = activeSession.messages || [];
-            const userMessageElement = createMessageElement(userMessage, currentMessages.length);
-            messagesContainer.querySelectorAll('.message-placeholder').forEach(p => p.remove());
-            messagesContainer.appendChild(userMessageElement);
-
-            input.value = '';
-            input.style.height = 'auto';
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
+        
             state.isLoading = true;
             updateLoadingIndicator();
             showTypingIndicatorInChat();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            const newMessages = [...currentMessages, userMessage];
+        
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-            await updateDoc(sessionRef, { messages: newMessages, updatedAt: serverTimestamp() });
-
+            await updateDoc(sessionRef, { messages: messagesToSubmit, updatedAt: serverTimestamp() });
+        
             let assistantMessageContent = '';
             let isSuccess = false;
             let lastError = 'Неизвестная ошибка.';
@@ -1180,8 +1209,8 @@
             if (selectedRole && selectedRole.content) {
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
             }
-            apiMessagesPayload.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
-
+            apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
+        
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
@@ -1208,7 +1237,7 @@
                         const errorMessage = data.error?.message || JSON.stringify(data.error);
                         throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
-
+        
                     assistantMessageContent = data.choices[0].message.content;
                     isSuccess = true;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
@@ -1224,7 +1253,7 @@
                 ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
                 : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: modelName };
             
-            const finalMessages = [...newMessages, assistantMessage];
+            const finalMessages = [...messagesToSubmit, assistantMessage];
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
             state.isLoading = false;
@@ -1504,6 +1533,76 @@
                     }
                 }
     
+                const regenerateBtn = e.target.closest('.regenerate-message-btn');
+                if (regenerateBtn) {
+                    if (state.isLoading) return;
+                    const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showConfirmModal(
+                            'Вы уверены, что хотите перегенерировать этот ответ? Вся история чата после этого сообщения будет удалена.',
+                            () => {
+                                const messagesForRegen = activeSession.messages.slice(0, messageIndex);
+                                handleChatSubmit(new Event('submit'), { messages: messagesForRegen });
+                            }
+                        );
+                    }
+                }
+    
+                const editBtn = e.target.closest('.edit-message-btn');
+                if (editBtn) {
+                    if (state.isLoading) return;
+                    const messageContainer = editBtn.closest('.message-container');
+                    const contentDiv = messageContainer.querySelector('.prose');
+                    if (messageContainer.querySelector('.edit-form')) return; 
+
+                    const messageIndex = parseInt(editBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const originalContent = activeSession.messages[messageIndex].content;
+
+                    contentDiv.classList.add('hidden');
+
+                    const editForm = document.createElement('div');
+                    editForm.className = 'edit-form w-full mt-2';
+                    editForm.innerHTML = `
+                        <textarea class="w-full bg-input border border-border-color rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-accent" rows="3"></textarea>
+                        <div class="flex justify-end items-center mt-2 space-x-2">
+                             <button class="cancel-edit-btn px-3 py-1 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Отмена</button>
+                             <button class="save-edit-btn px-3 py-1 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors text-sm">Сохранить и отправить</button>
+                        </div>
+                    `;
+                    contentDiv.after(editForm);
+                    
+                    const textarea = editForm.querySelector('textarea');
+                    textarea.value = originalContent;
+                    textarea.focus();
+                    textarea.style.height = 'auto';
+                    textarea.style.height = (textarea.scrollHeight) + 'px';
+                    textarea.addEventListener('input', () => {
+                       textarea.style.height = 'auto';
+                       textarea.style.height = (textarea.scrollHeight) + 'px';
+                    });
+
+                    editForm.querySelector('.save-edit-btn').addEventListener('click', () => {
+                        const newContent = textarea.value.trim();
+                        if (newContent) {
+                            const messagesForRegen = activeSession.messages.slice(0, messageIndex);
+                            messagesForRegen.push({ role: 'user', content: newContent });
+                            
+                            const uiCleanup = () => {
+                                editForm.remove();
+                                contentDiv.classList.remove('hidden');
+                            };
+                            handleChatSubmit(new Event('submit'), { messages: messagesForRegen, uiCleanup: uiCleanup });
+                        }
+                    });
+
+                    editForm.querySelector('.cancel-edit-btn').addEventListener('click', () => {
+                        editForm.remove();
+                        contentDiv.classList.remove('hidden');
+                    });
+                }
+                
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;

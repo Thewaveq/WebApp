@@ -705,6 +705,10 @@
                         // Затем наполняем его содержимым
                         renderSimpleNoteContent(activeSession);
                         setupSimpleNotepadViewEventListeners();
+                        // Прокручиваем вниз после рендеринга, чтобы увидеть конец заметки
+                        setTimeout(() => {
+                            mainContent.scrollTop = mainContent.scrollHeight;
+                        }, 0);
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('simplenote');
                     }

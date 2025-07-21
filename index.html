@@ -523,105 +523,6 @@
             }
             lucide.createIcons();
         }
-
-        function renderSimpleNoteContent(session) {
-            const container = document.getElementById('simple-note-content-container');
-            if (!container) return;
-
-            // Улучшенная обработка данных для обратной совместимости и надежности
-            let contentBlocks = session.content;
-            if (typeof contentBlocks === 'string') {
-                contentBlocks = [{ id: 'legacy_0', type: 'text', content: contentBlocks }];
-            } else if (!Array.isArray(contentBlocks)) {
-                contentBlocks = [];
-            } else {
-                contentBlocks = contentBlocks.map(block => {
-                    if (typeof block !== 'object' || block === null) return null;
-                     const newBlock = {
-                        type: block.type || 'text',
-                        content: block.content ?? block.text ?? '',
-                        ...block,
-                    };
-                    delete newBlock.text; // Удаляем старое поле
-                    delete newBlock.language; // Удаляем неиспользуемое поле языка
-                    return newBlock;
-                }).filter(Boolean); // Убираем невалидные блоки
-            }
-
-            const activeElement = document.activeElement;
-            const activeBlockId = activeElement?.closest('[data-id]')?.dataset.id;
-            
-            const existingBlockElements = new Map();
-            container.querySelectorAll('[data-id]').forEach(el => {
-                existingBlockElements.set(el.dataset.id, el);
-            });
-
-            contentBlocks.forEach(blockData => {
-                const existingEl = existingBlockElements.get(blockData.id);
-
-                if (existingEl && existingEl.dataset.type === blockData.type) {
-                    // Блок существует, обновляем если он не в фокусе
-                    if (blockData.id !== activeBlockId) {
-                        if (blockData.type === 'code') {
-                            const codeEl = existingEl.querySelector('code');
-                            if (codeEl.innerText !== blockData.content) {
-                                codeEl.innerText = blockData.content;
-                                hljs.highlightElement(codeEl);
-                            }
-                        } else {
-                            const textarea = existingEl.querySelector('textarea');
-                            if (textarea.value !== blockData.content) textarea.value = blockData.content;
-                        }
-                    }
-                    existingBlockElements.delete(blockData.id);
-                } else {
-                    // Блока нет, или его тип изменился - создаем заново
-                    if (existingEl) existingEl.remove();
-
-                    const blockWrapper = document.createElement('div');
-                    blockWrapper.dataset.id = blockData.id;
-                    blockWrapper.dataset.type = blockData.type;
-                    
-                    const actionsPanelHTML = `
-                        <div class="flex justify-end items-center gap-2 p-2 border-b border-border-color">
-                            <button class="copy-block-btn p-1.5 text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors" title="Копировать содержимое">
-                                <i data-lucide="copy" class="w-4 h-4"></i>
-                            </button>
-                            <button class="delete-block-btn p-1.5 text-text-secondary border border-border-color rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    `;
-
-                    if (blockData.type === 'code') {
-                        // ИЗМЕНЕНИЕ: Добавлен класс 'message-container' для совместимости со стилями ширины
-                        blockWrapper.className = "message-container code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg mb-4";
-                        blockWrapper.innerHTML = `
-                            ${actionsPanelHTML}
-                            <pre class="p-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-b-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
-                        `;
-                        container.appendChild(blockWrapper);
-                        const codeElement = blockWrapper.querySelector('code');
-                        hljs.highlightElement(codeElement);
-                    } else { // type 'text'
-                        // ИЗМЕНЕНИЕ: Добавлен класс 'message-container' для совместимости со стилями ширины
-                        blockWrapper.className = "message-container text-block-wrapper bg-bg-sidebar border border-border-color rounded-lg mb-4";
-                        blockWrapper.innerHTML = `
-                           ${actionsPanelHTML}
-                           <textarea class="w-full bg-input rounded-b-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>
-                        `;
-                        container.appendChild(blockWrapper);
-                        const newTextarea = blockWrapper.querySelector('textarea');
-                        newTextarea.style.height = 'auto';
-                        newTextarea.style.height = (newTextarea.scrollHeight) + 'px';
-                    }
-                    lucide.createIcons({ nodes: [blockWrapper] });
-                    existingBlockElements.delete(blockData.id);
-                }
-            });
-
-            existingBlockElements.forEach(blockEl => blockEl.remove());
-        }
     
         function renderMainContent() {
             if (chatObserver) {
@@ -678,14 +579,7 @@
                 case 'simplenote':
                      if (activeSession) {
                         mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
-                        renderSimpleNoteContent(activeSession);
                         setupSimpleNotepadViewEventListeners();
-                        setTimeout(() => {
-                            const container = document.getElementById('simple-note-content-container');
-                            if (container) {
-                                container.scrollTop = container.scrollHeight;
-                            }
-                        }, 0);
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('simplenote');
                     }
@@ -896,49 +790,52 @@
             if (!messagesContainer) return;
             
             const sessionMessages = session.messages || [];
-            // Проверяем, был ли пользователь внизу ДО того, как мы начнем менять DOM
             const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5;
+            const existingMessageElements = messagesContainer.querySelectorAll('.message-placeholder, .message-container');
 
-            // Полная перерисовка с помощью IntersectionObserver
-            // Это нужно при первой загрузке или при удалении сообщений (регенерации)
-            if (chatObserver) chatObserver.disconnect();
-            messagesContainer.innerHTML = '';
-            
-            const observerCallback = (entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const placeholder = entry.target;
-                        const msg = JSON.parse(placeholder.dataset.message);
-                        const index = parseInt(placeholder.dataset.messageIndex, 10);
-                        const messageElement = createMessageElement(msg, index);
-                        placeholder.parentNode.replaceChild(messageElement, placeholder);
-                        observer.unobserve(placeholder);
-                    }
+            if (sessionMessages.length < existingMessageElements.length) {
+                if (chatObserver) chatObserver.disconnect();
+                messagesContainer.innerHTML = '';
+                
+                const observerCallback = (entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const placeholder = entry.target;
+                            const msg = JSON.parse(placeholder.dataset.message);
+                            const index = parseInt(placeholder.dataset.messageIndex, 10);
+                            const messageElement = createMessageElement(msg, index);
+                            placeholder.parentNode.replaceChild(messageElement, placeholder);
+                            observer.unobserve(messageElement);
+                        }
+                    });
+                };
+                chatObserver = new IntersectionObserver(observerCallback, { root: messagesContainer, rootMargin: '200px 0px' });
+
+                sessionMessages.forEach((msg, index) => {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'message-placeholder';
+                    placeholder.dataset.message = JSON.stringify(msg);
+                    placeholder.dataset.messageIndex = String(index);
+                    messagesContainer.appendChild(placeholder);
+                    chatObserver.observe(placeholder);
                 });
-            };
-            chatObserver = new IntersectionObserver(observerCallback, { root: messagesContainer, rootMargin: '200px 0px' });
 
-            sessionMessages.forEach((msg, index) => {
-                const placeholder = document.createElement('div');
-                placeholder.className = 'message-placeholder';
-                placeholder.dataset.message = JSON.stringify(msg);
-                placeholder.dataset.messageIndex = String(index);
-                messagesContainer.appendChild(placeholder);
-                chatObserver.observe(placeholder);
-            });
+            } else {
+                const messagesToAdd = sessionMessages.slice(existingMessageElements.length);
+                if (messagesToAdd.length > 0) {
+                    const loadingIndicator = document.getElementById('loading-message-placeholder');
+                    if(loadingIndicator) loadingIndicator.remove();
 
-            // Если пользователь был внизу, прокручиваем его к новому низу.
-            // setTimeout(..., 0) дает браузеру время обработать вставку элементов перед прокруткой.
-            if (isScrolledToBottom) {
-                setTimeout(() => {
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }, 0);
+                    messagesToAdd.forEach((msg, i) => {
+                        const newIndex = existingMessageElements.length + i;
+                        const messageElement = createMessageElement(msg, newIndex);
+                        messagesContainer.appendChild(messageElement);
+                    });
+                }
             }
-            
-            // Если индикатор загрузки уже есть от предыдущей операции, он останется.
-            // Если его нет, он будет добавлен функцией generateAssistantResponse.
-            if (state.isLoading) {
-                 showTypingIndicatorInChat();
+
+            if (isScrolledToBottom) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
     
@@ -957,14 +854,10 @@
             `).join('');
         
             return `
-                <div class="flex flex-col h-full">
-                    <div class="flex-shrink-0 p-3 border-b border-border-color">
-                         <div class="flex items-center gap-3">
-                            <input type="text" id="note-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
-                         </div>
-                    </div>
+                <div class="flex flex-col h-full p-4">
+                    <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                     
-                    <div class="flex-grow overflow-y-auto p-4">
+                    <div class="flex-grow overflow-y-auto pr-2">
                         <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             ${cardsHTML}
                             <button id="add-new-card-btn" class="min-h-[180px] flex items-center justify-center rounded-lg">
@@ -977,35 +870,7 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            const isCompact = state.isChatWidthCompact; // Используем тот же флаг состояния для консистентности
-            const containerClasses = `flex-grow w-full overflow-y-auto p-4 space-y-4 ${isCompact ? 'chat-view-compact' : ''}`;
-
-            return `
-                <div class="flex flex-col h-full">
-                    <div class="flex-shrink-0 p-3 border-b border-border-color">
-                         <div class="flex items-center justify-between gap-3">
-                            <button id="chat-width-toggle" title="Переключить ширину" class="p-2 rounded-md hover:bg-bg-input hidden lg:flex flex-shrink-0">
-                                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
-                            </button>
-                            <input type="text" id="simple-note-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название заметки">
-                         </div>
-                    </div>
-                    <div id="simple-note-content-container" class="${containerClasses}">
-                    </div>
-                    <div class="flex-shrink-0 p-4 border-t border-border-color">
-                        <div class="flex items-center justify-center gap-3">
-                             <button id="add-new-text-block-btn" class="w-full flex items-center justify-center py-2 px-4 rounded-md border-2 border-dashed border-border-color text-text-secondary hover:border-accent hover:text-accent transition-colors">
-                                <i data-lucide="pilcrow" class="w-5 h-5 mr-2"></i>
-                                Текст
-                            </button>
-                             <button id="add-new-code-block-btn" class="w-full flex items-center justify-center py-2 px-4 rounded-md border-2 border-dashed border-border-color text-text-secondary hover:border-accent hover:text-accent transition-colors">
-                                <i data-lucide="code" class="w-5 h-5 mr-2"></i>
-                                Код
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
+            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
         }
         
         function renderRoles() {
@@ -1263,175 +1128,18 @@
 
         function setupSimpleNotepadViewEventListeners() {
             const titleInput = document.getElementById('simple-note-title-input');
-            const contentContainer = document.getElementById('simple-note-content-container');
-            const addNewTextBtn = document.getElementById('add-new-text-block-btn');
-            const addNewCodeBtn = document.getElementById('add-new-code-block-btn');
-            const widthToggleBtn = document.getElementById('chat-width-toggle');
-
-            if (!state.activeSessionId) return;
-
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
-            // Обработчик для кнопки переключения ширины
-            if(widthToggleBtn) {
-                const isExpanded = !state.isChatWidthCompact;
-                widthToggleBtn.classList.toggle('active', isExpanded);
-                widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
-        
-                widthToggleBtn.addEventListener('click', () => {
-                    state.isChatWidthCompact = !state.isChatWidthCompact;
-                    const isNowExpanded = !state.isChatWidthCompact;
-        
-                    localStorage.setItem('chatViewCompact', state.isChatWidthCompact);
-        
-                    contentContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
-                    widthToggleBtn.classList.toggle('active', isNowExpanded);
-        
-                    widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
-                });
-            }
-
-            titleInput?.addEventListener('change', () => {
-                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
-            });
-            
-            const addNewBlock = async (type) => {
-                const newBlock = {
-                    id: 'content_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
-                    type: type,
-                    content: ''
-                };
-                if (type === 'code') {
-                    newBlock.language = 'javascript'; // Язык по умолчанию
-                }
-                await updateDoc(sessionRef, {
-                    content: arrayUnion(newBlock),
+            const contentTextarea = document.getElementById('simple-note-content-textarea');
+            const saveNote = () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                updateDoc(sessionRef, {
+                    title: titleInput.value,
+                    content: contentTextarea.value,
                     updatedAt: serverTimestamp()
                 });
             };
-
-            addNewTextBtn?.addEventListener('click', () => addNewBlock('text'));
-            addNewCodeBtn?.addEventListener('click', () => addNewBlock('code'));
-
-            contentContainer?.addEventListener('click', e => {
-                const deleteBtn = e.target.closest('.delete-block-btn');
-                if (deleteBtn) {
-                    const blockWrapper = deleteBtn.closest('[data-id]');
-                    const blockId = blockWrapper.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        const content = activeSession.content || [];
-                        const blockToDelete = content.find(b => b.id === blockId);
-
-                        if (blockToDelete) {
-                            await updateDoc(sessionRef, {
-                                content: arrayRemove(blockToDelete),
-                                updatedAt: serverTimestamp()
-                            });
-                        }
-                    });
-                    return;
-                }
-
-                const copyBtn = e.target.closest('.copy-block-btn');
-                if (copyBtn) {
-                    const blockWrapper = copyBtn.closest('[data-id]');
-                    if (!blockWrapper) return;
-
-                    const blockType = blockWrapper.dataset.type;
-                    let textToCopy = '';
-
-                    if (blockType === 'code') {
-                        const codeEl = blockWrapper.querySelector('code');
-                        if (codeEl) textToCopy = codeEl.innerText;
-                    } else if (blockType === 'text') {
-                        const textareaEl = blockWrapper.querySelector('textarea');
-                        if (textareaEl) textToCopy = textareaEl.value;
-                    }
-
-                    if (textToCopy) {
-                        navigator.clipboard.writeText(textToCopy);
-                        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                        lucide.createIcons({nodes: [copyBtn]});
-                        setTimeout(() => {
-                            copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                            lucide.createIcons({nodes: [copyBtn]});
-                        }, 2000);
-                    }
-                }
-            });
-            
-            let saveTimeout;
-            const debouncedSave = (blockId, newValues) => {
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => {
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession) return;
-                    
-                    const currentContent = activeSession.content || [];
-                    let blockChanged = false;
-                    const updatedContent = currentContent.map(block => {
-                        if (block.id === blockId) {
-                            const updatedBlock = { ...block, ...newValues };
-                            if (JSON.stringify(block) !== JSON.stringify(updatedBlock)) {
-                                blockChanged = true;
-                                return updatedBlock;
-                            }
-                        }
-                        return block;
-                    });
-                    
-                    if (blockChanged) {
-                         updateDoc(sessionRef, {
-                            content: updatedContent,
-                            updatedAt: serverTimestamp()
-                        });
-                    }
-                }, 750);
-            };
-
-            contentContainer?.addEventListener('input', e => {
-                const target = e.target;
-                const blockWrapper = target.closest('[data-id]');
-                if (!blockWrapper) return;
-                
-                const blockId = blockWrapper.dataset.id;
-                const blockType = blockWrapper.dataset.type;
-
-                if (blockType === 'text' && target.tagName === 'TEXTAREA') {
-                    target.style.height = 'auto';
-                    target.style.height = (target.scrollHeight) + 'px';
-                    debouncedSave(blockId, { content: target.value });
-                } else if (blockType === 'code' && target.tagName === 'CODE') {
-                    debouncedSave(blockId, { content: target.innerText });
-                }
-            });
-            
-            contentContainer?.addEventListener('focusout', e => {
-                const codeElement = e.target;
-                if (codeElement.tagName === 'CODE' && codeElement.closest('[data-type="code"]')) {
-                    if(window.hljs) {
-                         hljs.highlightElement(codeElement);
-                    }
-                }
-            });
-            
-            contentContainer?.addEventListener('change', e => {
-                const target = e.target;
-                if (target.classList.contains('language-selector')) {
-                    const blockWrapper = target.closest('[data-id]');
-                    const blockId = blockWrapper.dataset.id;
-                    const newLang = target.value;
-                    const codeEl = blockWrapper.querySelector('code');
-                    codeEl.className = `hljs language-${newLang}`;
-                     if(window.hljs) {
-                        hljs.highlightElement(codeEl);
-                     }
-                    debouncedSave(blockId, { language: newLang });
-                }
-            });
-
-            lucide.createIcons();
+            titleInput?.addEventListener('blur', saveNote);
+            contentTextarea?.addEventListener('blur', saveNote);
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1943,8 +1651,6 @@
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
-                // НЕ перерисовываем, если модель генерирует ответ.
-                // Это сохранит индикатор загрузки и предотвратит моргание.
                 if (!state.isLoading) {
                     render();
                 }

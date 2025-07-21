@@ -1202,19 +1202,130 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            const titleInput = document.getElementById('simple-note-title-input');
-            const contentTextarea = document.getElementById('simple-note-content-textarea');
-            const saveNote = () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            const container = document.getElementById('main-content');
+            if (!container) return;
+
+            const titleInput = container.querySelector('#simple-note-title-input');
+            const blocksContainer = container.querySelector('#simple-note-blocks-container');
+            const addTextBlockBtn = container.querySelector('#add-text-block-btn');
+            const addCodeBlockBtn = container.querySelector('#add-code-block-btn');
+            
+            if (!state.activeSessionId) return;
+
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+
+            // --- Миграция для старых заметок (остается без изменений, но важна) ---
+            if (activeSession && typeof activeSession.content === 'string' && !activeSession.contentBlocks) {
+                const initialBlock = {
+                    id: 'block_' + Date.now(),
+                    type: 'text',
+                    content: activeSession.content || ''
+                };
                 updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: contentTextarea.value,
+                    contentBlocks: [initialBlock],
+                    content: deleteField()
+                });
+                return; // Выходим, ждем ререндера после обновления данных
+            }
+            
+            // Если ключевые элементы не найдены, выходим, чтобы избежать ошибок
+            if (!titleInput || !blocksContainer || !addTextBlockBtn || !addCodeBlockBtn) {
+                return;
+            }
+
+            // Функция для подстройки высоты текстового поля
+            const autoResizeTextarea = (textarea) => {
+                if (!textarea) return;
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+            };
+
+            // Применяем авто-высоту ко всем существующим полям
+            blocksContainer.querySelectorAll('.simple-note-content-textarea').forEach(autoResizeTextarea);
+            
+            // --- ОСНОВНАЯ ЛОГИКА ---
+
+            // Функция добавления нового блока
+            const addNewBlock = async (type) => {
+                const newBlock = {
+                    id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                    type: type,
+                    content: ''
+                };
+                
+                // Используем arrayUnion для атомарного добавления элемента в массив в Firestore
+                await updateDoc(sessionRef, {
+                    contentBlocks: arrayUnion(newBlock),
                     updatedAt: serverTimestamp()
                 });
+
+                // После обновления данных onSnapshot автоматически перерисует интерфейс.
+                // Прокрутка и фокус на новом элементе для удобства.
+                setTimeout(() => {
+                    const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"] textarea`);
+                    newBlockElement?.focus();
+                    newBlockElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 200);
             };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
+
+            // НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ
+            addTextBlockBtn.onclick = () => addNewBlock('text');
+            addCodeBlockBtn.onclick = () => addNewBlock('code');
+            
+            titleInput.onchange = () => {
+                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            };
+            
+            // Используем делегирование для динамически создаваемых элементов
+            blocksContainer.addEventListener('input', (e) => {
+                if (e.target.matches('.simple-note-content-textarea')) {
+                    autoResizeTextarea(e.target);
+                }
+            });
+
+            blocksContainer.addEventListener('focusout', (e) => {
+                if (e.target.matches('.simple-note-content-textarea')) {
+                    const blockEl = e.target.closest('.simple-note-block');
+                    const blockId = blockEl.dataset.blockId;
+                    const newContent = e.target.value;
+
+                    const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const currentBlocks = currentSession?.contentBlocks || [];
+                    
+                    const updatedBlocks = currentBlocks.map(block => 
+                        block.id === blockId ? { ...block, content: newContent } : block
+                    );
+                    
+                    // Сравниваем, чтобы не делать лишних записей в БД
+                    if (JSON.stringify(currentBlocks) !== JSON.stringify(updatedBlocks)) {
+                        updateDoc(sessionRef, { 
+                            contentBlocks: updatedBlocks, 
+                            updatedAt: serverTimestamp() 
+                        });
+                    }
+                }
+            });
+
+            blocksContainer.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.delete-block-btn');
+                if (deleteBtn) {
+                    const blockEl = deleteBtn.closest('.simple-note-block');
+                    const blockId = blockEl.dataset.blockId;
+                    
+                    showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
+                        const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
+                        const blockToDelete = (currentSession?.contentBlocks || []).find(b => b.id === blockId);
+
+                        if (blockToDelete) {
+                            await updateDoc(sessionRef, {
+                                contentBlocks: arrayRemove(blockToDelete),
+                                updatedAt: serverTimestamp()
+                            });
+                        }
+                    });
+                }
+            });
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1541,7 +1652,6 @@
                     newSessionData = {
                         type: 'simplenote',
                         title: 'Новая простая заметка',
-                        // Начинаем с одного пустого текстового блока для удобства
                         contentBlocks: [{
                             id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
                             type: 'text',
@@ -1555,7 +1665,6 @@
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                 state.activeSessionId = newSessionRef.id;
                 
-                render();
                 if (window.innerWidth < 1024) { 
                     sidebar.classList.remove('open'); 
                     sidebarBackdrop.classList.add('hidden'); 

@@ -870,8 +870,48 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
-        }
+        // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
+    
+        // Структура для меню добавления блоков
+        const blockInserterMenuHTML = `
+            <div id="block-inserter-menu" class="absolute z-20 w-48 bg-bg-element border border-border-color rounded-md shadow-lg py-1 hidden">
+                <button data-block-type="paragraph" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
+                    <i data-lucide="pilcrow" class="w-4 h-4 mr-2"></i>Текст
+                </button>
+                <button data-block-type="quote" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
+                    <i data-lucide="quote" class="w-4 h-4 mr-2"></i>Цитата
+                </button>
+                <button data-block-type="code" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
+                    <i data-lucide="code-2" class="w-4 h-4 mr-2"></i>Блок кода
+                </button>
+                <button data-block-type="todolist" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
+                    <i data-lucide="check-square" class="w-4 h-4 mr-2"></i>Список задач
+                </button>
+            </div>
+        `;
+    
+        // Основной HTML заметки
+        return `
+            <div class="flex flex-col h-full">
+                <div class="flex-shrink-0 p-4 border-b border-border-color">
+                     <input type="text" id="simple-note-title-input" 
+                           class="bg-transparent text-2xl font-bold focus:outline-none w-full" 
+                           value="${activeSession.title || ''}" 
+                           placeholder="Название заметки">
+                </div>
+                <div class="flex-grow overflow-y-auto p-4 relative" id="simple-note-editor-container">
+                    <div id="simple-note-editor" class="prose prose-invert max-w-none focus:outline-none" style="white-space: normal;">
+                        <!-- Блоки будут рендериться сюда с помощью JavaScript -->
+                    </div>
+                    <button id="block-inserter-btn" class="absolute top-0 left-0 w-7 h-7 flex items-center justify-center text-text-secondary hover:bg-bg-element rounded-full transition-colors hidden">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                    ${blockInserterMenuHTML}
+                </div>
+            </div>
+        `;
+        // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
+    }
         
         function renderRoles() {
             const list = document.getElementById('roles-list');
@@ -1127,19 +1167,252 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
+            // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
+        
             const titleInput = document.getElementById('simple-note-title-input');
-            const contentTextarea = document.getElementById('simple-note-content-textarea');
-            const saveNote = () => {
+            const editorContainer = document.getElementById('simple-note-editor-container');
+            const editor = document.getElementById('simple-note-editor');
+            const inserterBtn = document.getElementById('block-inserter-btn');
+            const inserterMenu = document.getElementById('block-inserter-menu');
+        
+            if (!editor || !state.activeSessionId) return;
+        
+            let activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            let blocks = [];
+        
+            // --- Вспомогательные функции ---
+        
+            // Дебаунс для сохранения, чтобы не отправлять запросы в БД на каждый чих
+            const debounce = (func, delay) => {
+                let timeout;
+                return (...args) => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), delay);
+                };
+            };
+        
+            // Сохранение всей заметки
+            const saveNote = async () => {
                 if (!state.activeSessionId) return;
+                
+                // Сериализация: собираем данные из DOM в массив объектов
+                const newBlocks = Array.from(editor.children).map(blockEl => {
+                    const type = blockEl.dataset.type;
+                    let content;
+                    if (type === 'todolist') {
+                         content = Array.from(blockEl.querySelectorAll('.todo-item')).map(item => ({
+                            text: item.querySelector('[contenteditable]').innerText,
+                            checked: item.querySelector('input[type="checkbox"]').checked
+                        }));
+                    } else {
+                        content = blockEl.innerText;
+                    }
+        
+                    return { id: blockEl.dataset.id, type, content };
+                });
+        
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, {
+                await updateDoc(sessionRef, {
                     title: titleInput.value,
-                    content: contentTextarea.value,
+                    content: newBlocks, // Сохраняем массив блоков
                     updatedAt: serverTimestamp()
                 });
             };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
+            
+            const debouncedSave = debounce(saveNote, 1500);
+        
+            // Отрисовка одного блока
+            const renderBlock = (block, index) => {
+                const blockEl = document.createElement('div');
+                blockEl.dataset.id = block.id;
+                blockEl.dataset.type = block.type;
+                blockEl.dataset.index = index;
+        
+                switch (block.type) {
+                    case 'paragraph':
+                        blockEl.contentEditable = 'true';
+                        blockEl.className = 'note-block min-h-[1em] outline-none';
+                        blockEl.innerText = block.content;
+                        break;
+                    case 'quote':
+                        const blockquote = document.createElement('blockquote');
+                        const p = document.createElement('p');
+                        p.contentEditable = 'true';
+                        p.className = 'min-h-[1em] outline-none';
+                        p.innerText = block.content;
+                        blockquote.appendChild(p);
+                        blockEl.appendChild(blockquote);
+                        break;
+                    case 'code':
+                        const pre = document.createElement('pre');
+                        const code = document.createElement('code');
+                        code.contentEditable = 'true';
+                        code.className = 'outline-none';
+                        code.innerText = block.content;
+                        // Отключаем авто-форматирование marked для contenteditable
+                        code.dataset.noMarked = "true"; 
+                        pre.appendChild(code);
+                        blockEl.appendChild(pre);
+                        break;
+                    case 'todolist':
+                         blockEl.className = 'space-y-1';
+                         block.content.forEach((item, itemIndex) => {
+                            const itemDiv = document.createElement('div');
+                            itemDiv.className = 'flex items-center todo-item';
+                            itemDiv.innerHTML = `
+                                <input type="checkbox" class="mr-3 w-4 h-4 bg-transparent border-border-color rounded text-accent focus:ring-accent" ${item.checked ? 'checked' : ''}>
+                                <span contenteditable="true" class="outline-none w-full ${item.checked ? 'line-through text-text-secondary' : ''}">${item.text}</span>
+                            `;
+                            itemDiv.querySelector('input').addEventListener('change', (e) => {
+                               e.target.nextElementSibling.classList.toggle('line-through');
+                               e.target.nextElementSibling.classList.toggle('text-text-secondary');
+                               debouncedSave();
+                            });
+                            blockEl.appendChild(itemDiv);
+                         });
+                        break;
+                }
+                return blockEl;
+            };
+            
+            // Отрисовка всех блоков
+            const renderAllBlocks = () => {
+                editor.innerHTML = '';
+                blocks.forEach((block, index) => {
+                    const blockEl = renderBlock(block, index);
+                    editor.appendChild(blockEl);
+                });
+                lucide.createIcons();
+            };
+        
+            // Вставка нового блока
+            const insertBlock = (type, index) => {
+                const newBlock = {
+                    id: 'block_' + Date.now(),
+                    type: type,
+                    content: type === 'todolist' ? [{ text: '', checked: false }] : ''
+                };
+                blocks.splice(index + 1, 0, newBlock);
+                renderAllBlocks();
+        
+                // Фокус на новом блоке
+                const newEl = editor.children[index + 1];
+                const focusable = newEl.querySelector('[contenteditable]') || newEl;
+                if (focusable) {
+                    focusable.focus();
+                }
+                debouncedSave();
+            };
+        
+        
+            // --- Инициализация и обработчики событий ---
+        
+            // 1. Инициализация контента
+            if (activeSession) {
+                // Миграция старого формата (string) в новый (array of blocks)
+                if (typeof activeSession.content === 'string' || !Array.isArray(activeSession.content)) {
+                    blocks = [{
+                        id: 'block_' + Date.now(),
+                        type: 'paragraph',
+                        content: activeSession.content || ''
+                    }];
+                } else {
+                    blocks = activeSession.content;
+                }
+                // Если заметка пустая, создаем первый параграф
+                if (blocks.length === 0) {
+                     blocks = [{ id: 'block_' + Date.now(), type: 'paragraph', content: '' }];
+                }
+            }
+            renderAllBlocks();
+        
+        
+            // 2. Обработчик для заголовка
+            titleInput?.addEventListener('keyup', debouncedSave);
+            
+            // 3. Обработчики для редактора (делегирование событий)
+            editor.addEventListener('input', (e) => {
+                if(e.target.closest('[contenteditable]')) {
+                    debouncedSave();
+                }
+            });
+        
+            editor.addEventListener('keydown', (e) => {
+                const targetBlock = e.target.closest('[data-id]');
+                if (!targetBlock) return;
+                
+                const index = parseInt(targetBlock.dataset.index, 10);
+        
+                // Enter создает новый блок
+                if (e.key === 'Enter' && !e.shiftKey && targetBlock.dataset.type !== 'code') {
+                    e.preventDefault();
+                    const type = (targetBlock.dataset.type === 'todolist') ? 'todolist' : 'paragraph';
+                    insertBlock(type, index);
+                }
+        
+                // Backspace на пустом блоке удаляет его
+                if (e.key === 'Backspace' && targetBlock.innerText.trim() === '' && blocks.length > 1) {
+                    e.preventDefault();
+                    blocks.splice(index, 1);
+                    renderAllBlocks();
+                    
+                    // Фокус на предыдущем блоке
+                    const prevIndex = Math.max(0, index - 1);
+                    const prevEl = editor.children[prevIndex];
+                    if (prevEl) {
+                        const focusable = prevEl.querySelector('[contenteditable]') || prevEl;
+                        focusable.focus();
+                        // Переместить курсор в конец
+                        document.execCommand('selectAll', false, null);
+                        document.getSelection().collapseToEnd();
+                    }
+                    debouncedSave();
+                }
+            });
+        
+            // 4. Логика кнопки "+" и меню вставки
+            editor.addEventListener('mouseover', (e) => {
+                const targetBlock = e.target.closest('[data-id]');
+                if (targetBlock && targetBlock.innerText.trim() === '') {
+                    inserterBtn.classList.remove('hidden');
+                    inserterBtn.style.top = `${targetBlock.offsetTop}px`;
+                    inserterBtn.dataset.insertAfterIndex = targetBlock.dataset.index;
+                }
+            });
+            
+            editorContainer.addEventListener('mouseleave', () => {
+                 if(!inserterMenu.matches(':hover')) {
+                     inserterBtn.classList.add('hidden');
+                 }
+            });
+        
+            inserterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                inserterMenu.classList.remove('hidden');
+                const rect = inserterBtn.getBoundingClientRect();
+                inserterMenu.style.top = `${rect.bottom - editorContainer.getBoundingClientRect().top}px`;
+                inserterMenu.style.left = `${rect.left - editorContainer.getBoundingClientRect().left}px`;
+            });
+        
+            inserterMenu.addEventListener('click', (e) => {
+                const target = e.target.closest('[data-block-type]');
+                if (target) {
+                    const type = target.dataset.blockType;
+                    const index = parseInt(inserterBtn.dataset.insertAfterIndex, 10);
+                    insertBlock(type, index);
+                    inserterMenu.classList.add('hidden');
+                    inserterBtn.classList.add('hidden');
+                }
+            });
+        
+            document.addEventListener('click', (e) => {
+                if (!inserterMenu.contains(e.target) && !inserterBtn.contains(e.target)) {
+                    inserterMenu.classList.add('hidden');
+                }
+            });
+            
+            lucide.createIcons();
+            // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
         }
     
         function setupSettingsViewEventListeners() { 

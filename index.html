@@ -1291,6 +1291,103 @@
             const container = document.getElementById('main-content');
             if (!container) return;
 
+            // --- 1. CSS для редактора кода. Инъекция один раз. ---
+            const styleId = 'code-editor-styles';
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.innerHTML = `
+                    .simple-note-block .code-editor-wrapper {
+                        position: relative;
+                        background-color: #282c34; /* Фон как у hljs */
+                        border-radius: 0.5rem;
+                    }
+                    .simple-note-block .code-input-display, 
+                    .simple-note-block .code-input-editor {
+                        /* Синхронизация геометрии и шрифта */
+                        font-family: 'Courier New', Courier, monospace;
+                        white-space: pre;
+                        word-wrap: normal;
+                        overflow-x: auto;
+                        line-height: 1.6;
+                        border: 1px solid var(--border-color);
+                        border-radius: 0.5rem;
+                        padding: 0.75rem;
+                        margin: 0;
+                    }
+                    .simple-note-block .code-input-editor {
+                        /* Текстовое поле для ввода, лежит сверху */
+                        position: absolute;
+                        top: 0; left: 0;
+                        width: 100%; height: 100%;
+                        color: transparent; /* Текст невидимый, но каретка есть */
+                        background: transparent;
+                        caret-color: white; /* Цвет курсора */
+                        z-index: 1;
+                    }
+                    .simple-note-block .code-input-editor:focus {
+                         border-color: var(--accent);
+                         box-shadow: 0 0 0 2px var(--accent-hover);
+                         outline: none;
+                    }
+                    .simple-note-block .code-input-display {
+                         /* Блок для отображения подсветки, лежит снизу */
+                        position: relative;
+                        pointer-events: none; /* Не перехватывает события мыши */
+                        z-index: 0;
+                        color: #abb2bf; /* Стандартный цвет текста для темы atom-one-dark */
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // --- 2. Функция для обновления подсветки и синхронизации ---
+            const syncCodeBlock = (editor) => {
+                const wrapper = editor.closest('.code-editor-wrapper');
+                if (!wrapper) return;
+                const pre = wrapper.querySelector('pre');
+                const code = pre.querySelector('code');
+                
+                // Обновляем текст и подсвечиваем
+                code.textContent = editor.value;
+                hljs.highlightElement(code);
+                
+                // Синхронизируем высоту (важно для сохранения размера)
+                autoResizeTextarea(editor);
+                pre.style.height = editor.style.height;
+                
+                // Синхронизируем прокрутку
+                pre.scrollTop = editor.scrollTop;
+                pre.scrollLeft = editor.scrollLeft;
+            };
+
+            // --- 3. Функция для "апгрейда" простого textarea до редактора кода ---
+            const upgradeCodeTextarea = (textarea) => {
+                if (textarea.closest('.code-editor-wrapper')) return; // Уже обновлен
+
+                const content = textarea.value;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-editor-wrapper';
+
+                wrapper.innerHTML = `
+                    <pre class="simple-note-content-textarea code-input-display" aria-hidden="true"><code></code></pre>
+                    <textarea 
+                        class="${textarea.className} code-input-editor" 
+                        placeholder="Введите код..." 
+                        spellcheck="false"
+                    >${content}</textarea>
+                `;
+
+                // Заменяем старый textarea на новую структуру
+                textarea.parentNode.replaceChild(wrapper, textarea);
+                
+                // Запускаем синхронизацию для нового редактора
+                const newEditor = wrapper.querySelector('.code-input-editor');
+                syncCodeBlock(newEditor);
+                return newEditor;
+            };
+            
+            // --- 4. Основная логика ---
             const titleInput = container.querySelector('#simple-note-title-input');
             const blocksContainer = container.querySelector('#simple-note-blocks-container');
             const addTextBlockBtn = container.querySelector('#add-text-block-btn');
@@ -1300,185 +1397,87 @@
 
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            
-            // --- Миграция для старых заметок (без изменений) ---
+
             if (activeSession && typeof activeSession.content === 'string' && !activeSession.contentBlocks) {
-                const initialBlock = {
-                    id: 'block_' + Date.now(),
-                    type: 'text',
-                    content: activeSession.content || ''
-                };
-                updateDoc(sessionRef, {
-                    contentBlocks: [initialBlock],
-                    content: deleteField()
-                });
+                const initialBlock = { id: 'block_' + Date.now(), type: 'text', content: activeSession.content || '' };
+                updateDoc(sessionRef, { contentBlocks: [initialBlock], content: deleteField() });
                 return;
             }
             
-            if (!titleInput || !blocksContainer || !addTextBlockBtn || !addCodeBlockBtn) {
-                return;
-            }
+            if (!titleInput || !blocksContainer || !addTextBlockBtn || !addCodeBlockBtn) return;
 
-            // --- Новая логика для подсветки кода ---
-
-            // Утилита для экранирования HTML перед вставкой в innerHTML
-            const escapeHTML = (str) => {
-                if (typeof str !== 'string') return '';
-                return str.replace(/[&<>"']/g, (match) => ({
-                    '&': '&', '<': '<', '>': '>', '"': '"', "'": '''
-                }[match]));
-            };
-            
-            // Функция для переключения из режима редактирования в режим просмотра с подсветкой
-            const switchToViewer = (textarea) => {
-                if (!textarea || !textarea.classList.contains('code-input')) return;
-
-                const blockEl = textarea.closest('.simple-note-block');
-                if (!blockEl) return;
-                
-                // Удаляем старый просмотрщик, если он есть
-                const oldViewer = blockEl.querySelector('.code-viewer-wrapper');
-                if (oldViewer) oldViewer.remove();
-
-                const viewerWrapper = document.createElement('div');
-                viewerWrapper.className = 'code-viewer-wrapper relative group cursor-pointer';
-                const escapedCode = escapeHTML(textarea.value);
-
-                viewerWrapper.innerHTML = `
-                    <pre class="overflow-x-auto"><code class="hljs p-3 rounded-md block">${escapedCode || '<span class="text-text-secondary">Пустой блок кода...</span>'}</code></pre>
-                    <div class="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1 rounded-full bg-bg-element/50 text-text-secondary">
-                       <i data-lucide="pencil" class="w-3 h-3"></i>
-                    </div>
-                `;
-                
-                hljs.highlightElement(viewerWrapper.querySelector('code'));
-                
-                textarea.before(viewerWrapper);
-                textarea.classList.add('hidden');
-                lucide.createIcons({ nodes: [viewerWrapper] });
-            };
-            
-            // Применяем авто-высоту к обычным текстовым полям
+            // --- 5. Первоначальная настройка всех блоков при загрузке ---
+            blocksContainer.querySelectorAll('.simple-note-content-textarea.code-input').forEach(upgradeCodeTextarea);
             blocksContainer.querySelectorAll('.simple-note-content-textarea:not(.code-input)').forEach(autoResizeTextarea);
-            
-            // Инициализация: Превращаем все блоки кода в режим просмотра
-            blocksContainer.querySelectorAll('.simple-note-content-textarea.code-input').forEach(switchToViewer);
 
-            // Прокручиваем в конец заметки
             setTimeout(() => {
                 const sentinel = document.getElementById('simple-note-end-sentinel');
-                if (sentinel) {
-                    sentinel.scrollIntoView({ behavior: 'auto', block: 'end' });
-                }
+                if (sentinel) sentinel.scrollIntoView({ behavior: 'auto', block: 'end' });
             }, 100);
 
-            // Функция добавления нового блока (без изменений)
             const addNewBlock = async (type) => {
-                const newBlock = {
-                    id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
-                    type: type,
-                    content: ''
-                };
-
+                const newBlock = { id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), type: type, content: '' };
                 const scrollContainer = blocksContainer;
                 const isScrolledToBottom = scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 5;
                 
-                await updateDoc(sessionRef, {
-                    contentBlocks: arrayUnion(newBlock),
-                    updatedAt: serverTimestamp()
-                });
+                await updateDoc(sessionRef, { contentBlocks: arrayUnion(newBlock), updatedAt: serverTimestamp() });
 
                 if (isScrolledToBottom) {
                     setTimeout(() => {
                         const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"]`);
                         newBlockElement?.scrollIntoView({ behavior: "smooth", block: "center" });
-                        const newTextarea = newBlockElement?.querySelector('textarea');
-                        if (newTextarea) {
-                           newTextarea.focus();
-                        } else {
-                           // Если это блок кода, кликаем по нему, чтобы войти в режим редактирования
-                           newBlockElement?.querySelector('.code-viewer-wrapper')?.click();
-                        }
+                        newBlockElement?.querySelector('textarea')?.focus();
                     }, 200);
                 }
             };
 
-            // НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ
             addTextBlockBtn.onclick = () => addNewBlock('text');
             addCodeBlockBtn.onclick = () => addNewBlock('code');
             
-            titleInput.onchange = () => {
-                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
-            };
+            titleInput.onchange = () => { updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() }); };
             
+            // --- 6. Обновленные обработчики событий ---
             blocksContainer.addEventListener('input', (e) => {
                 if (e.target.matches('.simple-note-content-textarea')) {
                     autoResizeTextarea(e.target);
+                    if (e.target.matches('.code-input-editor')) {
+                        syncCodeBlock(e.target);
+                    }
                 }
             });
 
-            // ОБРАБОТЧИК УХОДА С ПОЛЯ (FOCUSOUT)
+            blocksContainer.addEventListener('scroll', (e) => {
+                if (e.target.matches('.code-input-editor')) {
+                    syncCodeBlock(e.target);
+                }
+            }, true);
+
             blocksContainer.addEventListener('focusout', (e) => {
                 if (e.target.matches('.simple-note-content-textarea')) {
-                    const textarea = e.target;
-                    const blockEl = textarea.closest('.simple-note-block');
+                    const blockEl = e.target.closest('.simple-note-block');
                     const blockId = blockEl.dataset.blockId;
-                    const newContent = textarea.value;
-                    
-                    // Если это поле для кода, переключаем его обратно в режим просмотра
-                    if (textarea.classList.contains('code-input')) {
-                        switchToViewer(textarea);
-                    }
-
-                    // Сохраняем данные в Firestore, если они изменились
+                    const newContent = e.target.value;
                     const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const currentBlocks = currentSession?.contentBlocks || [];
-                    const needsUpdate = currentBlocks.find(b => b.id === blockId)?.content !== newContent;
-                    
-                    if (needsUpdate) {
-                        const updatedBlocks = currentBlocks.map(block => 
-                            block.id === blockId ? { ...block, content: newContent } : block
-                        );
-                        updateDoc(sessionRef, { 
-                            contentBlocks: updatedBlocks, 
-                            updatedAt: serverTimestamp() 
-                        });
+                    const updatedBlocks = currentBlocks.map(block => block.id === blockId ? { ...block, content: newContent } : block);
+                    if (JSON.stringify(currentBlocks) !== JSON.stringify(updatedBlocks)) {
+                        updateDoc(sessionRef, { contentBlocks: updatedBlocks, updatedAt: serverTimestamp() });
                     }
                 }
             });
 
-            // ОБРАБОТЧИК КЛИКОВ (ДЕЛЕГИРОВАНИЕ)
             blocksContainer.addEventListener('click', (e) => {
-                // Логика удаления блока (без изменений)
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (deleteBtn) {
                     const blockEl = deleteBtn.closest('.simple-note-block');
                     const blockId = blockEl.dataset.blockId;
-                    
                     showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                         const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
                         const blockToDelete = (currentSession?.contentBlocks || []).find(b => b.id === blockId);
-
                         if (blockToDelete) {
-                            await updateDoc(sessionRef, {
-                                contentBlocks: arrayRemove(blockToDelete),
-                                updatedAt: serverTimestamp()
-                            });
+                            await updateDoc(sessionRef, { contentBlocks: arrayRemove(blockToDelete), updatedAt: serverTimestamp() });
                         }
                     });
-                    return; // Прекращаем выполнение, чтобы не сработал другой клик
-                }
-
-                // Новая логика: клик по блоку с кодом для его редактирования
-                const viewerWrapper = e.target.closest('.code-viewer-wrapper');
-                if (viewerWrapper) {
-                    const blockEl = viewerWrapper.closest('.simple-note-block');
-                    const textarea = blockEl.querySelector('textarea');
-                    
-                    viewerWrapper.classList.add('hidden');
-                    textarea.classList.remove('hidden');
-                    autoResizeTextarea(textarea);
-                    textarea.focus();
                 }
             });
         }

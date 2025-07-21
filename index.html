@@ -1201,6 +1201,91 @@
             lucide.createIcons();
         }
 
+        // Глобальная функция для авто-изменения высоты текстового поля
+        const autoResizeTextarea = (textarea) => {
+            if (!textarea) return;
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+        };
+
+        // Создает HTML-элемент для одного блока заметки
+        function createSimpleNoteBlockElement(block) {
+            const div = document.createElement('div');
+            div.className = 'simple-note-block group relative mb-3';
+            div.dataset.blockId = block.id;
+        
+            const isCodeBlock = block.type === 'code';
+            const textareaClass = `simple-note-content-textarea ${isCodeBlock ? 'code-input' : ''}`;
+            
+            div.innerHTML = `
+                <textarea 
+                    class="${textareaClass}" 
+                    placeholder="${isCodeBlock ? 'Введите код...' : 'Введите текст...'}" 
+                    rows="1"
+                >${block.content || ''}</textarea>
+                <button class="delete-block-btn absolute top-2 right-2 p-1.5 rounded-full text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-danger/20 hover:text-danger transition-all" title="Удалить блок">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            `;
+            return div;
+        }
+
+        // "Умно" обновляет вид простой заметки без полной перерисовки
+        function updateSimpleNoteView(newSession) {
+            const titleInput = document.getElementById('simple-note-title-input');
+            const blocksContainer = document.getElementById('simple-note-blocks-container');
+            if (!blocksContainer || !titleInput) return; // Выход, если представление еще не отображено
+
+            // 1. Обновляем заголовок, если он не в фокусе
+            if (document.activeElement !== titleInput && titleInput.value !== newSession.title) {
+                titleInput.value = newSession.title || '';
+            }
+        
+            const dataBlocks = newSession.contentBlocks || [];
+            
+            // Сохраняем позицию прокрутки
+            const scrollContainer = mainContent; 
+            const isScrolledToBottom = scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 5;
+        
+            const currentBlocksMap = new Map(Array.from(blocksContainer.querySelectorAll('.simple-note-block')).map(el => [el.dataset.blockId, el]));
+            const newBlocksFragment = document.createDocumentFragment();
+        
+            // 2. Проходим по новым данным, переиспользуя старые DOM-элементы
+            dataBlocks.forEach(dataBlock => {
+                let blockEl = currentBlocksMap.get(dataBlock.id);
+                if (blockEl) {
+                    // Элемент уже существует, перемещаем его в новый фрагмент
+                    newBlocksFragment.appendChild(blockEl);
+                    currentBlocksMap.delete(dataBlock.id); // Удаляем из карты, чтобы не удалить его позже
+                    
+                    // Обновляем его содержимое, если оно изменилось и не в фокусе
+                    const textarea = blockEl.querySelector('textarea');
+                     if (document.activeElement !== textarea && textarea.value !== dataBlock.content) {
+                        textarea.value = dataBlock.content || '';
+                        autoResizeTextarea(textarea);
+                    }
+                } else {
+                    // Это новый блок, создаем его
+                    blockEl = createSimpleNoteBlockElement(dataBlock);
+                    newBlocksFragment.appendChild(blockEl);
+                    autoResizeTextarea(blockEl.querySelector('textarea'));
+                    lucide.createIcons({ nodes: [blockEl] });
+                }
+            });
+        
+            // 3. Заменяем содержимое контейнера на отсортированный и обновленный список
+            blocksContainer.innerHTML = '';
+            blocksContainer.appendChild(newBlocksFragment);
+            
+            // Оставшиеся в `currentBlocksMap` элементы были удалены в данных,
+            // и т.к. мы заменили `innerHTML`, они уже удалены из DOM.
+        
+            // 4. Восстанавливаем позицию прокрутки, если были внизу
+            if (isScrolledToBottom) {
+                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            }
+        }
+        
         function setupSimpleNotepadViewEventListeners() {
             const container = document.getElementById('main-content');
             if (!container) return;
@@ -1229,23 +1314,13 @@
                 return; // Выходим, ждем ререндера после обновления данных
             }
             
-            // Если ключевые элементы не найдены, выходим, чтобы избежать ошибок
             if (!titleInput || !blocksContainer || !addTextBlockBtn || !addCodeBlockBtn) {
                 return;
             }
 
-            // Функция для подстройки высоты текстового поля
-            const autoResizeTextarea = (textarea) => {
-                if (!textarea) return;
-                textarea.style.height = 'auto';
-                textarea.style.height = (textarea.scrollHeight) + 'px';
-            };
-
-            // Применяем авто-высоту ко всем существующим полям
+            // Применяем авто-высоту ко всем существующим полям при первоначальной загрузке
             blocksContainer.querySelectorAll('.simple-note-content-textarea').forEach(autoResizeTextarea);
             
-            // --- ОСНОВНАЯ ЛОГИКА ---
-
             // Функция добавления нового блока
             const addNewBlock = async (type) => {
                 const newBlock = {
@@ -1253,20 +1328,23 @@
                     type: type,
                     content: ''
                 };
+
+                const scrollContainer = mainContent;
+                const isScrolledToBottom = scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 5;
                 
-                // Используем arrayUnion для атомарного добавления элемента в массив в Firestore
                 await updateDoc(sessionRef, {
                     contentBlocks: arrayUnion(newBlock),
                     updatedAt: serverTimestamp()
                 });
 
-                // После обновления данных onSnapshot автоматически перерисует интерфейс.
-                // Прокрутка и фокус на новом элементе для удобства.
-                setTimeout(() => {
-                    const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"] textarea`);
-                    newBlockElement?.focus();
-                    newBlockElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 200);
+                if (isScrolledToBottom) {
+                    // Небольшая задержка, чтобы дать Firestore время обновить DOM через onSnapshot
+                    setTimeout(() => {
+                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                        const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"] textarea`);
+                        newBlockElement?.focus();
+                    }, 200);
+                }
             };
 
             // НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ
@@ -1277,7 +1355,6 @@
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             };
             
-            // Используем делегирование для динамически создаваемых элементов
             blocksContainer.addEventListener('input', (e) => {
                 if (e.target.matches('.simple-note-content-textarea')) {
                     autoResizeTextarea(e.target);
@@ -1297,7 +1374,6 @@
                         block.id === blockId ? { ...block, content: newContent } : block
                     );
                     
-                    // Сравниваем, чтобы не делать лишних записей в БД
                     if (JSON.stringify(currentBlocks) !== JSON.stringify(updatedBlocks)) {
                         updateDoc(sessionRef, { 
                             contentBlocks: updatedBlocks, 
@@ -1835,13 +1911,30 @@
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
+                const oldSessions = state.sessions;
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
-                if (!activeSessionExists) {
+                
+                const newActiveSession = state.sessions.find(s => s.id === state.activeSessionId);
+                
+                if (!newActiveSession) {
                     state.activeSessionId = null;
+                    if (!state.isLoading) render();
+                    return;
                 }
-                if (!state.isLoading) {
-                    render();
+
+                // Проверяем, активна ли вкладка с простыми заметками и отображен ли уже ее контент
+                const isSimpleNoteViewActive = state.activeTab === 'simplenote' && document.getElementById('simple-note-blocks-container');
+
+                if (isSimpleNoteViewActive && !state.isLoading) {
+                    // Если да, то "умно" обновляем DOM вместо полной перерисовки
+                    updateSimpleNoteView(newActiveSession);
+                    // Обновляем боковую панель отдельно, так как заголовок мог измениться
+                    renderSidebar();
+                } else {
+                    // В остальных случаях (смена вкладок, первая загрузка) используем полную перерисовку
+                    if (!state.isLoading) {
+                        render();
+                    }
                 }
             }, error => console.error("Session listener error: ", error));
         

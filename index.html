@@ -1244,7 +1244,7 @@
                 
                 return wrapper;
             };
-            const createBlockContentElement = (block) => { /* эта функция остается без изменений из прошлого ответа */ 
+            const createBlockContentElement = (block) => { 
                 let contentEl;
                 switch (block.type) {
                     case 'paragraph': contentEl = document.createElement('p'); contentEl.innerText = block.content; break;
@@ -1276,7 +1276,7 @@
                 const newBlockElement = createBlockElement(newBlockData);
                 editor.insertBefore(newBlockElement, editor.children[index] || null);
                 
-                lucide.createIcons({ nodes: [newBlockElement] }); // Обновляем иконку только для нового блока
+                lucide.createIcons({ nodes: [newBlockElement] });
         
                 const focusable = newBlockElement.querySelector('[contenteditable]');
                 if (focusable) focusable.focus();
@@ -1303,16 +1303,14 @@
                 }
             };
         
-            // --- Инициализация (исправлена и усилена) ---
+            // --- Инициализация ---
             if (activeSession) {
-                // Гарантирует, что 'blocks' всегда будет рабочим массивом
                 const content = activeSession.content;
                 if (Array.isArray(content) && content.length > 0) {
                     blocks = content;
                 } else if (typeof content === 'string' && content.trim() !== '') {
                     blocks = [{ id: 'block_migrated', type: 'paragraph', content: content }];
                 } else {
-                    // Для совершенно новых или пустых заметок
                     blocks = [{ id: 'block_init', type: 'paragraph', content: '' }];
                 }
             }
@@ -1324,31 +1322,79 @@
             titleInput?.addEventListener('input', debouncedSave);
         
             addBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Важно, чтобы клик не закрыл меню сразу
+                e.stopPropagation();
                 inserterMenu.classList.toggle('hidden');
             });
         
             inserterMenu.addEventListener('click', (e) => {
                 const target = e.target.closest('[data-block-type]');
                 if(target) {
-                    // Всегда добавляем в конец
                     insertNewBlock(target.dataset.blockType, blocks.length);
                     inserterMenu.classList.add('hidden');
                 }
             });
         
-            // Закрываем меню, если кликнули вне его и не по кнопке
             document.addEventListener('click', (e) => {
                 if (!inserterMenu.classList.contains('hidden') && !addBtn.contains(e.target) && !inserterMenu.contains(e.target)) {
                     inserterMenu.classList.add('hidden');
                 }
             });
         
-            // Остальные обработчики (input, change, keydown, click на delete) остаются без изменений из прошлого ответа
-            editor.addEventListener('click', (e) => { if (e.target.closest('.delete-block-btn')) { removeBlock(e.target.closest('.note-block-wrapper')); } });
-            editor.addEventListener('input', (e) => { const wrapper = e.target.closest('.note-block-wrapper'); const index = Array.from(editor.children).indexOf(wrapper); if (index === -1) return; const blockData = blocks[index]; if(blockData.type === 'todolist') { blockData.content = Array.from(wrapper.querySelectorAll('.todo-item')).map(itemEl => ({ text: itemEl.querySelector('.todo-item-text').innerText, checked: itemEl.querySelector('input').checked })); } else { blockData.content = wrapper.querySelector('[contenteditable]').innerText; } debouncedSave(); });
-            editor.addEventListener('change', (e) => { if (e.target.matches('input[type="checkbox"]')) { const wrapper = e.target.closest('.note-block-wrapper'); const index = Array.from(editor.children).indexOf(wrapper); const itemIndex = Array.from(wrapper.querySelectorAll('.todo-item')).indexOf(e.target.parentElement); blocks[index].content[itemIndex].checked = e.target.checked; e.target.nextElementSibling.classList.toggle('checked', e.target.checked); debouncedSave(); } });
-            editor.addEventListener('keydown', (e) => { if (!e.target.matches('[contenteditable]')) return; const wrapper = e.target.closest('.note-block-wrapper'); const index = Array.from(editor.children).indexOf(wrapper); if (e.key === 'Enter' && !e.shiftKey && wrapper.querySelector('pre') === null) { e.preventDefault(); insertNewBlock('paragraph', index + 1); } if (e.key === 'Backspace' && e.target.innerText.trim() === '') { e.preventDefault(); removeBlock(wrapper); } });
+            editor.addEventListener('click', (e) => { 
+                if (e.target.closest('.delete-block-btn')) {
+                    removeBlock(e.target.closest('.note-block-wrapper'));
+                } 
+            });
+            
+            // ===== ИСПРАВЛЕНИЕ ЗДЕСЬ =====
+            editor.addEventListener('input', (e) => {
+                if (!e.target.matches('[contenteditable]')) return;
+        
+                const wrapper = e.target.closest('.note-block-wrapper');
+                const index = Array.from(editor.children).indexOf(wrapper);
+                if (index === -1) return;
+                
+                const blockData = blocks[index];
+                if(!blockData) return; // Доп. проверка на всякий случай
+        
+                if (blockData.type === 'todolist') {
+                    blockData.content = Array.from(wrapper.querySelectorAll('.todo-item')).map(itemEl => ({ 
+                        text: itemEl.querySelector('.todo-item-text').innerText, 
+                        checked: itemEl.querySelector('input').checked 
+                    }));
+                } else {
+                    // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Используем `e.target.innerText` напрямую.
+                    // Это текст именно того элемента, который вы сейчас редактируете.
+                    blockData.content = e.target.innerText;
+                }
+                debouncedSave();
+            });
+            // =============================
+        
+            editor.addEventListener('change', (e) => { 
+                if (e.target.matches('input[type="checkbox"]')) { 
+                    const wrapper = e.target.closest('.note-block-wrapper');
+                    const index = Array.from(editor.children).indexOf(wrapper);
+                    const itemIndex = Array.from(wrapper.querySelectorAll('.todo-item')).indexOf(e.target.parentElement);
+                    blocks[index].content[itemIndex].checked = e.target.checked; 
+                    e.target.nextElementSibling.classList.toggle('checked', e.target.checked); 
+                    debouncedSave(); 
+                } 
+            });
+        
+            editor.addEventListener('keydown', (e) => { 
+                if (!e.target.matches('[contenteditable]')) return; 
+                const wrapper = e.target.closest('.note-block-wrapper'); 
+                const index = Array.from(editor.children).indexOf(wrapper); 
+                if (e.key === 'Enter' && !e.shiftKey && wrapper.querySelector('pre') === null) { 
+                    e.preventDefault(); 
+                    insertNewBlock('paragraph', index + 1); 
+                } 
+                if (e.key === 'Backspace' && e.target.innerText.trim() === '') { 
+                    e.preventDefault(); 
+                    removeBlock(wrapper); 
+                } 
+            });
             // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
         }
     

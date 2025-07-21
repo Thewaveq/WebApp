@@ -1291,103 +1291,6 @@
             const container = document.getElementById('main-content');
             if (!container) return;
 
-            // --- 1. CSS для редактора кода. Инъекция один раз. ---
-            const styleId = 'code-editor-styles';
-            if (!document.getElementById(styleId)) {
-                const style = document.createElement('style');
-                style.id = styleId;
-                style.innerHTML = `
-                    .simple-note-block .code-editor-wrapper {
-                        position: relative;
-                        background-color: #282c34; /* Фон как у hljs */
-                        border-radius: 0.5rem;
-                    }
-                    .simple-note-block .code-input-display, 
-                    .simple-note-block .code-input-editor {
-                        /* Синхронизация геометрии и шрифта */
-                        font-family: 'Courier New', Courier, monospace;
-                        white-space: pre;
-                        word-wrap: normal;
-                        overflow-x: auto;
-                        line-height: 1.6;
-                        border: 1px solid var(--border-color);
-                        border-radius: 0.5rem;
-                        padding: 0.75rem;
-                        margin: 0;
-                    }
-                    .simple-note-block .code-input-editor {
-                        /* Текстовое поле для ввода, лежит сверху */
-                        position: absolute;
-                        top: 0; left: 0;
-                        width: 100%; height: 100%;
-                        color: transparent; /* Текст невидимый, но каретка есть */
-                        background: transparent;
-                        caret-color: white; /* Цвет курсора */
-                        z-index: 1;
-                    }
-                    .simple-note-block .code-input-editor:focus {
-                         border-color: var(--accent);
-                         box-shadow: 0 0 0 2px var(--accent-hover);
-                         outline: none;
-                    }
-                    .simple-note-block .code-input-display {
-                         /* Блок для отображения подсветки, лежит снизу */
-                        position: relative;
-                        pointer-events: none; /* Не перехватывает события мыши */
-                        z-index: 0;
-                        color: #abb2bf; /* Стандартный цвет текста для темы atom-one-dark */
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            // --- 2. Функция для обновления подсветки и синхронизации ---
-            const syncCodeBlock = (editor) => {
-                const wrapper = editor.closest('.code-editor-wrapper');
-                if (!wrapper) return;
-                const pre = wrapper.querySelector('pre');
-                const code = pre.querySelector('code');
-                
-                // Обновляем текст и подсвечиваем
-                code.textContent = editor.value;
-                hljs.highlightElement(code);
-                
-                // Синхронизируем высоту (важно для сохранения размера)
-                autoResizeTextarea(editor);
-                pre.style.height = editor.style.height;
-                
-                // Синхронизируем прокрутку
-                pre.scrollTop = editor.scrollTop;
-                pre.scrollLeft = editor.scrollLeft;
-            };
-
-            // --- 3. Функция для "апгрейда" простого textarea до редактора кода ---
-            const upgradeCodeTextarea = (textarea) => {
-                if (textarea.closest('.code-editor-wrapper')) return; // Уже обновлен
-
-                const content = textarea.value;
-                const wrapper = document.createElement('div');
-                wrapper.className = 'code-editor-wrapper';
-
-                wrapper.innerHTML = `
-                    <pre class="simple-note-content-textarea code-input-display" aria-hidden="true"><code></code></pre>
-                    <textarea 
-                        class="${textarea.className} code-input-editor" 
-                        placeholder="Введите код..." 
-                        spellcheck="false"
-                    >${content}</textarea>
-                `;
-
-                // Заменяем старый textarea на новую структуру
-                textarea.parentNode.replaceChild(wrapper, textarea);
-                
-                // Запускаем синхронизацию для нового редактора
-                const newEditor = wrapper.querySelector('.code-input-editor');
-                syncCodeBlock(newEditor);
-                return newEditor;
-            };
-            
-            // --- 4. Основная логика ---
             const titleInput = container.querySelector('#simple-note-title-input');
             const blocksContainer = container.querySelector('#simple-note-blocks-container');
             const addTextBlockBtn = container.querySelector('#add-text-block-btn');
@@ -1398,84 +1301,144 @@
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
 
+            // --- ВАЖНО: Требуемые изменения в HTML и CSS ---
+            // Для работы этой функции, HTML-структура для блока кода должна быть обновлена:
+            /*
+            <div class="simple-note-block ...">
+                <div class="code-editor-wrapper">
+                    <pre aria-hidden="true"><code class="hljs language-plaintext">...код...</code></pre>
+                    <textarea class="simple-note-content-textarea code-input">...код...</textarea>
+                </div>
+                ... кнопка удаления ...
+            </div>
+
+            И необходимы соответствующие стили для позиционирования textarea поверх pre.
+            */
+            
+            // --- Миграция для старых заметок (без изменений) ---
             if (activeSession && typeof activeSession.content === 'string' && !activeSession.contentBlocks) {
                 const initialBlock = { id: 'block_' + Date.now(), type: 'text', content: activeSession.content || '' };
                 updateDoc(sessionRef, { contentBlocks: [initialBlock], content: deleteField() });
                 return;
+                
             }
             
-            if (!titleInput || !blocksContainer || !addTextBlockBtn || !addCodeBlockBtn) return;
+            if (!titleInput || !blocksContainer || !addTextBlockBtn || !addCodeBlockBtn) {
+                return;
+            }
 
-            // --- 5. Первоначальная настройка всех блоков при загрузке ---
-            blocksContainer.querySelectorAll('.simple-note-content-textarea.code-input').forEach(upgradeCodeTextarea);
-            blocksContainer.querySelectorAll('.simple-note-content-textarea:not(.code-input)').forEach(autoResizeTextarea);
-
-            setTimeout(() => {
-                const sentinel = document.getElementById('simple-note-end-sentinel');
-                if (sentinel) sentinel.scrollIntoView({ behavior: 'auto', block: 'end' });
-            }, 100);
-
-            const addNewBlock = async (type) => {
-                const newBlock = { id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), type: type, content: '' };
-                const scrollContainer = blocksContainer;
-                const isScrolledToBottom = scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 5;
+            // --- НОВАЯ ФУНКЦИЯ для синхронизации редактора кода ---
+            const syncCodeEditor = (textarea) => {
+                const wrapper = textarea.parentElement;
+                if (!wrapper || !wrapper.classList.contains('code-editor-wrapper')) return;
                 
-                await updateDoc(sessionRef, { contentBlocks: arrayUnion(newBlock), updatedAt: serverTimestamp() });
+                const codeElement = wrapper.querySelector('code');
+                if (!codeElement) return;
 
-                if (isScrolledToBottom) {
-                    setTimeout(() => {
-                        const newBlockElement = blocksContainer.querySelector(`[data-block-id="${newBlock.id}"]`);
-                        newBlockElement?.scrollIntoView({ behavior: "smooth", block: "center" });
-                        newBlockElement?.querySelector('textarea')?.focus();
-                    }, 200);
-                }
+                // 1. Обновляем содержимое для подсветки
+                codeElement.textContent = textarea.value;
+
+                // 2. Выполняем подсветку синтаксиса
+                hljs.highlightElement(codeElement);
+
+                // 3. Синхронизируем высоту
+                // Высота wrapper'а подстраивается под высоту pre, а textarea заполняет wrapper
+                wrapper.style.height = 'auto';
+                const newHeight = wrapper.querySelector('pre').offsetHeight;
+                wrapper.style.height = `${newHeight}px`;
+
+                // 4. Синхронизируем прокрутку
+                textarea.onscroll = () => {
+                    wrapper.querySelector('pre').scrollLeft = textarea.scrollLeft;
+                    wrapper.querySelector('pre').scrollTop = textarea.scrollTop;
+                };
             };
 
+            // Применяем авто-высоту и подсветку при первоначальной загрузке
+            blocksContainer.querySelectorAll('.simple-note-content-textarea').forEach(textarea => {
+                if (textarea.classList.contains('code-input')) {
+                    syncCodeEditor(textarea);
+                } else {
+                    autoResizeTextarea(textarea); // Старая функция для обычных текстовых полей
+                }
+            });
+
+            // Прокручиваем в конец после небольшой задержки
+            setTimeout(() => {
+                const sentinel = document.getElementById('simple-note-end-sentinel');
+                sentinel?.scrollIntoView({ behavior: 'auto', block: 'end' });
+            }, 100);
+
+            // Функция добавления нового блока (без изменений)
+            const addNewBlock = async (type) => {
+                const newBlock = {
+                    id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                    type: type,
+                    content: ''
+                };
+                await updateDoc(sessionRef, {
+                    contentBlocks: arrayUnion(newBlock),
+                    updatedAt: serverTimestamp()
+                });
+                // onSnapshot обработает ререндер и фокусировку
+            };
+
+            // НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ
             addTextBlockBtn.onclick = () => addNewBlock('text');
             addCodeBlockBtn.onclick = () => addNewBlock('code');
             
-            titleInput.onchange = () => { updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() }); };
+            titleInput.onchange = () => {
+                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            };
             
-            // --- 6. Обновленные обработчики событий ---
+            // --- ОБНОВЛЕННЫЙ ОБРАБОТЧИК ВВОДА ---
             blocksContainer.addEventListener('input', (e) => {
                 if (e.target.matches('.simple-note-content-textarea')) {
-                    autoResizeTextarea(e.target);
-                    if (e.target.matches('.code-input-editor')) {
-                        syncCodeBlock(e.target);
+                    // Проверяем, это редактор кода или обычное текстовое поле
+                    if (e.target.classList.contains('code-input')) {
+                        syncCodeEditor(e.target);
+                    } else {
+                        autoResizeTextarea(e.target);
                     }
                 }
             });
 
-            blocksContainer.addEventListener('scroll', (e) => {
-                if (e.target.matches('.code-input-editor')) {
-                    syncCodeBlock(e.target);
-                }
-            }, true);
-
+            // Обработчик потери фокуса (логика сохранения без изменений)
             blocksContainer.addEventListener('focusout', (e) => {
                 if (e.target.matches('.simple-note-content-textarea')) {
                     const blockEl = e.target.closest('.simple-note-block');
                     const blockId = blockEl.dataset.blockId;
                     const newContent = e.target.value;
+
                     const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const currentBlocks = currentSession?.contentBlocks || [];
-                    const updatedBlocks = currentBlocks.map(block => block.id === blockId ? { ...block, content: newContent } : block);
+                    
+                    const updatedBlocks = currentBlocks.map(block => 
+                        block.id === blockId ? { ...block, content: newContent } : block
+                    );
+                    
                     if (JSON.stringify(currentBlocks) !== JSON.stringify(updatedBlocks)) {
                         updateDoc(sessionRef, { contentBlocks: updatedBlocks, updatedAt: serverTimestamp() });
                     }
                 }
             });
 
+            // Обработчик удаления (без изменений)
             blocksContainer.addEventListener('click', (e) => {
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (deleteBtn) {
                     const blockEl = deleteBtn.closest('.simple-note-block');
                     const blockId = blockEl.dataset.blockId;
+                    
                     showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                         const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
                         const blockToDelete = (currentSession?.contentBlocks || []).find(b => b.id === blockId);
+
                         if (blockToDelete) {
-                            await updateDoc(sessionRef, { contentBlocks: arrayRemove(blockToDelete), updatedAt: serverTimestamp() });
+                            await updateDoc(sessionRef, {
+                                contentBlocks: arrayRemove(blockToDelete),
+                                updatedAt: serverTimestamp()
+                            });
                         }
                     });
                 }

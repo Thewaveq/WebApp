@@ -927,24 +927,38 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            // Если у заметки есть старое поле `content` и нет нового `contentBlocks`,
-            // покажем заглушку, пока миграция в `setupSimpleNotepadViewEventListeners` не отработает.
             if (typeof activeSession.content === 'string' && !activeSession.contentBlocks) {
                 return `<div class="flex h-full items-center justify-center text-gray-500">Конвертация заметки...</div>`;
             }
 
             const blocks = activeSession.contentBlocks || [];
             const blocksHTML = blocks.map(block => {
-                const isCodeBlock = block.type === 'code';
-                // Текстовое поле для кода получает специальный класс для стилизации
-                const textareaClass = `simple-note-content-textarea ${isCodeBlock ? 'code-input' : ''}`;
+                // Если это блок с кодом
+                if (block.type === 'code') {
+                    // Используем новую многослойную структуру
+                    return `
+                        <div class="simple-note-block group relative mb-3" data-block-id="${block.id}">
+                            <div class="code-editor-wrapper">
+                                <pre aria-hidden="true"><code class="hljs language-plaintext">${(block.content || '').replace(/</g, "<").replace(/>/g, ">")}</code></pre>
+                                <textarea 
+                                    class="simple-note-content-textarea code-input" 
+                                    placeholder="Введите код..." 
+                                    rows="1"
+                                >${block.content || ''}</textarea>
+                            </div>
+                            <button class="delete-block-btn absolute top-2 right-2 p-1.5 rounded-full text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-danger/20 hover:text-danger transition-all" title="Удалить блок">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                }
                 
-                // Оборачиваем в div, чтобы содержать поле ввода и кнопку удаления
+                // Для обычного текстового блока оставляем как было
                 return `
                     <div class="simple-note-block group relative mb-3" data-block-id="${block.id}">
                         <textarea 
-                            class="${textareaClass}" 
-                            placeholder="${isCodeBlock ? 'Введите код...' : 'Введите текст...'}" 
+                            class="simple-note-content-textarea" 
+                            placeholder="Введите текст..." 
                             rows="1"
                         >${block.content || ''}</textarea>
                         <button class="delete-block-btn absolute top-2 right-2 p-1.5 rounded-full text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-danger/20 hover:text-danger transition-all" title="Удалить блок">
@@ -954,32 +968,18 @@
                 `;
             }).join('');
 
+            // HTML для основного вида не меняется, только стили и генерация блоков
             return `
                 <style>
+                    /* Старые стили для .simple-note-content-textarea все еще нужны для текстовых блоков */
                     .simple-note-content-textarea {
-                        width: 100%;
-                        background-color: var(--bg-input);
-                        border: 1px solid var(--border-color);
-                        border-radius: 0.5rem;
-                        padding: 0.75rem 2.5rem 0.75rem 0.75rem; /* Оставляем место для кнопки удаления */
-                        resize: none;
-                        overflow: hidden; /* Важно для авто-высоты */
-                        line-height: 1.6;
-                        color: var(--text-primary);
+                        width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color);
+                        border-radius: 0.5rem; padding: 0.75rem 2.5rem 0.75rem 0.75rem; resize: none;
+                        overflow: hidden; line-height: 1.6; color: var(--text-primary);
                         transition: border-color 0.2s, box-shadow 0.2s;
                     }
                     .simple-note-content-textarea:focus {
-                        outline: none;
-                        border-color: var(--accent);
-                        box-shadow: 0 0 0 2px var(--accent-hover);
-                    }
-                    /* Стили для поля с кодом, имитирующие редактор */
-                    .simple-note-content-textarea.code-input {
-                        font-family: 'Courier New', Courier, monospace;
-                        background-color: #282c34; /* Такой же фон, как у блоков кода в чате */
-                        white-space: pre;
-                        word-wrap: normal;
-                        overflow-x: auto;
+                        outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-hover);
                     }
                 </style>
                 <div class="flex flex-col h-full">
@@ -994,12 +994,10 @@
 
                     <div class="flex-shrink-0 p-3 border-t border-border-color flex items-center justify-center space-x-4 bg-bg-sidebar">
                         <button id="add-text-block-btn" class="flex items-center px-4 py-2 bg-bg-element hover:bg-bg-input rounded-md transition-colors">
-                            <i data-lucide="pilcrow" class="w-5 h-5 mr-2"></i>
-                            Текст
+                            <i data-lucide="pilcrow" class="w-5 h-5 mr-2"></i>Текст
                         </button>
                         <button id="add-code-block-btn" class="flex items-center px-4 py-2 bg-bg-element hover:bg-bg-input rounded-md transition-colors">
-                            <i data-lucide="code-2" class="w-5 h-5 mr-2"></i>
-                            Код
+                            <i data-lucide="code-2" class="w-5 h-5 mr-2"></i>Код
                         </button>
                     </div>
                 </div>

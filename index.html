@@ -1176,14 +1176,11 @@
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
             
-            // ГЛАВНОЕ ИЗМЕНЕНИЕ: Логика теперь проста. Запоминаем позицию -> обновляем базу -> ВОССТАНАВЛИВАЕМ позицию.
-            // Все происходит в одном месте, как и должно быть.
             const saveNoteContent = async () => {
                 if (!contentContainer) return;
                 
-                // 1. Запоминаем текущую позицию прокрутки ПЕРЕД обновлением.
-                const scrollPos = contentContainer.scrollTop;
-                
+                state.simpleNoteScrollPosition = contentContainer.scrollTop;
+
                 const itemElements = contentContainer.querySelectorAll('.note-item');
                 const contentItems = Array.from(itemElements).map(el => {
                     const type = el.dataset.type;
@@ -1196,17 +1193,9 @@
                     return { type, content };
                 });
                 
-                // 2. Ждем, пока база данных обновится. В это время onSnapshot перерисует интерфейс, и прокрутка сбросится.
                 await updateDoc(sessionRef, {
                     contentItems: contentItems,
                     updatedAt: serverTimestamp()
-                });
-
-                // 3. ПОСЛЕ обновления, когда интерфейс уже перерисован, мы восстанавливаем прокрутку.
-                // requestAnimationFrame гарантирует, что это произойдет после того, как браузер все отрисует.
-                requestAnimationFrame(() => {
-                    const newContainer = document.getElementById('simple-note-content');
-                    if (newContainer) newContainer.scrollTop = scrollPos;
                 });
             };
 
@@ -1233,52 +1222,43 @@
             });
 
             contentContainer.addEventListener('click', async (e) => {
-                // Логика для добавления нового блока
                 const addItem = async (type) => {
                     const newItem = { type: type, content: '' };
-                    // Обновляем базу
-                    await updateDoc(sessionRef, {
+                    state.simpleNoteScrollPosition = contentContainer.scrollTop;
+                     await updateDoc(sessionRef, {
                         contentItems: arrayUnion(newItem),
                         updatedAt: serverTimestamp()
                     });
-                    
-                    // После перерисовки прокручиваем в самый низ, чтобы увидеть новый блок.
-                    requestAnimationFrame(() => {
-                         const newContainer = document.getElementById('simple-note-content');
-                         if (newContainer) newContainer.scrollTop = newContainer.scrollHeight;
-                    });
                 };
                 
-                if (e.target.closest('#add-text-item-btn')) { addItem('text'); }
-                if (e.target.closest('#add-code-item-btn')) { addItem('code'); }
+                if (e.target.closest('#add-text-item-btn')) {
+                    addItem('text');
+                }
+                
+                if (e.target.closest('#add-code-item-btn')) {
+                    addItem('code');
+                }
 
-                // Логика для удаления блока
                 const deleteBtn = e.target.closest('.delete-item-btn');
                 if (deleteBtn) {
                     const itemEl = deleteBtn.closest('.note-item');
                     const itemIndex = parseInt(itemEl.dataset.itemIndex, 10);
+                    
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const currentItems = activeSession.contentItems || [];
                     
                     if (!isNaN(itemIndex) && currentItems[itemIndex]) {
                          showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
                              const itemToRemove = currentItems[itemIndex];
-                             
-                             // Точно так же: запоминаем -> обновляем -> восстанавливаем.
-                             const scrollPos = contentContainer.scrollTop;
+                             state.simpleNoteScrollPosition = contentContainer.scrollTop;
                              await updateDoc(sessionRef, {
                                  contentItems: arrayRemove(itemToRemove),
                                  updatedAt: serverTimestamp()
-                             });
-                             requestAnimationFrame(() => {
-                                const newContainer = document.getElementById('simple-note-content');
-                                if (newContainer) newContainer.scrollTop = scrollPos;
                              });
                          });
                     }
                 }
 
-                // Логика для кнопки копирования (без изменений)
                 const copyBtn = e.target.closest('.copy-note-code-btn');
                 if (copyBtn) {
                     const codeBlock = copyBtn.closest('.note-item').querySelector('code');
@@ -1294,9 +1274,11 @@
                 }
             });
             
+            // --- ИСПРАВЛЕНИЕ: Динамически изменяем стиль пустых блоков кода ---
             contentContainer.querySelectorAll('pre').forEach((preElement) => {
                 const codeElement = preElement.querySelector('code');
                 if (codeElement && codeElement.innerText.trim() === '') {
+                    // Уменьшаем вертикальные отступы и задаем минимальную высоту
                     preElement.style.paddingTop = '0.5rem';
                     preElement.style.paddingBottom = '0.5rem';
                     preElement.style.minHeight = '3rem'; 
@@ -1819,10 +1801,25 @@
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
-                // ИЗМЕНЕНИЕ: Вся логика прокрутки отсюда удалена.
-                // Функция просто вызывает render, если нет активной загрузки.
                 if (!state.isLoading) {
+                    // Сохраняем текущую позицию скролла перед полной перерисовкой
+                    const scrollPos = state.simpleNoteScrollPosition;
                     render();
+                    
+                    // Проверяем, нужно ли восстанавливать позицию
+                    if (scrollPos !== null && state.activeTab === 'simplenote') {
+                        const contentContainer = document.getElementById('simple-note-content');
+                        if (contentContainer) {
+                            // ИЗМЕНЕНИЕ: Оборачиваем установку скролла в requestAnimationFrame.
+                            // Это гарантирует, что DOM (включая все textarea) уже отрисован
+                            // и имеет правильную высоту перед тем, как мы установим позицию прокрутки.
+                            requestAnimationFrame(() => {
+                                contentContainer.scrollTop = scrollPos;
+                            });
+                        }
+                        // Сбрасываем сохраненную позицию, чтобы она не применялась при следующих обновлениях, не связанных с заметками.
+                        state.simpleNoteScrollPosition = null; 
+                    }
                 }
             }, error => console.error("Session listener error: ", error));
         
@@ -1850,21 +1847,7 @@
                 chatObserver = null;
             }
             userId = null;
-            // ИЗМЕНЕНИЕ: Добавлены scrollAction и simpleNoteScrollPosition для корректного сброса
-            state = { 
-                activeTab: 'chat', 
-                activeSessionId: null, 
-                sessions: [], 
-                providers: [], 
-                roles: [], 
-                isLoading: false, 
-                isAuthReady: false, 
-                isSidebarCollapsed: false,
-                isChatWidthCompact: true,
-                simpleNoteScrollPosition: null,
-                scrollAction: null, // 'restore' или 'scrollToBottom'
-                isSettingsPanelExpanded: false,
-            };
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');
@@ -1910,9 +1893,7 @@
                 mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
             }
         }
-        
         init();
     </script>
-
 </body>
 </html>

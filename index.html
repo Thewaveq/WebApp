@@ -287,6 +287,24 @@
                 color: var(--accent);
                 background-color: var(--bg-element);
             }
+
+            .note-block-wrapper {
+                margin-bottom: 0.75rem; /* Визуальный отступ между блоками */
+            }
+            .note-block-wrapper blockquote {
+                border-left: 3px solid var(--accent);
+                padding-left: 1rem;
+                margin-left: 0;
+                font-style: italic;
+                color: var(--text-secondary);
+            }
+            .note-block-wrapper blockquote p {
+                color: var(--text-primary); /* Возвращаем нормальный цвет тексту внутри цитаты */
+            }
+            .todo-item-text.checked {
+                text-decoration: line-through;
+                color: var(--text-secondary);
+            }
     </style>
 </head>
 <body class="h-dvh w-full flex">
@@ -870,48 +888,41 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-        // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
-    
-        // Структура для меню добавления блоков
-        const blockInserterMenuHTML = `
-            <div id="block-inserter-menu" class="absolute z-20 w-48 bg-bg-element border border-border-color rounded-md shadow-lg py-1 hidden">
-                <button data-block-type="paragraph" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
-                    <i data-lucide="pilcrow" class="w-4 h-4 mr-2"></i>Текст
-                </button>
-                <button data-block-type="quote" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
-                    <i data-lucide="quote" class="w-4 h-4 mr-2"></i>Цитата
-                </button>
-                <button data-block-type="code" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
-                    <i data-lucide="code-2" class="w-4 h-4 mr-2"></i>Блок кода
-                </button>
-                <button data-block-type="todolist" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center">
-                    <i data-lucide="check-square" class="w-4 h-4 mr-2"></i>Список задач
-                </button>
-            </div>
-        `;
-    
-        // Основной HTML заметки
-        return `
-            <div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-4 border-b border-border-color">
-                     <input type="text" id="simple-note-title-input" 
-                           class="bg-transparent text-2xl font-bold focus:outline-none w-full" 
-                           value="${activeSession.title || ''}" 
-                           placeholder="Название заметки">
+            // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
+        
+            // Меню для добавления блоков
+            const blockInserterMenuHTML = `
+                <div id="block-inserter-menu" class="absolute bottom-full mb-2 z-20 w-48 bg-bg-element border border-border-color rounded-md shadow-lg py-1 hidden">
+                    <button data-block-type="paragraph" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="pilcrow" class="w-4 h-4 mr-2"></i>Текст</button>
+                    <button data-block-type="quote" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="quote" class="w-4 h-4 mr-2"></i>Цитата</button>
+                    <button data-block-type="code" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="code-2" class="w-4 h-4 mr-2"></i>Блок кода</button>
+                    <button data-block-type="todolist" class="w-full text-left px-3 py-1.5 text-sm hover:bg-bg-input flex items-center"><i data-lucide="check-square" class="w-4 h-4 mr-2"></i>Список задач</button>
                 </div>
-                <div class="flex-grow overflow-y-auto p-4 relative" id="simple-note-editor-container">
-                    <div id="simple-note-editor" class="prose prose-invert max-w-none focus:outline-none" style="white-space: normal;">
-                        <!-- Блоки будут рендериться сюда с помощью JavaScript -->
+            `;
+        
+            return `
+                <div class="flex flex-col h-full">
+                    <div class="flex-shrink-0 p-4 border-b border-border-color">
+                        <input type="text" id="simple-note-title-input" 
+                               class="bg-transparent text-2xl font-bold focus:outline-none w-full" 
+                               value="${activeSession.title || ''}" 
+                               placeholder="Название заметки">
                     </div>
-                    <button id="block-inserter-btn" class="absolute top-0 left-0 w-7 h-7 flex items-center justify-center text-text-secondary hover:bg-bg-element rounded-full transition-colors hidden">
-                        <i data-lucide="plus" class="w-5 h-5"></i>
-                    </button>
-                    ${blockInserterMenuHTML}
+                    <div id="simple-note-editor-wrapper" class="flex-grow overflow-y-auto p-4 flex flex-col">
+                        <div id="simple-note-editor" class="prose prose-invert max-w-none focus:outline-none flex-grow" style="white-space: normal;">
+                            <!-- Блоки будут рендериться сюда -->
+                        </div>
+                         <div id="editor-footer" class="flex-shrink-0 pt-4 relative">
+                            <button id="block-inserter-btn" class="w-full flex items-center justify-start text-text-secondary hover:text-text-primary transition-colors p-2 rounded-md hover:bg-bg-element">
+                                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                                <span>Добавить блок</span>
+                            </button>
+                            ${blockInserterMenuHTML}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `;
-        // --- КОНЕЦ БЛОКА ДЛЯ КОПИРОВАНИЯ ---
-    }
+            `;
+        }
         
         function renderRoles() {
             const list = document.getElementById('roles-list');
@@ -1168,9 +1179,7 @@
 
         function setupSimpleNotepadViewEventListeners() {
             // --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
-        
             const titleInput = document.getElementById('simple-note-title-input');
-            const editorContainer = document.getElementById('simple-note-editor-container');
             const editor = document.getElementById('simple-note-editor');
             const inserterBtn = document.getElementById('block-inserter-btn');
             const inserterMenu = document.getElementById('block-inserter-menu');
@@ -1180,68 +1189,39 @@
             let activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             let blocks = [];
         
-            // --- Вспомогательные функции ---
-        
-            // Дебаунс для сохранения, чтобы не отправлять запросы в БД на каждый чих
-            const debounce = (func, delay) => {
-                let timeout;
-                return (...args) => {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(this, args), delay);
-                };
-            };
-        
-            // Сохранение всей заметки
+            // --- Функции сохранения ---
+            const debounce = (func, delay) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => func.apply(this, a), delay); }; };
             const saveNote = async () => {
                 if (!state.activeSessionId) return;
-                
-                // Сериализация: собираем данные из DOM в массив объектов
-                const newBlocks = Array.from(editor.children).map(blockEl => {
-                    const type = blockEl.dataset.type;
-                    let content;
-                    if (type === 'todolist') {
-                         content = Array.from(blockEl.querySelectorAll('.todo-item')).map(item => ({
-                            text: item.querySelector('[contenteditable]').innerText,
-                            checked: item.querySelector('input[type="checkbox"]').checked
-                        }));
-                    } else {
-                        content = blockEl.innerText;
-                    }
-        
-                    return { id: blockEl.dataset.id, type, content };
-                });
-        
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                await updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: newBlocks, // Сохраняем массив блоков
-                    updatedAt: serverTimestamp()
-                });
+                await updateDoc(sessionRef, { title: titleInput.value, content: blocks, updatedAt: serverTimestamp() });
             };
-            
             const debouncedSave = debounce(saveNote, 1500);
         
-            // Отрисовка одного блока
-            const renderBlock = (block, index) => {
-                const blockEl = document.createElement('div');
-                blockEl.dataset.id = block.id;
-                blockEl.dataset.type = block.type;
-                blockEl.dataset.index = index;
+            // --- Основные функции для работы с DOM ---
+            
+            // Создает DOM-элемент для одного блока, НЕ добавляя его в DOM
+            const createBlockElement = (block) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'note-block-wrapper';
+                wrapper.dataset.id = block.id;
         
                 switch (block.type) {
                     case 'paragraph':
-                        blockEl.contentEditable = 'true';
-                        blockEl.className = 'note-block min-h-[1em] outline-none';
-                        blockEl.innerText = block.content;
-                        break;
-                    case 'quote':
-                        const blockquote = document.createElement('blockquote');
                         const p = document.createElement('p');
                         p.contentEditable = 'true';
-                        p.className = 'min-h-[1em] outline-none';
+                        p.className = 'outline-none min-h-[1em]';
                         p.innerText = block.content;
-                        blockquote.appendChild(p);
-                        blockEl.appendChild(blockquote);
+                        wrapper.appendChild(p);
+                        break;
+                    case 'quote':
+                        const bq = document.createElement('blockquote');
+                        const q_p = document.createElement('p');
+                        q_p.contentEditable = 'true';
+                        q_p.className = 'outline-none min-h-[1em]';
+                        q_p.innerText = block.content;
+                        bq.appendChild(q_p);
+                        wrapper.appendChild(bq);
                         break;
                     case 'code':
                         const pre = document.createElement('pre');
@@ -1249,164 +1229,151 @@
                         code.contentEditable = 'true';
                         code.className = 'outline-none';
                         code.innerText = block.content;
-                        // Отключаем авто-форматирование marked для contenteditable
-                        code.dataset.noMarked = "true"; 
                         pre.appendChild(code);
-                        blockEl.appendChild(pre);
+                        wrapper.appendChild(pre);
                         break;
                     case 'todolist':
-                         blockEl.className = 'space-y-1';
-                         block.content.forEach((item, itemIndex) => {
+                        block.content.forEach(item => {
                             const itemDiv = document.createElement('div');
                             itemDiv.className = 'flex items-center todo-item';
-                            itemDiv.innerHTML = `
-                                <input type="checkbox" class="mr-3 w-4 h-4 bg-transparent border-border-color rounded text-accent focus:ring-accent" ${item.checked ? 'checked' : ''}>
-                                <span contenteditable="true" class="outline-none w-full ${item.checked ? 'line-through text-text-secondary' : ''}">${item.text}</span>
-                            `;
-                            itemDiv.querySelector('input').addEventListener('change', (e) => {
-                               e.target.nextElementSibling.classList.toggle('line-through');
-                               e.target.nextElementSibling.classList.toggle('text-text-secondary');
-                               debouncedSave();
-                            });
-                            blockEl.appendChild(itemDiv);
-                         });
+                            itemDiv.innerHTML = `<input type="checkbox" class="mr-3 w-4 h-4 bg-transparent border-border-color rounded text-accent focus:ring-accent flex-shrink-0" ${item.checked ? 'checked' : ''}>`;
+                            const textSpan = document.createElement('span');
+                            textSpan.contentEditable = 'true';
+                            textSpan.className = `outline-none w-full todo-item-text ${item.checked ? 'checked' : ''}`;
+                            textSpan.innerText = item.text;
+                            itemDiv.appendChild(textSpan);
+                            wrapper.appendChild(itemDiv);
+                        });
                         break;
                 }
-                return blockEl;
+                return wrapper;
             };
             
-            // Отрисовка всех блоков
-            const renderAllBlocks = () => {
-                editor.innerHTML = '';
-                blocks.forEach((block, index) => {
-                    const blockEl = renderBlock(block, index);
-                    editor.appendChild(blockEl);
-                });
-                lucide.createIcons();
-            };
-        
-            // Вставка нового блока
-            const insertBlock = (type, index) => {
-                const newBlock = {
+            // Вставляет блок в массив `blocks` и в DOM
+            const insertNewBlock = (type, indexToInsertAt) => {
+                const newBlockData = {
                     id: 'block_' + Date.now(),
                     type: type,
                     content: type === 'todolist' ? [{ text: '', checked: false }] : ''
                 };
-                blocks.splice(index + 1, 0, newBlock);
-                renderAllBlocks();
+                
+                blocks.splice(indexToInsertAt, 0, newBlockData);
+                const newBlockElement = createBlockElement(newBlockData);
         
-                // Фокус на новом блоке
-                const newEl = editor.children[index + 1];
-                const focusable = newEl.querySelector('[contenteditable]') || newEl;
+                const referenceNode = editor.children[indexToInsertAt];
+                editor.insertBefore(newBlockElement, referenceNode || null);
+        
+                const focusable = newBlockElement.querySelector('[contenteditable]');
                 if (focusable) {
                     focusable.focus();
                 }
                 debouncedSave();
             };
+            
+            // Удаляет блок из массива `blocks` и из DOM
+            const removeBlock = (indexToRemove) => {
+                if (blocks.length <= 1) return; // Не удалять последний блок
+                
+                const blockToRemove = editor.children[indexToRemove];
+                const prevBlock = blockToRemove.previousElementSibling;
+                
+                blocks.splice(indexToRemove, 1);
+                blockToRemove.remove();
         
+                if (prevBlock) {
+                    const focusable = prevBlock.querySelector('[contenteditable]');
+                    if(focusable) {
+                        focusable.focus();
+                        // Поставить курсор в конец
+                        const selection = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(focusable);
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                }
+                debouncedSave();
+            };
         
-            // --- Инициализация и обработчики событий ---
+            // --- Инициализация и обработчики ---
         
             // 1. Инициализация контента
             if (activeSession) {
-                // Миграция старого формата (string) в новый (array of blocks)
                 if (typeof activeSession.content === 'string' || !Array.isArray(activeSession.content)) {
-                    blocks = [{
-                        id: 'block_' + Date.now(),
-                        type: 'paragraph',
-                        content: activeSession.content || ''
-                    }];
+                    blocks = [{ id: 'block_' + Date.now(), type: 'paragraph', content: activeSession.content || '' }];
                 } else {
                     blocks = activeSession.content;
                 }
-                // Если заметка пустая, создаем первый параграф
                 if (blocks.length === 0) {
                      blocks = [{ id: 'block_' + Date.now(), type: 'paragraph', content: '' }];
                 }
             }
-            renderAllBlocks();
+            editor.innerHTML = '';
+            blocks.forEach(block => editor.appendChild(createBlockElement(block)));
         
-        
-            // 2. Обработчик для заголовка
-            titleInput?.addEventListener('keyup', debouncedSave);
+            // 2. Обработчики
+            titleInput?.addEventListener('input', debouncedSave);
             
-            // 3. Обработчики для редактора (делегирование событий)
             editor.addEventListener('input', (e) => {
-                if(e.target.closest('[contenteditable]')) {
-                    debouncedSave();
+                if (!e.target.matches('[contenteditable]')) return;
+                
+                const wrapper = e.target.closest('.note-block-wrapper');
+                const index = Array.from(editor.children).indexOf(wrapper);
+                const blockData = blocks[index];
+                if(!blockData) return;
+        
+                if(blockData.type === 'todolist') {
+                    const itemDiv = e.target.closest('.todo-item');
+                    const itemIndex = Array.from(wrapper.children).indexOf(itemDiv);
+                    blockData.content[itemIndex].text = e.target.innerText;
+                } else {
+                    blockData.content = e.target.innerText;
+                }
+                debouncedSave();
+            });
+        
+            editor.addEventListener('change', (e) => { // Для чекбоксов
+                if (e.target.matches('input[type="checkbox"]')) {
+                     const wrapper = e.target.closest('.note-block-wrapper');
+                     const index = Array.from(editor.children).indexOf(wrapper);
+                     const itemIndex = Array.from(wrapper.children).indexOf(e.target.parentElement);
+                     blocks[index].content[itemIndex].checked = e.target.checked;
+                     e.target.nextElementSibling.classList.toggle('checked', e.target.checked);
+                     debouncedSave();
                 }
             });
         
             editor.addEventListener('keydown', (e) => {
-                const targetBlock = e.target.closest('[data-id]');
-                if (!targetBlock) return;
+                if (!e.target.matches('[contenteditable]')) return;
                 
-                const index = parseInt(targetBlock.dataset.index, 10);
+                const wrapper = e.target.closest('.note-block-wrapper');
+                const index = Array.from(editor.children).indexOf(wrapper);
         
-                // Enter создает новый блок
-                if (e.key === 'Enter' && !e.shiftKey && targetBlock.dataset.type !== 'code') {
-                    e.preventDefault();
-                    const type = (targetBlock.dataset.type === 'todolist') ? 'todolist' : 'paragraph';
-                    insertBlock(type, index);
-                }
-        
-                // Backspace на пустом блоке удаляет его
-                if (e.key === 'Backspace' && targetBlock.innerText.trim() === '' && blocks.length > 1) {
-                    e.preventDefault();
-                    blocks.splice(index, 1);
-                    renderAllBlocks();
-                    
-                    // Фокус на предыдущем блоке
-                    const prevIndex = Math.max(0, index - 1);
-                    const prevEl = editor.children[prevIndex];
-                    if (prevEl) {
-                        const focusable = prevEl.querySelector('[contenteditable]') || prevEl;
-                        focusable.focus();
-                        // Переместить курсор в конец
-                        document.execCommand('selectAll', false, null);
-                        document.getSelection().collapseToEnd();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    if (wrapper.dataset.type !== 'code') {
+                        e.preventDefault();
+                        insertNewBlock('paragraph', index + 1);
                     }
-                    debouncedSave();
+                }
+        
+                if (e.key === 'Backspace' && e.target.innerText === '') {
+                    e.preventDefault();
+                    removeBlock(index);
                 }
             });
         
-            // 4. Логика кнопки "+" и меню вставки
-            editor.addEventListener('mouseover', (e) => {
-                const targetBlock = e.target.closest('[data-id]');
-                if (targetBlock && targetBlock.innerText.trim() === '') {
-                    inserterBtn.classList.remove('hidden');
-                    inserterBtn.style.top = `${targetBlock.offsetTop}px`;
-                    inserterBtn.dataset.insertAfterIndex = targetBlock.dataset.index;
-                }
-            });
-            
-            editorContainer.addEventListener('mouseleave', () => {
-                 if(!inserterMenu.matches(':hover')) {
-                     inserterBtn.classList.add('hidden');
-                 }
-            });
-        
-            inserterBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                inserterMenu.classList.remove('hidden');
-                const rect = inserterBtn.getBoundingClientRect();
-                inserterMenu.style.top = `${rect.bottom - editorContainer.getBoundingClientRect().top}px`;
-                inserterMenu.style.left = `${rect.left - editorContainer.getBoundingClientRect().left}px`;
-            });
-        
+            // 3. Меню вставки
+            inserterBtn.addEventListener('click', () => inserterMenu.classList.toggle('hidden'));
             inserterMenu.addEventListener('click', (e) => {
                 const target = e.target.closest('[data-block-type]');
-                if (target) {
-                    const type = target.dataset.blockType;
-                    const index = parseInt(inserterBtn.dataset.insertAfterIndex, 10);
-                    insertBlock(type, index);
+                if(target) {
+                    insertNewBlock(target.dataset.blockType, blocks.length);
                     inserterMenu.classList.add('hidden');
-                    inserterBtn.classList.add('hidden');
                 }
             });
-        
             document.addEventListener('click', (e) => {
-                if (!inserterMenu.contains(e.target) && !inserterBtn.contains(e.target)) {
+                if (!inserterBtn.contains(e.target) && !inserterMenu.contains(e.target)) {
                     inserterMenu.classList.add('hidden');
                 }
             });

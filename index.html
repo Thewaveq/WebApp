@@ -1937,15 +1937,14 @@
             if (!userId) return;
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
-            // **ИСПРАВЛЕНИЕ:** Возвращена простая и надежная логика из старой версии.
-            // Она вызывает полную перерисовку, что корректно обрабатывает скролл и другие состояния.
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
                 const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
-                // Не перерисовываем, если идет загрузка ответа модели, чтобы избежать моргания
+                // НЕ перерисовываем, если модель генерирует ответ.
+                // Это сохранит индикатор загрузки и предотвратит моргание.
                 if (!state.isLoading) {
                     render();
                 }

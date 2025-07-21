@@ -870,85 +870,40 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            // Вспомогательная функция для экранирования HTML перед вставкой в code
-            const escapeHtml = (unsafe) => {
-                if (typeof unsafe !== 'string') return '';
-                return unsafe
-                    .replace(/&/g, "&")
-                    .replace(/</g, "<")
-                    .replace(/>/g, ">")
-                    .replace(/"/g, """)
-                    .replace(/'/g, "'");
-            };
-            
-            // Обеспечиваем обратную совместимость
-            const contentBlocks = (Array.isArray(activeSession.content) && activeSession.content.length > 0)
-                ? activeSession.content
-                : [{ id: 'block_' + Date.now(), type: 'text', value: activeSession.content || '' }];
-
-            const blocksHTML = contentBlocks.map(block => {
-                const commonTextAreaClasses = "w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed";
-                let blockContentHTML = '';
-
-                switch (block.type) {
-                    case 'code':
-                        const escapedCode = escapeHtml(block.value);
-                        // Оборачиваем в div, чтобы управлять переключением видимости
-                        blockContentHTML = `
-                            <div class="code-block-wrapper">
-                                <!-- Блок для отображения с подсветкой (виден по умолчанию) -->
-                                <div class="code-block-display cursor-pointer">
-                                    <div class="text-xs text-text-secondary uppercase font-semibold mb-2 flex justify-between items-center">
-                                        <span>Блок кода</span>
-                                        <span class="font-normal normal-case opacity-70">Кликните для редактирования</span>
-                                    </div>
-                                    <pre class="bg-bg-sidebar p-3 rounded-lg border border-border-color min-h-[60px]"><code class="hljs" tabindex="0">${escapedCode || '<span class="text-text-secondary">Ваш код здесь...</span>'}</code></pre>
-                                </div>
-                                <!-- Текстовое поле для редактирования (скрыто по умолчанию) -->
-                                <textarea 
-                                    data-block-id="${block.id}" 
-                                    data-block-type="code" 
-                                    class="code-block-editor ${commonTextAreaClasses} font-mono text-sm hidden" 
-                                    placeholder="Введите ваш код...">${block.value || ''}</textarea>
-                            </div>`;
-                        break;
-                    case 'text':
-                    default:
-                        blockContentHTML = `<textarea data-block-id="${block.id}" data-block-type="text" class="${commonTextAreaClasses}" placeholder="Начните писать...">${block.value || ''}</textarea>`;
-                        break;
-                }
-
-                return `
-                    <div class="simple-note-block group relative mb-4" data-block-id="${block.id}">
-                        ${blockContentHTML}
-                        <button class="delete-block-btn absolute top-2 right-2 p-1.5 rounded-full bg-bg-element text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-danger hover:text-white transition-all z-10" title="Удалить блок">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                `;
-            }).join('');
+            const itemsHTML = (activeSession.contentItems || [{type: 'text', content: ''}])
+                .map((item, index) => {
+                    if (item.type === 'code') {
+                        return `
+                        <div class="note-item group" data-item-index="${index}" data-type="code">
+                             <div class="relative prose max-w-none">
+                                <pre><code class="language-javascript" contenteditable="true" spellcheck="false">${item.content || ''}</code></pre>
+                             </div>
+                             <button class="delete-item-btn absolute top-2 right-2 p-1.5 text-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                        `;
+                    }
+                    // По умолчанию 'text'
+                    return `
+                        <div class="note-item group relative" data-item-index="${index}" data-type="text">
+                            <textarea class="w-full bg-input border-t-0 border-l-0 border-r-0 border-b border-border-color p-4 resize-none focus:outline-none focus:ring-0 focus:border-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${item.content || ''}</textarea>
+                             <button class="delete-item-btn absolute top-2 right-2 p-1.5 text-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    `;
+                }).join('');
 
             return `
-                <div id="simple-note-container" class="flex flex-col h-full p-4">
-                    <input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-shrink-0" value="${activeSession.title || ''}" placeholder="Название заметки">
-                    
-                    <div id="simple-note-content-area" class="flex-grow overflow-y-auto px-4">
-                        ${blocksHTML}
-
-                        <!-- Панель добавления новых блоков -->
-                        <div class="flex items-center my-4">
-                            <div class="flex-grow border-t border-dashed border-border-color"></div>
-                            <div class="mx-4 flex items-center gap-3">
-                                <button id="add-text-block-btn" class="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-element hover:bg-accent hover:text-white border border-border-color transition-all" title="Добавить текстовый блок">
-                                    <i data-lucide="pilcrow" class="w-5 h-5"></i>
-                                </button>
-                                <button id="add-code-block-btn" class="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-element hover:bg-accent hover:text-white border border-border-color transition-all" title="Добавить блок кода">
-                                    <i data-lucide="code-2" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                            <div class="flex-grow border-t border-dashed border-border-color"></div>
+                <div class="flex flex-col h-full">
+                    <div class="p-4 flex-shrink-0">
+                         <input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 w-full" value="${activeSession.title || ''}" placeholder="Название заметки">
+                    </div>
+                    <div id="simple-note-content" class="flex-grow overflow-y-auto px-4">
+                        ${itemsHTML}
+                         <div class="flex justify-center items-center space-x-4 my-4">
+                             <div class="flex-grow border-t border-border-color"></div>
+                             <button id="add-text-item-btn" title="Добавить текстовый блок" class="p-2 rounded-full bg-bg-element hover:bg-accent hover:text-white transition-colors"><i data-lucide="pilcrow" class="w-5 h-5"></i></button>
+                             <button id="add-code-item-btn" title="Добавить блок кода" class="p-2 rounded-full bg-bg-element hover:bg-accent hover:text-white transition-colors"><i data-lucide="code" class="w-5 h-5"></i></button>
+                             <div class="flex-grow border-t border-border-color"></div>
                         </div>
-
                     </div>
                 </div>
             `;
@@ -1208,122 +1163,105 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            const container = document.getElementById('simple-note-container');
-            if (!container || !state.activeSessionId) return;
-
-            // --- Инъекция стилей для переключения видимости редактора кода ---
-            const style = document.createElement('style');
-            style.textContent = `
-                .code-block-wrapper.editing .code-block-display { display: none; }
-                .code-block-wrapper.editing .code-block-editor { display: block; }
-            `;
-            document.head.appendChild(style);
-
             const titleInput = document.getElementById('simple-note-title-input');
+            const contentContainer = document.getElementById('simple-note-content');
+            
+            if (!state.activeSessionId) return;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             
-            // Применяем подсветку ко всем блокам кода при загрузке
-            container.querySelectorAll('.code-block-display code').forEach(block => {
-                if (block.textContent.trim()) hljs.highlightElement(block);
-            });
-
-            // --- Функция для авто-изменения высоты ---
-            const adjustHeight = (el) => {
-                el.style.height = 'auto';
-                el.style.height = (el.scrollHeight) + 'px';
-            };
-            container.querySelectorAll('textarea').forEach(adjustHeight);
-            container.addEventListener('input', (e) => {
-                if (e.target.tagName.toLowerCase() === 'textarea') adjustHeight(e.target);
-            });
-
-            // --- Сохранение данных при потере фокуса ---
-            const saveData = async (blockId, newValue) => {
-                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                let currentBlocks = Array.isArray(activeSession.content) ? activeSession.content : [];
-                
-                let hasChanged = false;
-                const updatedBlocks = currentBlocks.map(block => {
-                    if (block.id === blockId && block.value !== newValue) {
-                        hasChanged = true;
-                        return { ...block, value: newValue };
-                    }
-                    return block;
-                });
-                
-                if (hasChanged) {
-                    await updateDoc(sessionRef, { content: updatedBlocks, updatedAt: serverTimestamp() });
-                }
-            };
-            
-            // --- Обработка событий через делегирование ---
-            container.addEventListener('focusout', (e) => {
-                // Сохранение обычного текстового поля
-                if (e.target.matches('textarea[data-block-type="text"]')) {
-                    saveData(e.target.dataset.blockId, e.target.value);
-                }
-
-                // Выход из режима редактирования кода
-                if (e.target.matches('textarea.code-block-editor')) {
-                    const editor = e.target;
-                    const wrapper = editor.closest('.code-block-wrapper');
-                    const display = wrapper.querySelector('.code-block-display');
-                    const codeElement = display.querySelector('code');
-                    const newValue = editor.value;
-
-                    // Обновляем текст в блоке для отображения
-                    if (newValue.trim()) {
-                        codeElement.textContent = newValue;
-                        hljs.highlightElement(codeElement);
-                    } else {
-                        codeElement.innerHTML = '<span class="text-text-secondary">Ваш код здесь...</span>';
-                    }
-                    
-                    // Переключаем видимость и сохраняем
-                    wrapper.classList.remove('editing');
-                    saveData(editor.dataset.blockId, newValue);
-                }
-            });
-
-            container.addEventListener('click', async (e) => {
-                // Вход в режим редактирования кода
-                const displayBlock = e.target.closest('.code-block-display');
-                if (displayBlock) {
-                    const wrapper = displayBlock.closest('.code-block-wrapper');
-                    const editor = wrapper.querySelector('.code-block-editor');
-                    wrapper.classList.add('editing');
-                    adjustHeight(editor);
-                    editor.focus();
-                }
-
-                // Добавление новых блоков
-                const addBtnId = e.target.closest('button')?.id;
-                if (addBtnId === 'add-text-block-btn' || addBtnId === 'add-code-block-btn') {
-                    const newBlock = {
-                        id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
-                        type: addBtnId === 'add-text-block-btn' ? 'text' : 'code',
-                        value: ''
-                    };
-                    await updateDoc(sessionRef, { content: arrayUnion(newBlock), updatedAt: serverTimestamp() });
-                }
-
-                // Удаление блока
-                const deleteBtn = e.target.closest('.delete-block-btn');
-                if (deleteBtn) {
-                    const blockElem = deleteBtn.closest('.simple-note-block');
-                    const blockIdToDelete = blockElem.dataset.blockId;
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    const blockToRemove = (activeSession?.content || []).find(b => b.id === blockIdToDelete);
-
-                    if (blockToRemove) {
-                        await updateDoc(sessionRef, { content: arrayRemove(blockToRemove), updatedAt: serverTimestamp() });
-                    }
-                }
-            });
-
-            // Сохранение заголовка
+            // --- Сохранение заголовка ---
             titleInput?.addEventListener('change', () => {
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            });
+            
+            const saveNoteContent = async () => {
+                if (!contentContainer) return;
+                const itemElements = contentContainer.querySelectorAll('.note-item');
+                const contentItems = Array.from(itemElements).map(el => {
+                    const type = el.dataset.type;
+                    let content;
+                    if (type === 'code') {
+                        content = el.querySelector('code').innerText;
+                    } else {
+                        content = el.querySelector('textarea').value;
+                    }
+                    return { type, content };
+                });
+                
+                await updateDoc(sessionRef, {
+                    contentItems: contentItems,
+                    updatedAt: serverTimestamp()
+                });
+            };
+
+            // --- Динамическая высота для textarea ---
+            const autoResizeTextarea = (textarea) => {
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+            };
+            
+            contentContainer.querySelectorAll('textarea').forEach(autoResizeTextarea);
+
+            contentContainer.addEventListener('input', e => {
+                if (e.target.tagName.toLowerCase() === 'textarea') {
+                    autoResizeTextarea(e.target);
+                }
+            });
+
+            // --- Сохранение при потере фокуса ---
+            contentContainer.addEventListener('focusout', (e) => {
+                 if (e.target.matches('textarea, code')) {
+                    saveNoteContent();
+                    if(e.target.matches('code')) {
+                       // Перезапускаем подсветку после редактирования
+                       hljs.highlightElement(e.target);
+                    }
+                 }
+            });
+
+            // --- Обработка кнопок добавления и удаления ---
+            contentContainer.addEventListener('click', async (e) => {
+                 const currentItemCount = contentContainer.querySelectorAll('.note-item').length;
+
+                const addItem = async (type) => {
+                    const newItem = { type: type, content: '' };
+                     await updateDoc(sessionRef, {
+                        contentItems: arrayUnion(newItem),
+                        updatedAt: serverTimestamp()
+                    });
+                };
+                
+                if (e.target.closest('#add-text-item-btn')) {
+                    addItem('text');
+                }
+                
+                if (e.target.closest('#add-code-item-btn')) {
+                    addItem('code');
+                }
+
+                const deleteBtn = e.target.closest('.delete-item-btn');
+                if (deleteBtn) {
+                    const itemEl = deleteBtn.closest('.note-item');
+                    const itemIndex = parseInt(itemEl.dataset.itemIndex, 10);
+                    
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const currentItems = activeSession.contentItems || [];
+                    
+                    if (!isNaN(itemIndex) && currentItems[itemIndex]) {
+                         showConfirmModal('Вы уверены, что хотите удалить этот блок?', async () => {
+                             const itemToRemove = currentItems[itemIndex];
+                             await updateDoc(sessionRef, {
+                                 contentItems: arrayRemove(itemToRemove),
+                                 updatedAt: serverTimestamp()
+                             });
+                         });
+                    }
+                }
+            });
+            
+            // --- Инициализация подсветки кода ---
+            contentContainer.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
             });
 
             lucide.createIcons();
@@ -1650,15 +1588,10 @@
                         updatedAt: serverTimestamp() 
                     };
                 } else if (type === 'simplenote') {
-                    // ИЗМЕНЕНО: Создаем заметку с массивом блоков, а не строкой
                     newSessionData = {
                         type: 'simplenote',
-                        title: 'Новая заметка',
-                        content: [{
-                            id: 'block_' + Date.now(),
-                            type: 'text',
-                            value: ''
-                        }],
+                        title: 'Новая простая заметка',
+                        content: '',
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp()
                     };

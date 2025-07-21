@@ -677,12 +677,9 @@
                     break;
                 case 'simplenote':
                      if (activeSession) {
-                        // Сначала создаем каркас
                         mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
-                        // Затем наполняем его содержимым
                         renderSimpleNoteContent(activeSession);
                         setupSimpleNotepadViewEventListeners();
-                        // Прокручиваем вниз после рендеринга, чтобы увидеть конец заметки
                         setTimeout(() => {
                             const container = document.getElementById('simple-note-content-container');
                             if (container) {
@@ -899,54 +896,49 @@
             if (!messagesContainer) return;
             
             const sessionMessages = session.messages || [];
+            // Проверяем, был ли пользователь внизу ДО того, как мы начнем менять DOM
             const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5;
-            const existingMessageElements = messagesContainer.querySelectorAll('.message-placeholder, .message-container');
 
-            // Эта логика вызывается при первом рендере или при удалении сообщений (регенерации)
-            if (sessionMessages.length < existingMessageElements.length || existingMessageElements.length === 0) {
-                if (chatObserver) chatObserver.disconnect();
-                messagesContainer.innerHTML = ''; // Очищаем контейнер
-                
-                const observerCallback = (entries, observer) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const placeholder = entry.target;
-                            const msg = JSON.parse(placeholder.dataset.message);
-                            const index = parseInt(placeholder.dataset.messageIndex, 10);
-                            const messageElement = createMessageElement(msg, index);
-                            placeholder.parentNode.replaceChild(messageElement, placeholder);
-                            observer.unobserve(messageElement); // Важно, чтобы не вызывать повторно
-                        }
-                    });
-                };
-                chatObserver = new IntersectionObserver(observerCallback, { root: messagesContainer, rootMargin: '200px 0px' });
-
-                sessionMessages.forEach((msg, index) => {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'message-placeholder';
-                    placeholder.dataset.message = JSON.stringify(msg);
-                    placeholder.dataset.messageIndex = String(index);
-                    messagesContainer.appendChild(placeholder);
-                    chatObserver.observe(placeholder);
+            // Полная перерисовка с помощью IntersectionObserver
+            // Это нужно при первой загрузке или при удалении сообщений (регенерации)
+            if (chatObserver) chatObserver.disconnect();
+            messagesContainer.innerHTML = '';
+            
+            const observerCallback = (entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const placeholder = entry.target;
+                        const msg = JSON.parse(placeholder.dataset.message);
+                        const index = parseInt(placeholder.dataset.messageIndex, 10);
+                        const messageElement = createMessageElement(msg, index);
+                        placeholder.parentNode.replaceChild(messageElement, placeholder);
+                        observer.unobserve(placeholder);
+                    }
                 });
+            };
+            chatObserver = new IntersectionObserver(observerCallback, { root: messagesContainer, rootMargin: '200px 0px' });
 
-            } else { // Эта логика вызывается, когда добавляются новые сообщения
-                const messagesToAdd = sessionMessages.slice(existingMessageElements.length);
-                if (messagesToAdd.length > 0) {
-                    // **ИСПРАВЛЕНИЕ:** Удалена строка, которая преждевременно убирала индикатор загрузки
-                    messagesToAdd.forEach((msg, i) => {
-                        const newIndex = existingMessageElements.length + i;
-                        const messageElement = createMessageElement(msg, newIndex);
-                        messagesContainer.appendChild(messageElement);
-                    });
-                }
-            }
+            sessionMessages.forEach((msg, index) => {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'message-placeholder';
+                placeholder.dataset.message = JSON.stringify(msg);
+                placeholder.dataset.messageIndex = String(index);
+                messagesContainer.appendChild(placeholder);
+                chatObserver.observe(placeholder);
+            });
 
+            // Если пользователь был внизу, прокручиваем его к новому низу.
+            // setTimeout(..., 0) дает браузеру время обработать вставку элементов перед прокруткой.
             if (isScrolledToBottom) {
-                // Задержка нужна, чтобы DOM успел обновиться после вставки плейсхолдеров
                 setTimeout(() => {
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }, 0);
+            }
+            
+            // Если индикатор загрузки уже есть от предыдущей операции, он останется.
+            // Если его нет, он будет добавлен функцией generateAssistantResponse.
+            if (state.isLoading) {
+                 showTypingIndicatorInChat();
             }
         }
     

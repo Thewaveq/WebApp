@@ -877,9 +877,9 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            // --- НОВАЯ, ИСПРАВЛЕННАЯ ВЕРСИЯ ---
+            // --- ОКОНЧАТЕЛЬНАЯ ВЕРСИЯ ---
+            // Гарантирует правильную структуру данных, даже если в базе пустое значение.
             let contentBlocks = activeSession.content || [];
-
             if (typeof contentBlocks === 'string' || (Array.isArray(contentBlocks) && contentBlocks.length === 0)) {
                 const value = typeof contentBlocks === 'string' ? contentBlocks : '';
                 contentBlocks = [{ id: 'block_' + Date.now(), type: 'paragraph', value }];
@@ -890,12 +890,11 @@
                 
                 switch(block.type) {
                     case 'code':
+                        // ИСПРАВЛЕНИЕ: Генерируется и область для показа (`.code-block-display`), и скрытое поле для редактирования (`textarea`).
                         const codeValue = block.value || '';
-                        // Убедимся, что язык указан, чтобы hljs не выдавал предупреждений
                         const highlightedCode = hljs.highlight(codeValue, {language: 'javascript', ignoreIllegals: true}).value;
                         return `
                             <div class="content-block group relative" data-block-id="${block.id}" data-type="code">
-                                <!-- УБРАН КЛАСС 'prose' ДЛЯ ИСПРАВЛЕНИЯ КЛИКА -->
                                 <div class="code-block-display cursor-pointer" title="Нажмите, чтобы редактировать">
                                     <pre class="hljs rounded-lg p-4"><code class="language-javascript">${highlightedCode}</code></pre>
                                 </div>
@@ -1204,7 +1203,7 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
-            // --- ОКОНЧАТЕЛЬНАЯ, ИСПРАВЛЕННАЯ ВЕРСИЯ ---
+            // --- ОКОНЧАТЕЛЬНАЯ ВЕРСИЯ ---
             const editor = document.getElementById('simple-note-editor');
             if (!editor) return;
 
@@ -1291,41 +1290,30 @@
                 }
             });
             
-            // Обработка кликов с ИСПРАВЛЕННЫМ ПОРЯДКОМ ПРОВЕРОК
             editor.addEventListener('click', (e) => {
-                const contentContainer = document.getElementById('simple-note-content');
+                const target = e.target;
                 
-                // ИСПРАВЛЕНИЕ: ПРОВЕРКА №1 - Клик по самому блоку для редактирования
-                const codeDisplay = e.target.closest('.code-block-display');
-                if (codeDisplay) {
-                    const block = codeDisplay.closest('.content-block');
-                    // Если клик был по кнопке удаления внутри блока, игнорируем его
-                    if (e.target.closest('.delete-block-btn')) return;
+                // ИСПРАВЛЕНИЕ: Изменен порядок проверок для большей надежности.
+                // Сначала проверяются самые конкретные действия (клики по кнопкам).
 
-                    const textarea = block.querySelector('textarea');
-                    codeDisplay.classList.add('hidden');
-                    textarea.classList.remove('hidden');
-                    textarea.focus();
-                    autoResizeTextarea(textarea);
+                // Приоритет 1: Удаление всего блока
+                const deleteBlockBtn = target.closest('.delete-block-btn');
+                if (deleteBlockBtn) {
+                    deleteBlockBtn.closest('.content-block')?.remove();
+                    scheduleSave();
                     return;
                 }
 
-                // ПРОВЕРКА №2 - Кнопки удаления (самые конкретные)
-                const deleteTodoItemBtn = e.target.closest('.delete-todo-item-btn');
+                // Приоритет 2: Удаление пункта из списка задач
+                const deleteTodoItemBtn = target.closest('.delete-todo-item-btn');
                 if (deleteTodoItemBtn) {
                     deleteTodoItemBtn.closest('.todolist-item')?.remove();
                     scheduleSave();
                     return;
                 }
-                const deleteBtn = e.target.closest('.delete-block-btn');
-                if (deleteBtn) {
-                    deleteBtn.closest('.content-block')?.remove();
-                    scheduleSave();
-                    return;
-                }
-
-                // ПРОВЕРКА №3 - Кнопки добавления пунктов
-                const addTodoItemBtn = e.target.closest('.add-todo-item-btn');
+                
+                // Приоритет 3: Добавление нового пункта в список задач
+                const addTodoItemBtn = target.closest('.add-todo-item-btn');
                 if (addTodoItemBtn) {
                     const listContainer = addTodoItemBtn.closest('.content-block').querySelector('.todolist-container');
                     const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
@@ -1337,9 +1325,10 @@
                     return;
                 }
 
-                // ПРОВЕРКА №4 - Главные кнопки добавления блоков
-                const addBtn = e.target.closest('.add-block-btn');
+                // Приоритет 4: Добавление нового блока (текст, код, список)
+                const addBtn = target.closest('.add-block-btn');
                 if (addBtn) {
+                    const contentContainer = document.getElementById('simple-note-content');
                     const type = addBtn.dataset.addBlock;
                     const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: type === 'todolist' ? [] : '' }] };
                     const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
@@ -1352,6 +1341,19 @@
                         if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
                     scheduleSave();
+                    return;
+                }
+
+                // Приоритет 5: Переключение блока кода в режим редактирования.
+                // Эта проверка идет последней, так как она самая общая.
+                const codeDisplay = target.closest('.code-block-display');
+                if (codeDisplay) {
+                    const block = codeDisplay.closest('.content-block');
+                    const textarea = block.querySelector('textarea');
+                    codeDisplay.classList.add('hidden');
+                    textarea.classList.remove('hidden');
+                    textarea.focus();
+                    autoResizeTextarea(textarea);
                     return;
                 }
             });

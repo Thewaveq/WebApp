@@ -880,13 +880,10 @@
             // --- НОВАЯ ВЕРСИЯ ФУНКЦИИ ---
             let contentBlocks = activeSession.content || [];
 
-            if (typeof contentBlocks === 'string' || contentBlocks.length === 0) {
+            // Обратная совместимость и инициализация, если заметка пуста
+            if (typeof contentBlocks === 'string' || (Array.isArray(contentBlocks) && contentBlocks.length === 0)) {
                 const value = typeof contentBlocks === 'string' ? contentBlocks : '';
-                contentBlocks = [{
-                    id: 'block_' + Date.now(),
-                    type: 'paragraph',
-                    value: value
-                }];
+                contentBlocks = [{ id: 'block_' + Date.now(), type: 'paragraph', value }];
             }
             
             const generateBlockHTML = (block) => {
@@ -894,17 +891,24 @@
                 
                 switch(block.type) {
                     case 'code':
+                        // Создаем подсвеченный HTML с помощью highlight.js
+                        const highlightedCode = hljs.highlight(block.value || '', {language: 'javascript'}).value;
                         return `
                             <div class="content-block group relative" data-block-id="${block.id}" data-type="code">
-                                <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed" placeholder="Ваш код..." rows="5">${block.value || ''}</textarea>
+                                <!-- Показываем красивый блок, прячем textarea -->
+                                <div class="code-block-display prose prose-sm max-w-none cursor-pointer">
+                                    <pre><code class="hljs language-javascript">${highlightedCode}</code></pre>
+                                </div>
+                                <textarea class="code-editor-textarea w-full text-sm border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent leading-relaxed hidden" rows="5">${block.value || ''}</textarea>
                                 ${commonDeleteButton}
                             </div>`;
                     case 'todolist':
                         const itemsHTML = (block.value || [{text:'', checked:false}])
                             .map((item) => `
-                                <div class="flex items-center gap-2 todolist-item">
+                                <div class="todolist-item group flex items-center gap-2">
                                     <input type="checkbox" ${item.checked ? 'checked' : ''} class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0">
                                     <input type="text" value="${item.text || ''}" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
+                                    <button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button>
                                 </div>
                             `).join('');
                         return `
@@ -935,16 +939,10 @@
                             ${contentHTML}
                         </div>
                         <div class="flex justify-center items-center py-8">
-                            <div class="flex items-center gap-4 p-2 rounded-full bg-bg-element border border-border-color">
-                                <button data-add-block="paragraph" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить текст">
-                                    <i data-lucide="pilcrow" class="w-5 h-5"></i>
-                                </button>
-                                <button data-add-block="code" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить блок кода">
-                                    <i data-lucide="code" class="w-5 h-5"></i>
-                                </button>
-                                <button data-add-block="todolist" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить список задач">
-                                    <i data-lucide="check-square" class="w-5 h-5"></i>
-                                </button>
+                             <div class="flex items-center gap-4 p-2 rounded-full bg-bg-element border border-border-color">
+                                <button data-add-block="paragraph" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить текст"><i data-lucide="pilcrow" class="w-5 h-5"></i></button>
+                                <button data-add-block="code" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить блок кода"><i data-lucide="code" class="w-5 h-5"></i></button>
+                                <button data-add-block="todolist" class="add-block-btn p-2 rounded-full hover:bg-accent hover:text-white" title="Добавить список задач"><i data-lucide="check-square" class="w-5 h-5"></i></button>
                             </div>
                         </div>
                     </div>
@@ -1219,21 +1217,21 @@
 
             const saveNote = async () => {
                 if (!state.activeSessionId) return;
-
                 const titleInput = document.getElementById('simple-note-title-input');
                 const contentContainer = document.getElementById('simple-note-content');
                 if (!titleInput || !contentContainer) return;
 
                 const blockElements = contentContainer.querySelectorAll('.content-block');
-
                 const newContent = Array.from(blockElements).map(blockEl => {
                     const id = blockEl.dataset.blockId;
                     const type = blockEl.dataset.type;
                     let value;
 
                     switch(type) {
+                        case 'code': // Данные берем из textarea, даже если она скрыта
+                            value = blockEl.querySelector('textarea').value;
+                            break;
                         case 'paragraph':
-                        case 'code':
                             value = blockEl.querySelector('textarea').value;
                             break;
                         case 'todolist':
@@ -1248,11 +1246,7 @@
                 });
 
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                await updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: newContent,
-                    updatedAt: serverTimestamp()
-                });
+                await updateDoc(sessionRef, { title: titleInput.value, content: newContent, updatedAt: serverTimestamp() });
             };
 
             const scheduleSave = () => {
@@ -1261,77 +1255,133 @@
             };
             
             editor.querySelectorAll('textarea').forEach(autoResizeTextarea);
-            
+
+            // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+
+            // Редактирование текста и заголовка
             editor.addEventListener('input', (e) => {
-                if (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type === 'text')) {
-                    if(e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
+                if (e.target.matches('textarea, #simple-note-title-input')) {
+                    if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
                     scheduleSave();
                 }
             });
 
+            // Клик по чекбоксу
             editor.addEventListener('change', (e) => {
-                if (e.target.type === 'checkbox') {
+                if (e.target.matches('input[type="checkbox"]')) scheduleSave();
+            });
+
+            // Умная обработка нажатий клавиш для списков задач
+            editor.addEventListener('keydown', (e) => {
+                const targetInput = e.target;
+                if (!targetInput.matches('.todolist-item input[type="text"]')) return;
+
+                const currentItem = targetInput.closest('.todolist-item');
+
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const newItem = currentItem.cloneNode(true);
+                    newItem.querySelector('input[type="text"]').value = '';
+                    newItem.querySelector('input[type="checkbox"]').checked = false;
+                    currentItem.after(newItem);
+                    newItem.querySelector('input[type="text"]').focus();
+                    scheduleSave();
+                } else if (e.key === 'Backspace' && targetInput.value === '') {
+                    e.preventDefault();
+                    const prevItem = currentItem.previousElementSibling;
+                    const nextItem = currentItem.nextElementSibling;
+                    currentItem.remove();
+                    if (prevItem && prevItem.matches('.todolist-item')) {
+                        prevItem.querySelector('input[type="text"]').focus();
+                    } else if (nextItem && nextItem.matches('.todolist-item')) {
+                        nextItem.querySelector('input[type="text"]').focus();
+                    }
                     scheduleSave();
                 }
             });
 
+            // Обработка кликов по кнопкам, блокам и т.д.
             editor.addEventListener('click', (e) => {
                 const contentContainer = document.getElementById('simple-note-content');
                 
-                // --- Умное добавление блока ---
+                // Добавление новых блоков (текст, код, список)
                 const addBtn = e.target.closest('.add-block-btn');
                 if (addBtn) {
+                    // Код для добавления блоков остался таким же и работает корректно
                     const type = addBtn.dataset.addBlock;
-                    const newBlockData = {
-                         id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), 
-                         type: type, 
-                         value: type === 'todolist' ? [{text:'', checked:false}] : ''
-                    };
-                    
-                    // Генерируем HTML только для нового блока, используя фиктивную сессию
-                    const tempSession = { content: [newBlockData] };
+                    const tempSession = { content: [{ id: 'block_' + Date.now(), type: type, value: type === 'todolist' ? [{text:'', checked:false}] : '' }] };
                     const newBlockHTML = getSimpleNotepadViewHTML(tempSession).match(/<div class="content-block(.|\n)*?<\/div>/)[0];
-
                     contentContainer.insertAdjacentHTML('beforeend', newBlockHTML);
                     const newElement = contentContainer.lastElementChild;
-
-                    // Активируем иконки и фокусируемся
                     lucide.createIcons({nodes: [newElement]});
                     const focusTarget = newElement.querySelector('textarea, input[type="text"]');
-                    if (focusTarget) {
+                    if(focusTarget) {
                         focusTarget.focus();
                         if (focusTarget.tagName === 'TEXTAREA') autoResizeTextarea(focusTarget);
                     }
-                    
                     scheduleSave();
                     return;
                 }
-                
-                // --- Прямое удаление блока из DOM ---
-                const deleteBtn = e.target.closest('.delete-block-btn');
-                if (deleteBtn) {
-                    const blockEl = deleteBtn.closest('.content-block');
-                    if (blockEl) {
-                        blockEl.remove();
-                        scheduleSave();
-                    }
+
+                // Клик по блоку кода для его редактирования
+                const codeDisplay = e.target.closest('.code-block-display');
+                if (codeDisplay) {
+                    const block = codeDisplay.closest('.content-block');
+                    const textarea = block.querySelector('textarea');
+                    codeDisplay.classList.add('hidden');
+                    textarea.classList.remove('hidden');
+                    textarea.focus();
+                    autoResizeTextarea(textarea);
                     return;
                 }
                 
-                // --- Прямое добавление пункта в список задач ---
+                // Удаление целого блока
+                const deleteBtn = e.target.closest('.delete-block-btn');
+                if (deleteBtn) {
+                    deleteBtn.closest('.content-block')?.remove();
+                    scheduleSave();
+                    return;
+                }
+
+                // НОВОЕ: Удаление одного пункта из списка задач
+                const deleteTodoItemBtn = e.target.closest('.delete-todo-item-btn');
+                if (deleteTodoItemBtn) {
+                    deleteTodoItemBtn.closest('.todolist-item')?.remove();
+                    scheduleSave();
+                    return;
+                }
+
+                // Добавление пункта в список по кнопке "+ Добавить пункт"
                 const addTodoItemBtn = e.target.closest('.add-todo-item-btn');
                 if (addTodoItemBtn) {
-                    const todoItemHTML = `
-                        <div class="flex items-center gap-2 todolist-item">
-                            <input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0">
-                            <input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача...">
-                        </div>`;
-                    addTodoItemBtn.insertAdjacentHTML('beforebegin', todoItemHTML);
-                    addTodoItemBtn.previousElementSibling.querySelector('input[type="text"]').focus();
+                    const newItemHTML = `<div class="todolist-item group flex items-center gap-2"><input type="checkbox" class="w-5 h-5 bg-input border-border-color rounded text-accent focus:ring-accent flex-shrink-0"><input type="text" value="" class="w-full bg-transparent focus:outline-none py-1 border-b border-transparent focus:border-border-color" placeholder="Новая задача..."><button class="delete-todo-item-btn p-1 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
+                    addTodoItemBtn.insertAdjacentHTML('beforebegin', newItemHTML);
+                    const newItemElement = addTodoItemBtn.previousElementSibling;
+                    lucide.createIcons({nodes: [newItemElement]});
+                    newItemElement.querySelector('input[type="text"]').focus();
                     scheduleSave();
                     return;
                 }
             });
+
+            // Обработка потери фокуса для textarea (особенно важно для кода)
+            editor.addEventListener('blur', (e) => {
+                // Превращаем textarea с кодом обратно в подсвеченный блок
+                if (e.target.matches('.code-editor-textarea')) {
+                    const textarea = e.target;
+                    const block = textarea.closest('.content-block');
+                    const codeDisplay = block.querySelector('.code-block-display');
+                    const codeElement = codeDisplay.querySelector('code');
+                    
+                    const newCode = textarea.value;
+                    codeElement.textContent = newCode;
+                    hljs.highlightElement(codeElement);
+                    
+                    textarea.classList.add('hidden');
+                    codeDisplay.classList.remove('hidden');
+                    scheduleSave();
+                }
+            }, true); // Используем capturing, чтобы событие сработало до других
             
             lucide.createIcons();
         }

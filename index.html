@@ -725,7 +725,8 @@
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsContainer = document.createElement('div');
-            actionsContainer.className = 'absolute top-2 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            // ИЗМЕНЕНИЕ: Позиционирование кнопок изменено на bottom-1 right-2
+            actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
 
             if (isUser) {
                 const editButton = document.createElement('button');
@@ -1539,9 +1540,11 @@
                     const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (activeSession && !isNaN(messageIndex)) {
+                        // ИЗМЕНЕНИЕ: Обновлен текст и логика
                         showConfirmModal(
-                            'Вы уверены, что хотите перегенерировать этот ответ? Вся история чата после этого сообщения будет удалена.',
+                            'Вы уверены, что хотите перегенерировать этот ответ? Текущий ответ и все последующие сообщения будут удалены.',
                             () => {
+                                // Удаляем сообщение-ответ, которое перегенерируется, и все последующие
                                 const messagesForRegen = activeSession.messages.slice(0, messageIndex);
                                 handleChatSubmit(new Event('submit'), { messages: messagesForRegen });
                             }
@@ -1586,6 +1589,7 @@
                     editForm.querySelector('.save-edit-btn').addEventListener('click', () => {
                         const newContent = textarea.value.trim();
                         if (newContent) {
+                            // ИЗМЕНЕНИЕ: Удаляем редактируемое сообщение и все последующие
                             const messagesForRegen = activeSession.messages.slice(0, messageIndex);
                             messagesForRegen.push({ role: 'user', content: newContent });
                             

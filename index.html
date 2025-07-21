@@ -594,7 +594,8 @@
                     `;
 
                     if (blockData.type === 'code') {
-                        blockWrapper.className = "code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg";
+                        // ИЗМЕНЕНИЕ: Добавлен класс 'message-container' для совместимости со стилями ширины
+                        blockWrapper.className = "message-container code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg mb-4";
                         blockWrapper.innerHTML = `
                             ${actionsPanelHTML}
                             <pre class="p-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-b-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
@@ -603,7 +604,8 @@
                         const codeElement = blockWrapper.querySelector('code');
                         hljs.highlightElement(codeElement);
                     } else { // type 'text'
-                        blockWrapper.className = "text-block-wrapper bg-bg-sidebar border border-border-color rounded-lg";
+                        // ИЗМЕНЕНИЕ: Добавлен класс 'message-container' для совместимости со стилями ширины
+                        blockWrapper.className = "message-container text-block-wrapper bg-bg-sidebar border border-border-color rounded-lg mb-4";
                         blockWrapper.innerHTML = `
                            ${actionsPanelHTML}
                            <textarea class="w-full bg-input rounded-b-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>

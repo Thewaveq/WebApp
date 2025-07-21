@@ -582,40 +582,32 @@
                     blockWrapper.dataset.id = blockData.id;
                     blockWrapper.dataset.type = blockData.type;
                     
+                    const actionsPanelHTML = `
+                        <div class="flex justify-end items-center gap-2 p-2 border-b border-border-color">
+                            <button class="copy-block-btn p-1.5 text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors" title="Копировать содержимое">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <button class="delete-block-btn p-1.5 text-text-secondary border border-border-color rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+
                     if (blockData.type === 'code') {
-                        // Контейнер для всего блока: заголовок + поле кода
                         blockWrapper.className = "code-block-wrapper bg-bg-sidebar border border-border-color rounded-lg";
                         blockWrapper.innerHTML = `
-                            <!-- Панель с кнопкой "Удалить" -->
-                            <div class="flex justify-end items-center p-2 border-b border-border-color">
-                                <button class="delete-block-btn p-1.5 text-text-secondary rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                            <!-- Контейнер для позиционирования кнопки "Копировать" -->
-                            <div class="relative group">
-                                <pre class="p-4 pr-16 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-b-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
-                                <!-- Кнопка копирования, спозиционированная абсолютно внутри relative-контейнера -->
-                                <button class="copy-code-btn absolute top-3 right-3 p-1.5 bg-bg-element text-text-secondary border border-border-color rounded-md hover:text-accent transition-colors opacity-0 group-hover:opacity-100" title="Копировать код">
-                                    <i data-lucide="copy" class="w-4 h-4"></i>
-                                </button>
-                            </div>`;
+                            ${actionsPanelHTML}
+                            <pre class="p-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent rounded-b-lg"><code class="hljs" contenteditable="true" spellcheck="false">${blockData.content || ''}</code></pre>
+                        `;
                         container.appendChild(blockWrapper);
                         const codeElement = blockWrapper.querySelector('code');
                         hljs.highlightElement(codeElement);
                     } else { // type 'text'
-                        // Контейнер для текстового блока
                         blockWrapper.className = "text-block-wrapper bg-bg-sidebar border border-border-color rounded-lg";
                         blockWrapper.innerHTML = `
-                            <!-- Панель с кнопкой "Удалить" -->
-                            <div class="flex justify-end items-center p-2 border-b border-border-color">
-                                 <button class="delete-block-btn p-1.5 text-text-secondary rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors" title="Удалить блок">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                            <!-- Текстовое поле -->
-                            <textarea class="w-full bg-input rounded-b-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed border-0" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>
-                           `;
+                           ${actionsPanelHTML}
+                           <textarea class="w-full bg-input rounded-b-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1">${blockData.content || ''}</textarea>
+                        `;
                         container.appendChild(blockWrapper);
                         const newTextarea = blockWrapper.querySelector('textarea');
                         newTextarea.style.height = 'auto';
@@ -1333,16 +1325,31 @@
                     return;
                 }
 
-                const copyBtn = e.target.closest('.copy-code-btn');
+                const copyBtn = e.target.closest('.copy-block-btn');
                 if (copyBtn) {
-                    const codeEl = copyBtn.closest('.code-block-wrapper').querySelector('code');
-                    navigator.clipboard.writeText(codeEl.innerText);
-                    copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                    lucide.createIcons({nodes: [copyBtn]});
-                    setTimeout(() => {
-                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                    const blockWrapper = copyBtn.closest('[data-id]');
+                    if (!blockWrapper) return;
+
+                    const blockType = blockWrapper.dataset.type;
+                    let textToCopy = '';
+
+                    if (blockType === 'code') {
+                        const codeEl = blockWrapper.querySelector('code');
+                        if (codeEl) textToCopy = codeEl.innerText;
+                    } else if (blockType === 'text') {
+                        const textareaEl = blockWrapper.querySelector('textarea');
+                        if (textareaEl) textToCopy = textareaEl.value;
+                    }
+
+                    if (textToCopy) {
+                        navigator.clipboard.writeText(textToCopy);
+                        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
                         lucide.createIcons({nodes: [copyBtn]});
-                    }, 2000);
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                            lucide.createIcons({nodes: [copyBtn]});
+                        }, 2000);
+                    }
                 }
             });
             
@@ -1393,17 +1400,10 @@
                 }
             });
             
-            // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // Этот обработчик срабатывает, когда пользователь убирает курсор с блока кода
             contentContainer?.addEventListener('focusout', e => {
                 const codeElement = e.target;
-                // Проверяем, что это действительно блок кода
                 if (codeElement.tagName === 'CODE' && codeElement.closest('[data-type="code"]')) {
-                    // Проверяем, доступна ли библиотека highlight.js
                     if(window.hljs) {
-                         // Принудительно заново применяем подсветку к элементу.
-                         // Библиотека сама прочитает текстовое содержимое и заменит его
-                         // на HTML с тегами <span> для подсветки.
                          hljs.highlightElement(codeElement);
                     }
                 }

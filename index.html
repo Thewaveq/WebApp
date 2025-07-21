@@ -624,109 +624,177 @@
         }
     
         function renderMainContent() {
-            if (chatObserver) {
-                chatObserver.disconnect();
-                chatObserver = null;
-            }
+        if (chatObserver) {
+            chatObserver.disconnect();
+            chatObserver = null;
+        }
+    
+        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+    
+        // Проблема с прокруткой была здесь.
+        // Убираем неработающую логику сохранения/восстановления прокрутки,
+        // так как новая функция attachFirestoreListeners больше не будет вызывать
+        // полную перерисовку при обновлении сообщений.
+    
+        mainContent.innerHTML = '';
         
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            const isChatUpdate = state.activeTab === 'chat' && activeSession;
-            let scrollState = null;
+        switch (state.activeTab) {
+            case 'chat':
+                if (activeSession) {
+                    mainContent.innerHTML = getChatViewHTML(activeSession);
+                    
+                    const provider = state.providers.find(p => p.id === activeSession.providerId);
+                    let needsUpdate = false;
+                    const updatePayload = {};
+    
+                    if (!provider && state.providers.length > 0) {
+                        const firstProvider = state.providers[0];
+                        const models = firstProvider.models || [];
+                        updatePayload.providerId = firstProvider.id;
+                        updatePayload.modelName = models.length > 0 ? models[0] : null;
+                        needsUpdate = true;
+                    } else if (provider && !activeSession.modelName) {
+                        const models = provider.models || [];
+                        if (models.length > 0) {
+                            updatePayload.modelName = models[0];
+                            needsUpdate = true;
+                        }
+                    }
+    
+                    if (needsUpdate) {
+                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                        updateDoc(sessionRef, updatePayload);
+                    }
+                    
+                    renderChatMessages(activeSession);
+                    setupChatViewEventListeners();
+                    updateLoadingIndicator();
 
-            if (isChatUpdate) {
-                const messagesContainer = document.getElementById('chat-messages');
-                if (messagesContainer) {
-                    scrollState = {
-                        isScrolledToBottom: messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5,
-                        scrollFromBottom: messagesContainer.scrollHeight - messagesContainer.scrollTop
-                    };
+                    // Сразу прокручиваем в самый низ при открытии чата
+                    const messagesContainer = document.getElementById('chat-messages');
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+
+                } else {
+                     mainContent.innerHTML = getEmptyStateHTML('chat');
+                }
+                break;
+            case 'notepad':
+                 if (activeSession) {
+                    mainContent.innerHTML = getNotepadViewHTML(activeSession);
+                    setupNotepadViewEventListeners();
+                } else {
+                    mainContent.innerHTML = getEmptyStateHTML('notepad');
+                }
+                break;
+            case 'simplenote':
+                 if (activeSession) {
+                    mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
+                    renderSimpleNoteContent(activeSession);
+                    setupSimpleNotepadViewEventListeners();
+                    setTimeout(() => {
+                        const container = document.getElementById('simple-note-content-container');
+                        if (container) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    }, 0);
+                } else {
+                    mainContent.innerHTML = getEmptyStateHTML('simplenote');
+                }
+                break;
+            case 'settings':
+                mainContent.innerHTML = getSettingsViewHTML();
+                renderProviders();
+                renderRoles();
+                setupSettingsViewEventListeners();
+                break;
+        }
+        lucide.createIcons();
+    }
+
+    function attachFirestoreListeners() {
+        unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
+        if (!userId) return;
+    
+        const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
+        // Эта функция - ключевое исправление.
+        // Она теперь корректно обрабатывает изменения, обновляя только то, что нужно,
+        // и не ломая при этом индикатор загрузки и позицию прокрутки.
+        unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
+            let needsSidebarRender = false;
+            let activeSessionUpdated = false;
+
+            snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data();
+                const id = change.doc.id;
+
+                if (change.type === "added") {
+                    state.sessions.push({ id, ...data });
+                    needsSidebarRender = true;
+                }
+                if (change.type === "modified") {
+                    const index = state.sessions.findIndex(s => s.id === id);
+                    if (index > -1) {
+                        state.sessions[index] = { id, ...data };
+                    }
+                    
+                    if (id === state.activeSessionId) {
+                        // Если изменился активный документ, мы не будем перерисовывать всё,
+                        // а только обновим его содержимое.
+                        activeSessionUpdated = true;
+                    } else {
+                        // Если изменился другой документ, возможно, нужно обновить сайдбар (порядок сортировки).
+                        needsSidebarRender = true;
+                    }
+                }
+                if (change.type === "removed") {
+                    state.sessions = state.sessions.filter(s => s.id !== id);
+                    if (id === state.activeSessionId) {
+                        state.activeSessionId = null;
+                    }
+                    needsSidebarRender = true;
+                }
+            });
+
+            state.sessions.sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+            
+            if (needsSidebarRender) {
+                // Полная перерисовка нужна только если изменился список чатов или мы переключились на другой.
+                render();
+            } else if (activeSessionUpdated) {
+                // А если пришло обновление для текущего чата/заметки - обновляем только его содержимое.
+                // Это исправляет и прокрутку, и индикатор.
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                if (activeSession) {
+                     if (activeSession.type === 'simplenote') {
+                        renderSimpleNoteContent(activeSession);
+                    } else if (activeSession.type === 'chat') {
+                        renderChatMessages(activeSession);
+                    } else {
+                        // Для других типов, если понадобится, можно оставить полную перерисовку.
+                        render();
+                    }
                 }
             }
-        
-            mainContent.innerHTML = '';
-            
-            switch (state.activeTab) {
-                case 'chat':
-                    if (activeSession) {
-                        mainContent.innerHTML = getChatViewHTML(activeSession);
-                        
-                        const provider = state.providers.find(p => p.id === activeSession.providerId);
-                        let needsUpdate = false;
-                        const updatePayload = {};
-        
-                        if (!provider && state.providers.length > 0) {
-                            const firstProvider = state.providers[0];
-                            const models = firstProvider.models || [];
-                            updatePayload.providerId = firstProvider.id;
-                            updatePayload.modelName = models.length > 0 ? models[0] : null;
-                            needsUpdate = true;
-                        } else if (provider && !activeSession.modelName) {
-                            const models = provider.models || [];
-                            if (models.length > 0) {
-                                updatePayload.modelName = models[0];
-                                needsUpdate = true;
-                            }
-                        }
-        
-                        if (needsUpdate) {
-                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, updatePayload);
-                        }
-                        
-                        renderChatMessages(activeSession);
-                        setupChatViewEventListeners();
-                        updateLoadingIndicator();
-
-                        if (scrollState) {
-                            const newMessagesContainer = document.getElementById('chat-messages');
-                            if (newMessagesContainer) {
-                                if (scrollState.isScrolledToBottom) {
-                                    newMessagesContainer.scrollTop = newMessagesContainer.scrollHeight;
-                                } else {
-                                    newMessagesContainer.scrollTop = newMessagesContainer.scrollHeight - scrollState.scrollFromBottom;
-                                }
-                            }
-                        }
-
-                    } else {
-                         mainContent.innerHTML = getEmptyStateHTML('chat');
-                    }
-                    break;
-                case 'notepad':
-                     if (activeSession) {
-                        mainContent.innerHTML = getNotepadViewHTML(activeSession);
-                        setupNotepadViewEventListeners();
-                    } else {
-                        mainContent.innerHTML = getEmptyStateHTML('notepad');
-                    }
-                    break;
-                case 'simplenote':
-                     if (activeSession) {
-                        // Сначала создаем каркас
-                        mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
-                        // Затем наполняем его содержимым
-                        renderSimpleNoteContent(activeSession);
-                        setupSimpleNotepadViewEventListeners();
-                        // Прокручиваем вниз после рендеринга, чтобы увидеть конец заметки
-                        setTimeout(() => {
-                            const container = document.getElementById('simple-note-content-container');
-                            if (container) {
-                                container.scrollTop = container.scrollHeight;
-                            }
-                        }, 0);
-                    } else {
-                        mainContent.innerHTML = getEmptyStateHTML('simplenote');
-                    }
-                    break;
-                case 'settings':
-                    mainContent.innerHTML = getSettingsViewHTML();
-                    renderProviders();
-                    renderRoles();
-                    setupSettingsViewEventListeners();
-                    break;
+        }, error => console.error("Session listener error: ", error));
+    
+        const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
+        unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
+            state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if (state.activeTab === 'settings' || state.activeTab === 'chat') {
+                 if (!state.isLoading) render();
             }
-            lucide.createIcons();
-        }
+        }, error => console.error("Providers listener error: ", error));
+    
+        const rolesCol = collection(db, `artifacts/${appId}/users/${userId}/roles`);
+        unsubscribeRoles = onSnapshot(rolesCol, (snapshot) => {
+            state.roles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+            if (state.activeTab === 'settings' || state.activeTab === 'chat') {
+                if (!state.isLoading) render();
+            }
+        }, error => console.error("Roles listener error: ", error));
+    }
         
         function renderMainNav() {
             mainNavItems.forEach(item => {

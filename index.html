@@ -1320,12 +1320,16 @@
 
             // Применяем авто-высоту ко всем существующим полям при первоначальной загрузке
             blocksContainer.querySelectorAll('.simple-note-content-textarea').forEach(autoResizeTextarea);
-            
-            // Прокручиваем контейнер в самый низ после рендеринга
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-            }, 50); // Небольшая задержка, чтобы браузер успел отрисовать и посчитать высоту
 
+            // Прокручиваем в самый низ при загрузке заметки
+            // Небольшая задержка, чтобы браузер успел отрисовать все элементы и вычислить высоту
+            setTimeout(() => {
+                const scrollContainer = document.getElementById('main-content');
+                if (scrollContainer) {
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                }
+            }, 50);
+            
             // Функция добавления нового блока
             const addNewBlock = async (type) => {
                 const newBlock = {

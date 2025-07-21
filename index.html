@@ -530,8 +530,25 @@
                 chatObserver = null;
             }
         
-            mainContent.innerHTML = '';
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            const isChatUpdate = state.activeTab === 'chat' && activeSession;
+            let scrollState = null;
+
+            // --- 1. ЗАПОМИНАЕМ ПОЗИЦИЮ ПРОКРУТКИ ---
+            // Сохраняем состояние только если обновляется активный чат
+            if (isChatUpdate) {
+                const messagesContainer = document.getElementById('chat-messages');
+                if (messagesContainer) {
+                    scrollState = {
+                        // Запоминаем, был ли пользователь в самом низу
+                        isScrolledToBottom: messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5,
+                        // Запоминаем позицию относительно низа, это надежнее
+                        scrollFromBottom: messagesContainer.scrollHeight - messagesContainer.scrollTop
+                    };
+                }
+            }
+        
+            mainContent.innerHTML = '';
             
             switch (state.activeTab) {
                 case 'chat':
@@ -564,6 +581,21 @@
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
+
+                        // --- 2. ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ ПРОКРУТКИ ---
+                        if (scrollState) {
+                            const newMessagesContainer = document.getElementById('chat-messages');
+                            if (newMessagesContainer) {
+                                // Если были внизу, остаемся внизу
+                                if (scrollState.isScrolledToBottom) {
+                                    newMessagesContainer.scrollTop = newMessagesContainer.scrollHeight;
+                                } else {
+                                    // Иначе восстанавливаем прежнюю позицию
+                                    newMessagesContainer.scrollTop = newMessagesContainer.scrollHeight - scrollState.scrollFromBottom;
+                                }
+                            }
+                        }
+
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
                     }

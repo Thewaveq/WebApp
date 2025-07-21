@@ -287,6 +287,63 @@
                 color: var(--accent);
                 background-color: var(--bg-element);
             }
+
+            /* --- СТИЛИ ДЛЯ РЕДАКТОРА КОДА В ПРОСТЫХ ЗАМЕТКАХ --- */
+            .code-editor-wrapper {
+                position: relative;
+                border: 1px solid var(--border-color);
+                border-radius: 0.5rem;
+                background-color: #282c34; /* Фон как у блоков кода в чате */
+                font-family: 'Courier New', Courier, monospace;
+                line-height: 1.6;
+                min-height: 50px; /* Минимальная высота */
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+        
+            .code-editor-wrapper:focus-within {
+                border-color: var(--accent);
+                box-shadow: 0 0 0 2px var(--accent-hover);
+            }
+        
+            /* Общие стили для обоих слоев, чтобы текст совпадал */
+            .code-editor-wrapper > pre,
+            .code-editor-wrapper > textarea {
+                padding: 0.75rem;
+                margin: 0;
+                border: none;
+                outline: none;
+                white-space: pre;
+                word-wrap: normal;
+                overflow-x: auto;
+                font: inherit; /* Наследуем шрифт, размер и т.д. от родителя */
+                line-height: inherit;
+            }
+        
+            /* Видимый нижний слой с подсветкой */
+            .code-editor-wrapper > pre {
+                position: relative;
+                z-index: 1;
+                pointer-events: none; /* Клики проходят "сквозь" него */
+            }
+        
+            /* Невидимый верхний слой для ввода текста */
+            .code-editor-wrapper > textarea.code-input {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 2;
+                resize: none;
+                background-color: transparent; /* Фон прозрачный */
+                color: transparent;            /* Текст тоже прозрачный */
+                caret-color: var(--text-primary); /* !!! ВАЖНО: Делаем курсор (каретку) видимым !!! */
+            }
+        
+            /* Убираем стандартную обводку у textarea, так как она теперь на wrapper'е */
+            .simple-note-content-textarea.code-input:focus {
+                box-shadow: none;
+            }
     </style>
 </head>
 <body class="h-dvh w-full flex">

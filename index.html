@@ -870,7 +870,63 @@
         }
 
         function getSimpleNotepadViewHTML(activeSession) {
-            return `<div class="flex flex-col h-full p-4"><input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название заметки"><textarea id="simple-note-content-textarea" class="flex-grow w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать...">${activeSession.content || ''}</textarea></div>`;
+            // Обеспечиваем обратную совместимость со старыми заметками, где content был строкой
+            const contentBlocks = (Array.isArray(activeSession.content) && activeSession.content.length > 0)
+                ? activeSession.content
+                : [{ id: 'block_' + Date.now(), type: 'text', value: activeSession.content || '' }];
+
+            const blocksHTML = contentBlocks.map(block => {
+                const commonClasses = "w-full bg-input border border-border-color rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed";
+                let blockContentHTML = '';
+
+                switch (block.type) {
+                    case 'code':
+                        blockContentHTML = `
+                            <div class="bg-bg-sidebar p-3 rounded-lg border border-border-color">
+                                <span class="text-xs text-text-secondary uppercase font-semibold">Блок кода</span>
+                                <textarea data-block-id="${block.id}" data-block-type="code" class="${commonClasses} mt-2 font-mono text-sm" placeholder="Введите ваш код...">${block.value || ''}</textarea>
+                            </div>`;
+                        break;
+                    case 'text':
+                    default:
+                        blockContentHTML = `<textarea data-block-id="${block.id}" data-block-type="text" class="${commonClasses}" placeholder="Начните писать...">${block.value || ''}</textarea>`;
+                        break;
+                }
+
+                return `
+                    <div class="simple-note-block group relative mb-4" data-block-id="${block.id}">
+                        ${blockContentHTML}
+                        <button class="delete-block-btn absolute top-2 right-2 p-1.5 rounded-full bg-bg-element text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-danger hover:text-white transition-all" title="Удалить блок">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div id="simple-note-container" class="flex flex-col h-full p-4">
+                    <input type="text" id="simple-note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-shrink-0" value="${activeSession.title || ''}" placeholder="Название заметки">
+                    
+                    <div id="simple-note-content-area" class="flex-grow overflow-y-auto px-4">
+                        ${blocksHTML}
+
+                        <!-- Панель добавления новых блоков -->
+                        <div class="flex items-center my-4">
+                            <div class="flex-grow border-t border-dashed border-border-color"></div>
+                            <div class="mx-4 flex items-center gap-3">
+                                <button id="add-text-block-btn" class="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-element hover:bg-accent hover:text-white border border-border-color transition-all" title="Добавить текстовый блок">
+                                    <i data-lucide="pilcrow" class="w-5 h-5"></i>
+                                </button>
+                                <button id="add-code-block-btn" class="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-element hover:bg-accent hover:text-white border border-border-color transition-all" title="Добавить блок кода">
+                                    <i data-lucide="code-2" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            <div class="flex-grow border-t border-dashed border-border-color"></div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
         }
         
         function renderRoles() {
@@ -1127,19 +1183,110 @@
         }
 
         function setupSimpleNotepadViewEventListeners() {
+            const container = document.getElementById('simple-note-container');
+            if (!container || !state.activeSessionId) return;
+
             const titleInput = document.getElementById('simple-note-title-input');
-            const contentTextarea = document.getElementById('simple-note-content-textarea');
-            const saveNote = () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, {
-                    title: titleInput.value,
-                    content: contentTextarea.value,
-                    updatedAt: serverTimestamp()
-                });
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
+            // --- Сохранение заголовка ---
+            titleInput?.addEventListener('change', () => {
+                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            });
+
+            // --- Авто-изменение высоты текстовых полей ---
+            const adjustHeight = (el) => {
+                el.style.height = 'auto';
+                el.style.height = (el.scrollHeight) + 'px';
             };
-            titleInput?.addEventListener('blur', saveNote);
-            contentTextarea?.addEventListener('blur', saveNote);
+            
+            // Применяем ко всем существующим textarea при загрузке
+            container.querySelectorAll('textarea').forEach(adjustHeight);
+
+            // Используем делегирование для всех событий
+            container.addEventListener('input', (e) => {
+                if (e.target.tagName.toLowerCase() === 'textarea') {
+                    adjustHeight(e.target);
+                }
+            });
+
+            // --- Сохранение изменений в блоке при потере фокуса ---
+            container.addEventListener('focusout', async (e) => {
+                if (e.target.tagName.toLowerCase() === 'textarea' && e.target.dataset.blockId) {
+                    const blockId = e.target.dataset.blockId;
+                    const newValue = e.target.value;
+
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    let currentBlocks = Array.isArray(activeSession.content) ? activeSession.content : [{ id: 'block_' + Date.now(), type: 'text', value: activeSession.content || '' }];
+                    
+                    let hasChanged = false;
+                    const updatedBlocks = currentBlocks.map(block => {
+                        if (block.id === blockId && block.value !== newValue) {
+                            hasChanged = true;
+                            return { ...block, value: newValue };
+                        }
+                        return block;
+                    });
+                    
+                    if(hasChanged) {
+                        await updateDoc(sessionRef, {
+                            content: updatedBlocks,
+                            updatedAt: serverTimestamp()
+                        });
+                    }
+                }
+            });
+
+            // --- Обработка кликов (удаление и добавление блоков) ---
+            container.addEventListener('click', async (e) => {
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                let currentBlocks = Array.isArray(activeSession.content) ? activeSession.content : [{ id: 'block_' + Date.now(), type: 'text', value: activeSession.content || '' }];
+
+                // Удаление блока
+                const deleteBtn = e.target.closest('.delete-block-btn');
+                if (deleteBtn) {
+                    const blockElem = deleteBtn.closest('.simple-note-block');
+                    const blockIdToDelete = blockElem.dataset.blockId;
+                    const blockToRemove = currentBlocks.find(b => b.id === blockIdToDelete);
+
+                    if (blockToRemove) {
+                        await updateDoc(sessionRef, {
+                            content: arrayRemove(blockToRemove),
+                            updatedAt: serverTimestamp()
+                        });
+                    }
+                }
+
+                // Добавление текстового блока
+                const addTextBtn = e.target.closest('#add-text-block-btn');
+                if (addTextBtn) {
+                    const newBlock = {
+                        id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                        type: 'text',
+                        value: ''
+                    };
+                    await updateDoc(sessionRef, {
+                        content: arrayUnion(newBlock),
+                        updatedAt: serverTimestamp()
+                    });
+                }
+
+                // Добавление блока кода
+                const addCodeBtn = e.target.closest('#add-code-block-btn');
+                if (addCodeBtn) {
+                    const newBlock = {
+                        id: 'block_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                        type: 'code',
+                        value: ''
+                    };
+                    await updateDoc(sessionRef, {
+                        content: arrayUnion(newBlock),
+                        updatedAt: serverTimestamp()
+                    });
+                }
+            });
+
+            lucide.createIcons();
         }
     
         function setupSettingsViewEventListeners() { 
@@ -1463,10 +1610,15 @@
                         updatedAt: serverTimestamp() 
                     };
                 } else if (type === 'simplenote') {
+                    // ИЗМЕНЕНО: Создаем заметку с массивом блоков, а не строкой
                     newSessionData = {
                         type: 'simplenote',
-                        title: 'Новая простая заметка',
-                        content: '',
+                        title: 'Новая заметка',
+                        content: [{
+                            id: 'block_' + Date.now(),
+                            type: 'text',
+                            value: ''
+                        }],
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp()
                     };

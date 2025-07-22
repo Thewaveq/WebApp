@@ -25,7 +25,7 @@
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden lg:hidden"></div>
     <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
         <div class="p-4 border-b border-border-color flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool V29.</h1>
+            <h1 class="text-xl font-bold flex items-center"><i data-lucide="sparkles" class="w-6 h-6 mr-2 text-accent"></i>AI Multi-Tool V23.</h1>
         </div>
         <div class="p-2 flex-shrink-0">
             <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
@@ -161,8 +161,8 @@
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     
-        let db = getFirestore(app); // Инициализируем Firestore
-        let auth = getAuth(app);    // Инициализируем Auth
+        let db = getFirestore(app);
+        let auth = getAuth(app);
         let userId;
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
@@ -457,7 +457,6 @@
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsContainer = document.createElement('div');
-            // ИЗМЕНЕНИЕ: Позиционирование кнопок изменено на bottom-1 right-2
             actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
 
             if (isUser) {
@@ -1069,11 +1068,9 @@
             input.value = '';
             input.style.height = 'auto';
 
-            // Немедленно обновляем БД с сообщением пользователя, чтобы оно появилось в чате
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: messagesToSubmit, updatedAt: serverTimestamp() });
             
-            // Вызываем основную логику генерации
             await generateAssistantResponse(messagesToSubmit);
         }
 
@@ -1155,7 +1152,6 @@
                 ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
                 : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: modelName };
             
-            // Финальное обновление с ответом ассистента
             const finalMessages = [...messagesToSubmit, assistantMessage];
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
@@ -1446,9 +1442,7 @@
                             async () => {
                                 const messagesForRegen = activeSession.messages.slice(0, messageIndex);
                                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                                // 1. Немедленно обновляем UI, удаляя старые сообщения
                                 await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
-                                // 2. Запускаем генерацию нового ответа
                                 await generateAssistantResponse(messagesForRegen);
                             }
                         );
@@ -1496,9 +1490,7 @@
                             messagesForSubmit.push({ role: 'user', content: newContent });
                             
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            // 1. Немедленно обновляем UI с новым сообщением пользователя и удаляем старые
                             await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
-                            // 2. Запускаем генерацию ответа
                             await generateAssistantResponse(messagesForSubmit);
                         }
                     });
@@ -1557,28 +1549,20 @@
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
                 let activeSimpleNoteChanged = false;
 
-                // Проверяем, было ли изменение в активной простой заметке
                 snapshot.docChanges().forEach(change => {
                     if (change.doc.id === state.activeSessionId && state.activeTab === 'simplenote') {
                         activeSimpleNoteChanged = true;
-                        // Вызываем "умное" обновление DOM для контента
                         updateSimpleNoteView({ id: change.doc.id, ...change.doc.data() });
                     }
                 });
 
-                // ВСЕГДА обновляем список сессий в состоянии
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
 
                 if (activeSimpleNoteChanged) {
-                    // ЕСЛИ МЫ ОБНОВИЛИ ПРОСТУЮ ЗАМЕТКУ:
-                    // Мы уже обновили основную часть.
-                    // Теперь нужно перерисовать ТОЛЬКО боковую панель, 
-                    // так как порядок сессий мог измениться.
+
                     renderSidebar();
                 } else {
-                    // В ЛЮБОМ ДРУГОМ СЛУЧАЕ (смена сессии, обновление чата и т.д.):
-                    // Используем старую логику полной перерисовки.
                     const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                     if (!activeSessionExists) {
                         state.activeSessionId = null;

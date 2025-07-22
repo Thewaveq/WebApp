@@ -66,7 +66,7 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 /* --- Стили для Markdown-контента --- */
 .prose { 
     color: var(--text-primary);
-    /*white-space: pre-wrap;*/
+    white-space: pre-wrap;
     word-wrap: break-word;
 }
 

@@ -1278,8 +1278,18 @@
                         const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                         if (!activeSession) return;
                         
-                        let contentBlocks = Array.isArray(activeSession.content) ? activeSession.content : [];
-                        const updatedContent = contentBlocks.filter(b => b.id !== blockId);
+                        let currentBlocks = activeSession.content;
+                        // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+                        // Унифицируем обработку данных: если контент - это строка (старый формат), 
+                        // представляем его как массив с одним элементом для корректной фильтрации.
+                        if (typeof currentBlocks === 'string' || !Array.isArray(currentBlocks)) {
+                            const text = typeof currentBlocks === 'string' ? currentBlocks : '';
+                            currentBlocks = [{ id: 'legacy_0', text: text }];
+                        }
+                        if (!currentBlocks) { currentBlocks = []; }
+
+                        const updatedContent = currentBlocks.filter(b => b.id !== blockId);
+                        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                         
                         const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                         await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });

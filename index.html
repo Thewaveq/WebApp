@@ -150,12 +150,17 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+        
+        // Вот ваш импорт, он берет конфигурацию из файла firebase-config.js
+        import { firebaseConfig } from "./firebase-config.js"; 
+    
+        // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
+        // Используем импортированную конфигурацию для запуска Firebase
         const app = initializeApp(firebaseConfig);
         
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
+    
         let db = getFirestore(app); // Инициализируем Firestore
         let auth = getAuth(app);    // Инициализируем Auth
         let userId;

@@ -910,10 +910,8 @@
         function updateSimpleNoteView(session) {
             const titleInput = document.getElementById('simple-note-title-input');
             const contentArea = document.getElementById('simple-note-content-area');
+            if (!contentArea || !titleInput) return;
 
-            if (!contentArea || !titleInput) return; // Выход, если мы не в том представлении
-
-            // 1. Обновляем заголовок, если он изменился
             if (titleInput.value !== session.title) {
                 titleInput.value = session.title;
             }
@@ -922,62 +920,40 @@
             if (typeof contentBlocks === 'string' || !Array.isArray(contentBlocks)) {
                 contentBlocks = [{ id: 'legacy_0', text: typeof contentBlocks === 'string' ? contentBlocks : '' }];
             }
-             if (!contentBlocks || contentBlocks.length === 0) {
-                contentBlocks = [];
-            }
+            if (!contentBlocks || contentBlocks.length === 0) contentBlocks = [];
 
-
-            const existingBlocks = new Map();
-            contentArea.querySelectorAll('.simple-note-block').forEach(blockEl => {
-                existingBlocks.set(blockEl.dataset.blockId, blockEl);
+            const existingBlockElements = new Map();
+            contentArea.querySelectorAll('.simple-note-block').forEach(el => {
+                existingBlockElements.set(el.dataset.blockId, el);
             });
 
-            const newBlockIds = new Set(contentBlocks.map(b => b.id));
-
-            // 2. Обновляем и добавляем блоки
-            contentBlocks.forEach((blockData, index) => {
-                const existingBlockEl = existingBlocks.get(blockData.id);
-                if (existingBlockEl) {
-                    // Блок уже существует, обновляем текст, если он отличается
-                    const textarea = existingBlockEl.querySelector('textarea');
-                    // Не обновляем, если пользователь сейчас печатает в этом поле
+            contentBlocks.forEach((blockData) => {
+                const existingEl = existingBlockElements.get(blockData.id);
+                if (existingEl) {
+                    const textarea = existingEl.querySelector('textarea');
                     if (document.activeElement !== textarea && textarea.value !== blockData.text) {
                         textarea.value = blockData.text;
                         resizeTextarea(textarea);
                     }
-                    existingBlocks.delete(blockData.id); // Убираем из карты, т.к. обработали
+                    existingBlockElements.delete(blockData.id);
                 } else {
-                    // Блока нет, создаем и вставляем его
-                    const newBlockEl = createSimpleNoteBlockElement(blockData);
-                    contentArea.appendChild(newBlockEl);
-                    const newTextarea = newBlockEl.querySelector('textarea');
-                    resizeTextarea(newTextarea);
-                    lucide.createIcons({ nodes: [newBlockEl] });
+                    const newEl = createSimpleNoteBlockElement(blockData);
+                    contentArea.appendChild(newEl);
+                    resizeTextarea(newEl.querySelector('textarea'));
+                    lucide.createIcons({ nodes: [newEl] });
                 }
             });
 
-            // 3. Удаляем блоки, которых больше нет в данных
-            existingBlocks.forEach(blockEl => {
-                blockEl.remove();
-            });
+            existingBlockElements.forEach(el => el.remove());
         }
 
         function createSimpleNoteBlockElement(blockData) {
             const blockEl = document.createElement('div');
             blockEl.className = 'simple-note-block relative group';
             blockEl.dataset.blockId = blockData.id;
-            
             blockEl.innerHTML = `
-                <textarea 
-                    class="simple-note-textarea w-full bg-input border border-border-color rounded-lg p-3 pr-8 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" 
-                    placeholder="Начните писать..." 
-                    rows="1"
-                    style="min-height: 70px; overflow-y: hidden;"
-                >${blockData.text || ''}</textarea>
-                <button class="delete-note-block-btn absolute top-2 right-2 p-1 text-text-secondary hover:text-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity" title="Удалить поле">
-                    <i data-lucide="x-circle" class="w-4 h-4"></i>
-                </button>
-            `;
+                <textarea class="simple-note-textarea w-full bg-input border border-border-color rounded-lg p-3 pr-8 resize-none focus:outline-none focus:ring-2 focus:ring-accent text-base leading-relaxed" placeholder="Начните писать..." rows="1" style="min-height: 70px; overflow-y: hidden;">${blockData.text || ''}</textarea>
+                <button class="delete-note-block-btn absolute top-2 right-2 p-1 text-text-secondary hover:text-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity" title="Удалить поле"><i data-lucide="x-circle" class="w-4 h-4"></i></button>`;
             return blockEl;
         }
         
@@ -1250,7 +1226,6 @@
                 const textarea = e.target;
                 if (textarea.matches('textarea.simple-note-textarea')) {
                     resizeTextarea(textarea);
-
                     clearTimeout(saveTimeout);
                     saveTimeout = setTimeout(() => {
                         const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
@@ -1258,13 +1233,12 @@
                         if (!activeSession || !blockEl) return;
 
                         let contentBlocks = Array.isArray(activeSession.content) ? [...activeSession.content] : [{ id: 'legacy_0', text: activeSession.content || ''}];
-                        const blockId = blockEl.dataset.blockId;
-                        const blockIndex = contentBlocks.findIndex(b => b.id === blockId);
+                        const blockIndex = contentBlocks.findIndex(b => b.id === blockEl.dataset.blockId);
 
                         if (blockIndex !== -1) {
                             contentBlocks[blockIndex].text = textarea.value;
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { content: contentBlocks }); // updatedAt обновится через onSnapshot
+                            updateDoc(sessionRef, { content: contentBlocks, updatedAt: serverTimestamp() });
                         }
                     }, 500);
                 }
@@ -1273,12 +1247,12 @@
             const titleInput = document.getElementById('simple-note-title-input');
             titleInput?.addEventListener('change', () => {
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, { title: titleInput.value });
+                updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
             
             container.addEventListener('click', async (e) => {
-                // --- Обработчик для кнопки "+" ---
-                if (e.target.closest('#add-new-textarea-btn')) {
+                const addBtn = e.target.closest('#add-new-textarea-btn');
+                if (addBtn) {
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession) return;
                     
@@ -1287,16 +1261,13 @@
                     const updatedContent = [...currentContent, newBlockData];
                     
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                    await updateDoc(sessionRef, { content: updatedContent });
-                    // DOM обновится автоматически через onSnapshot -> updateSimpleNoteView
-                    // Найдем и сфокусируемся на новом элементе после обновления
+                    await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
                     setTimeout(() => {
                         const newEl = container.querySelector(`[data-block-id="${newBlockData.id}"] textarea`);
                         newEl?.focus();
-                    }, 100);
+                    }, 150);
                 }
 
-                // --- Обработчик для кнопки удаления "x" ---
                 const deleteBtn = e.target.closest('.delete-note-block-btn');
                 if (deleteBtn) {
                     const blockEl = deleteBtn.closest('.simple-note-block');
@@ -1311,8 +1282,7 @@
                         const updatedContent = contentBlocks.filter(b => b.id !== blockId);
                         
                         const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                        await updateDoc(sessionRef, { content: updatedContent });
-                        // DOM удалится через onSnapshot -> updateSimpleNoteView
+                        await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
                     };
 
                     if (textarea.value.trim()) {
@@ -1825,25 +1795,33 @@
         function attachFirestoreListeners() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
             if (!userId) return;
-
+        
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                const oldSessions = new Map(state.sessions.map(s => [s.id, s]));
-                const newSessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                let activeSimpleNoteChanged = false;
 
-                // Обновляем общее состояние сессий
-                state.sessions = newSessions.sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-                
-                const activeSessionData = state.sessions.find(s => s.id === state.activeSessionId);
-                const oldActiveSessionData = oldSessions.get(state.activeSessionId);
+                // Проверяем, было ли изменение в активной простой заметке
+                snapshot.docChanges().forEach(change => {
+                    if (change.doc.id === state.activeSessionId && state.activeTab === 'simplenote') {
+                        activeSimpleNoteChanged = true;
+                        // Вызываем "умное" обновление DOM для контента
+                        updateSimpleNoteView({ id: change.doc.id, ...change.doc.data() });
+                    }
+                });
 
-                // **Ключевое изменение: специальная логика для простых заметок**
-                // Если изменилась активная сессия и это простая заметка,
-                // вызываем точечное обновление DOM вместо полной перерисовки.
-                if (state.activeTab === 'simplenote' && activeSessionData && JSON.stringify(activeSessionData) !== JSON.stringify(oldActiveSessionData)) {
-                    updateSimpleNoteView(activeSessionData);
+                // ВСЕГДА обновляем список сессий в состоянии
+                state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+
+                if (activeSimpleNoteChanged) {
+                    // ЕСЛИ МЫ ОБНОВИЛИ ПРОСТУЮ ЗАМЕТКУ:
+                    // Мы уже обновили основную часть.
+                    // Теперь нужно перерисовать ТОЛЬКО боковую панель, 
+                    // так как порядок сессий мог измениться.
+                    renderSidebar();
                 } else {
-                    // В остальных случаях (смена сессии, другие вкладки) - полная перерисовка
+                    // В ЛЮБОМ ДРУГОМ СЛУЧАЕ (смена сессии, обновление чата и т.д.):
+                    // Используем старую логику полной перерисовки.
                     const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
                     if (!activeSessionExists) {
                         state.activeSessionId = null;
@@ -1854,6 +1832,7 @@
                 }
             }, error => console.error("Session listener error: ", error));
         
+            // Слушатели для провайдеров и ролей остаются без изменений
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

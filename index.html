@@ -1258,10 +1258,15 @@
                     
                     const newBlockData = { id: 'block_' + Date.now(), text: '' };
                     let currentContent = Array.isArray(activeSession.content) ? activeSession.content : [];
+                     if (typeof activeSession.content === 'string') {
+                         currentContent = [{id: 'legacy_0', text: activeSession.content}];
+                     }
                     const updatedContent = [...currentContent, newBlockData];
                     
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                     await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
+
+                    // Даем Firestore время на обновление и рендер, затем фокусируемся
                     setTimeout(() => {
                         const newEl = container.querySelector(`[data-block-id="${newBlockData.id}"] textarea`);
                         newEl?.focus();
@@ -1274,14 +1279,17 @@
                     const blockId = blockEl.dataset.blockId;
                     const textarea = blockEl.querySelector('textarea');
                     
-                    const deleteAction = async () => {
+                    const performDelete = async () => {
+                        // --- НАЧАЛО ИСПРАВЛЕНИЯ: Оптимистичное обновление UI ---
+                        // 1. Немедленно удаляем элемент из DOM для мгновенной обратной связи.
+                        blockEl.remove();
+                        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
+                        // 2. Обновляем данные в Firestore в фоновом режиме.
                         const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                         if (!activeSession) return;
                         
                         let currentBlocks = activeSession.content;
-                        // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-                        // Унифицируем обработку данных: если контент - это строка (старый формат), 
-                        // представляем его как массив с одним элементом для корректной фильтрации.
                         if (typeof currentBlocks === 'string' || !Array.isArray(currentBlocks)) {
                             const text = typeof currentBlocks === 'string' ? currentBlocks : '';
                             currentBlocks = [{ id: 'legacy_0', text: text }];
@@ -1289,16 +1297,17 @@
                         if (!currentBlocks) { currentBlocks = []; }
 
                         const updatedContent = currentBlocks.filter(b => b.id !== blockId);
-                        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                         
                         const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                         await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
                     };
 
+                    // Если в поле есть текст, запрашиваем подтверждение.
                     if (textarea.value.trim()) {
-                        showConfirmModal('Вы уверены, что хотите удалить это поле с текстом?', deleteAction);
+                        showConfirmModal('Вы уверены, что хотите удалить это поле с текстом?', performDelete);
                     } else {
-                        await deleteAction();
+                        // Если поле пустое, удаляем сразу без подтверждения.
+                        await performDelete();
                     }
                 }
             });

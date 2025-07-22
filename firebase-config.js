@@ -1,10 +1,10 @@
 // firebase-config.js
 export const firebaseConfig = {
-    apiKey: "AIzaSyDZ3u9scjk3dydutXO0EUrWlpUnsp4OuqA",
-    authDomain: "appllm.firebaseapp.com",
-    projectId: "appllm",
-    storageBucket: "appllm.appspot.com",
-    messagingSenderId: "926733538345",
-    appId: "1:926733538345:web:dac990973b29ca574ff938",
-    measurementId: "G-YX6FY680C9"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };

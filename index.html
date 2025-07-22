@@ -458,10 +458,12 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'flex-grow prose prose-p:mt-0 prose-p:mb-4 max-w-none mt-2 w-full'; 
             
-            let processedContent = (msg.content || '').replace(
-                /<think>([\s\S]*?)<\/think>/g,
-                `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-            );
+            let processedContent = (msg.content || '')
+                .replace(/\n{3,}/g, '\n\n')
+                .replace(
+                    /<think>([\s\S]*?)<\/think>/g,
+                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                );
             
             const rawHtml = marked.parse(processedContent);
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });

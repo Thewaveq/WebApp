@@ -1615,6 +1615,9 @@
         }
     
         async function init() {
+            marked.setOptions({
+                breaks: true
+            });
             loadUserPreferences();
             try {
                 const app = initializeApp(firebaseConfig);

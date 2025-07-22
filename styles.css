@@ -69,6 +69,12 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     white-space: pre-wrap;
     word-wrap: break-word;
 }
+
+#chat-messages .prose p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }
 

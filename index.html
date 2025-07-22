@@ -1215,6 +1215,7 @@
             if (!container) return;
             
             const resizeTextarea = (textarea) => {
+                if (!textarea) return;
                 textarea.style.height = 'auto';
                 textarea.style.height = `${Math.max(70, textarea.scrollHeight)}px`;
             };
@@ -1253,24 +1254,33 @@
             container.addEventListener('click', async (e) => {
                 const addBtn = e.target.closest('#add-new-textarea-btn');
                 if (addBtn) {
+                    // --- НАЧАЛО ИСПРАВЛЕНИЯ: Мгновенное добавление элемента в DOM ---
+                    const contentArea = document.getElementById('simple-note-content-area');
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession) return;
+                    if (!contentArea || !activeSession) return;
+
+                    // 1. Создаем данные и DOM-элемент локально.
+                    const newBlockData = { id: 'block_' + Date.now() + Math.random().toString(36).substring(2, 9), text: '' };
+                    const newBlockEl = createSimpleNoteBlockElement(newBlockData);
                     
-                    const newBlockData = { id: 'block_' + Date.now(), text: '' };
+                    // 2. Немедленно добавляем элемент на страницу.
+                    contentArea.appendChild(newBlockEl);
+                    lucide.createIcons({ nodes: [newBlockEl] });
+
+                    // 3. Фокусируемся и подгоняем размер.
+                    const newTextarea = newBlockEl.querySelector('textarea');
+                    resizeTextarea(newTextarea);
+                    newTextarea.focus();
+                    
+                    // 4. В фоновом режиме обновляем базу данных.
                     let currentContent = Array.isArray(activeSession.content) ? activeSession.content : [];
-                     if (typeof activeSession.content === 'string') {
+                     if (typeof activeSession.content === 'string' && activeSession.content) {
                          currentContent = [{id: 'legacy_0', text: activeSession.content}];
                      }
                     const updatedContent = [...currentContent, newBlockData];
-                    
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                     await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
-
-                    // Даем Firestore время на обновление и рендер, затем фокусируемся
-                    setTimeout(() => {
-                        const newEl = container.querySelector(`[data-block-id="${newBlockData.id}"] textarea`);
-                        newEl?.focus();
-                    }, 150);
+                    // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                 }
 
                 const deleteBtn = e.target.closest('.delete-note-block-btn');
@@ -1280,12 +1290,10 @@
                     const textarea = blockEl.querySelector('textarea');
                     
                     const performDelete = async () => {
-                        // --- НАЧАЛО ИСПРАВЛЕНИЯ: Оптимистичное обновление UI ---
-                        // 1. Немедленно удаляем элемент из DOM для мгновенной обратной связи.
+                        // 1. Немедленно удаляем элемент из DOM.
                         blockEl.remove();
-                        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-                        // 2. Обновляем данные в Firestore в фоновом режиме.
+                        // 2. В фоне обновляем базу.
                         const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                         if (!activeSession) return;
                         
@@ -1302,11 +1310,9 @@
                         await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
                     };
 
-                    // Если в поле есть текст, запрашиваем подтверждение.
                     if (textarea.value.trim()) {
                         showConfirmModal('Вы уверены, что хотите удалить это поле с текстом?', performDelete);
                     } else {
-                        // Если поле пустое, удаляем сразу без подтверждения.
                         await performDelete();
                     }
                 }

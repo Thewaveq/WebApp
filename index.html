@@ -1290,25 +1290,31 @@
                     const textarea = blockEl.querySelector('textarea');
                     
                     const performDelete = async () => {
-                        // 1. Немедленно удаляем элемент из DOM.
-                        blockEl.remove();
-
-                        // 2. В фоне обновляем базу.
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        if (!activeSession) return;
-                        
-                        let currentBlocks = activeSession.content;
-                        if (typeof currentBlocks === 'string' || !Array.isArray(currentBlocks)) {
-                            const text = typeof currentBlocks === 'string' ? currentBlocks : '';
-                            currentBlocks = [{ id: 'legacy_0', text: text }];
-                        }
-                        if (!currentBlocks) { currentBlocks = []; }
-
-                        const updatedContent = currentBlocks.filter(b => b.id !== blockId);
-                        
-                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                        await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
-                    };
+                                        // 1. Находим активную сессию в локальном состоянии до любых манипуляций.
+                                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                                        if (!activeSession) return;
+                    
+                                        // 2. Немедленно удаляем элемент из DOM для отзывчивости интерфейса.
+                                        blockEl.remove();
+                    
+                                        // 3. Готовим обновленные данные, обрабатывая разные форматы контента.
+                                        let currentBlocks = activeSession.content;
+                                        if (typeof currentBlocks === 'string' || !Array.isArray(currentBlocks)) {
+                                            const text = typeof currentBlocks === 'string' ? currentBlocks : '';
+                                            currentBlocks = [{ id: 'legacy_0', text: text }];
+                                        }
+                                        if (!currentBlocks) { currentBlocks = []; }
+                                        const updatedContent = currentBlocks.filter(b => b.id !== blockId);
+                                        
+                                        // 4. ОПТИМИСТИЧЕСКОЕ ОБНОВЛЕНИЕ: Немедленно обновляем локальное состояние.
+                                        //    Это решает проблему гонки состояний, так как любое последующее
+                                        //    действие будет работать с уже корректными данными.
+                                        activeSession.content = updatedContent;
+                    
+                                        // 5. В фоновом режиме отправляем итоговые изменения в базу данных.
+                                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                                        await updateDoc(sessionRef, { content: updatedContent, updatedAt: serverTimestamp() });
+                                    };
 
                     if (textarea.value.trim()) {
                         showConfirmModal('Вы уверены, что хотите удалить это поле с текстом?', performDelete);

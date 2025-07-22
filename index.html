@@ -456,7 +456,7 @@
             }
             
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
+            contentDiv.className = 'flex-grow prose prose-p:mt-0 prose-p:mb-4 max-w-none mt-2 w-full'; 
             
             let processedContent = (msg.content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,

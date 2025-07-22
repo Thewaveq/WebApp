@@ -145,24 +145,20 @@
         </div>
     </div>
 
-
     <script type="module">
+        // --- ИМПОРТЫ ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";        // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ И КОНФИГУРАЦИЯ ---
+        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const app = initializeApp(firebaseConfig);
         
-        const firebaseConfig = {
-            apiKey: "AIzaSyDZ3u9scjk3dydutXO0EUrWlpUnsp4OuqA",
-            authDomain: "appllm.firebaseapp.com",
-            projectId: "appllm",
-            storageBucket: "appllm.appspot.com",
-            messagingSenderId: "926733538345",
-            appId: "1:926733538345:web:dac990973b29ca574ff938",
-            measurementId: "G-YX6FY680C9"
-        };
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    
-        let db, auth, userId;
+        
+        let db = getFirestore(app); // Инициализируем Firestore
+        let auth = getAuth(app);    // Инициализируем Auth
+        let userId;
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};

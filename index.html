@@ -465,10 +465,8 @@
                     `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
                 );
             
-            const rawHtml = marked.parse(
-                processedContent, 
-                { breaks: true, gfm: true }
-            );
+            //const rawHtml = marked.parse(processedContent);
+            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsContainer = document.createElement('div');

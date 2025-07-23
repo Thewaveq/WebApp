@@ -66,17 +66,17 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 /* --- Стили для Markdown-контента --- */
 .prose { 
     color: var(--text-primary);
-    white-space: normal;
+    white-space: pre-line;
     word-wrap: break-word;
+}
+
+.prose > :where(p, ul, ol, blockquote, pre, details, h1, h2, h3, h4):not(:first-child) {
+    margin-top: 1em;
 }
 
 #chat-messages .prose p {
   margin-top: 0;
   margin-bottom: 0;
-}
-.prose > :where(p, ul, ol, blockquote, pre, details, h1, h2, h3, h4):not(:first-child) {
-    margin-top: 1em; 
-    margin-bottom: 0;
 }
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }

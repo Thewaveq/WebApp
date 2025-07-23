@@ -462,15 +462,17 @@
             const title = card.title ? card.title.replace(/"/g, '"') : '';
             const content = card.content || '';
         
+            // ИЗМЕНЕНО: Удалены классы фиксированной высоты и добавлено flex-расположение,
+            // чтобы карточка могла расти вместе с содержимым.
             return `
-                <div class="note-card" data-card-id="${card.id}">
-                    <div class="note-card-header">
-                        <input type="text" class="note-card-title" placeholder="Заголовок карточки" value="${title}">
-                        <button class="note-card-delete-btn" title="Удалить карточку">
-                            <i data-lucide="x" class="w-5 h-5"></i>
+                <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}">
+                    <div class="note-card-header flex items-center justify-between">
+                        <input type="text" class="note-card-title bg-transparent font-bold w-full focus:outline-none" placeholder="Заголовок" value="${title}">
+                        <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-2" title="Удалить карточку">
+                            <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
-                    <textarea class="note-card-content" placeholder="Содержимое карточки...">${content}</textarea>
+                    <textarea class="note-card-content bg-transparent w-full resize-none focus:outline-none overflow-hidden text-sm" placeholder="Содержимое карточки...">${content}</textarea>
                 </div>
             `;
         }
@@ -644,14 +646,16 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
         
+            // ИЗМЕНЕНО: Обновлены классы для сетки (grid-auto-rows: minmax(min-content, max-content))
+            // и для кнопки добавления новой карточки, чтобы сделать ее менее навязчивой.
             return `
                 <div class="flex flex-col h-full p-4">
                     <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                     
                     <div class="flex-grow overflow-y-auto pr-2">
-                        <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" style="grid-auto-rows: minmax(min-content, max-content);">
                             ${cardsHTML}
-                            <button id="add-new-card-btn" class="min-h-[180px] flex items-center justify-center rounded-lg">
+                            <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
                                 <i data-lucide="plus" class="w-10 h-10"></i>
                             </button>
                         </div>
@@ -848,7 +852,13 @@
             if (!state.activeSessionId) return;
             
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-        
+            
+            function autoResizeTextarea(textarea) {
+                if (!textarea) return;
+                textarea.style.height = 'auto'; 
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+            }
+
             titleInput?.addEventListener('change', () => {
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
@@ -909,7 +919,16 @@
                     }
                 });
             });
-        
+            
+            cardsGrid?.addEventListener('input', (e) => {
+                if (e.target && e.target.matches('.note-card-content')) {
+                    autoResizeTextarea(e.target);
+                }
+            });
+
+            const allTextareas = cardsGrid?.querySelectorAll('.note-card-content');
+            allTextareas?.forEach(autoResizeTextarea);
+
             lucide.createIcons();
         }
     

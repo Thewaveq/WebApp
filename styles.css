@@ -70,6 +70,16 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
+/* --- ДОБАВЬТЕ ЭТОТ БЛОК --- */
+.prose ul, .prose ol, .prose p {
+    margin-top: 0;
+    margin-bottom: 0; /* Отступ после всего списка или параграфа, можно поставить 0 */
+}
+
+.prose li {
+    margin-bottom: 0.25em; /* Небольшой отступ между пунктами списка, можно поставить 0 */
+}
+
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }
 

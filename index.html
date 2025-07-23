@@ -445,7 +445,6 @@
             const panelClasses = `collapsible-panel ${isExpanded ? 'expanded' : ''}`;
             const iconClasses = `w-5 h-5 transition-transform ${isExpanded ? 'expanded' : ''}`;
         
-            // ИЗМЕНЕНИЕ: Добавлен класс bg-bg-element для установки фона по умолчанию
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
@@ -475,7 +474,12 @@
                     </div>
                 </div>
                 <div id="chat-messages" class="flex-grow p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                <div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div>
+                <form id="chat-form" class="relative flex-shrink-0 p-4">
+                    <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                    <button type="submit" class="absolute right-3 bottom-[1.8rem] p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                        <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                    </button>
+                </form>
             </div>`; 
         }
         

@@ -580,7 +580,6 @@
             processedContent = processedContent.replace(/\n{3,}/g, '\n\n');
             const rawHtml = marked.parse(processedContent, { gfm: true }); 
             
-            const rawHtml = marked.parse(processedContent, { gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsContainer = document.createElement('div');

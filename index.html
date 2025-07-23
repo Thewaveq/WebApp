@@ -444,7 +444,8 @@
             const isExpanded = state.isSettingsPanelExpanded;
             const panelClasses = `collapsible-panel ${isExpanded ? 'expanded' : ''}`;
             const iconClasses = `w-5 h-5 transition-transform ${isExpanded ? 'expanded' : ''}`;
-
+        
+            // Классы для кнопки переключения ширины и инпута были выровнены с getNotepadViewHTML
             return `<div class="flex flex-col h-full">
                 <div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
@@ -477,13 +478,11 @@
                 <div class="flex-shrink-0 p-4 border-t border-border-color"><form id="chat-form" class="relative"><textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea><button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500"><i data-lucide="send" class="w-5 h-5 text-white"></i></button></form></div>
             </div>`; 
         }
-
+        
         function getCardHTML(card) {
             const title = card.title ? card.title.replace(/"/g, '"') : '';
             const content = card.content || '';
-        
-            // ИЗМЕНЕНО: Удалены классы фиксированной высоты и добавлено flex-расположение,
-            // чтобы карточка могла расти вместе с содержимым.
+
             return `
                 <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}">
                     <div class="note-card-header flex items-center justify-between">
@@ -669,7 +668,7 @@
             return `
                 <div class="flex flex-col h-full">
                     <div class="flex-shrink-0 p-3 border-b border-border-color">
-                        <div class="flex items-center justify-between gap-3 h-[38px]">
+                        <div class="flex items-center justify-between gap-3">
                             <button id="notepad-width-toggle" title="Переключить ширину контента" class="p-2 rounded-md hover:bg-bg-input hidden lg:flex flex-shrink-0">
                                 <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
                             </button>

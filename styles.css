@@ -70,16 +70,17 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
-#chat-messages .prose p {
-  margin-top: 0;
-  margin-bottom: 0;
+#chat-messages .prose p,
+#chat-messages .prose ul,
+#chat-messages .prose ol,
+#chat-messages .prose li {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 #chat-messages .prose ul,
 #chat-messages .prose ol {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding-left: 1.5rem; /* Регулирует отступ слева для маркеров */
+    padding-left: 1.5rem; 
 }
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }

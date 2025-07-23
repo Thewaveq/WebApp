@@ -182,6 +182,8 @@
             isAuthReady: false,
             isSidebarCollapsed: false,
             isChatWidthCompact: true,
+            isNotepadWidthCompact: true,
+            isNotepadWidthCompact: true,
             isSettingsPanelExpanded: false,
         };
         
@@ -210,6 +212,11 @@
             const savedCompactMode = localStorage.getItem('chatViewCompact');
             if (savedCompactMode !== null) {
                 state.isChatWidthCompact = (savedCompactMode === 'true');
+            }
+
+            const savedNotepadCompactMode = localStorage.getItem('notepadViewCompact');
+            if (savedNotepadCompactMode !== null) {
+                state.isNotepadWidthCompact = (savedNotepadCompactMode === 'true');
             }
         }
     
@@ -658,12 +665,20 @@
         function getNotepadViewHTML(activeSession) {
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
+            const contentContainerId = `notepad-content-container-${activeSession.id}`; // Уникальный ID для контейнера
         
             return `
-                <div class="flex flex-col h-full p-4">
-                    <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
+                <div class="flex flex-col h-full">
+                    <div class="flex-shrink-0 p-3 border-b border-border-color">
+                        <div class="flex items-center justify-between gap-3">
+                            <button id="notepad-width-toggle" title="Переключить ширину контента" class="p-2 rounded-md hover:bg-bg-input hidden lg:flex flex-shrink-0">
+                                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                            </button>
+                            <input type="text" id="note-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
+                        </div>
+                    </div>
                     
-                    <div class="flex-grow overflow-y-auto pr-2">
+                    <div id="${contentContainerId}" class="flex-grow overflow-y-auto p-4 ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
                         <div id="note-cards-grid" class="grid grid-cols-1 gap-4 items-start">
                             ${cardsHTML}
                             <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
@@ -859,6 +874,27 @@
             const titleInput = document.getElementById('note-title-input');
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
+            const widthToggleBtn = document.getElementById('notepad-width-toggle');
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            const contentContainer = activeSession ? document.getElementById(`notepad-content-container-${activeSession.id}`) : null;
+
+            if(widthToggleBtn && contentContainer) {
+                const isExpanded = !state.isNotepadWidthCompact;
+                widthToggleBtn.classList.toggle('active', isExpanded);
+                widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
+        
+                widthToggleBtn.addEventListener('click', () => {
+                    state.isNotepadWidthCompact = !state.isNotepadWidthCompact;
+                    const isNowExpanded = !state.isNotepadWidthCompact;
+        
+                    localStorage.setItem('notepadViewCompact', state.isNotepadWidthCompact);
+        
+                    contentContainer.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
+                    widthToggleBtn.classList.toggle('active', isNowExpanded);
+        
+                    widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
+                });
+            }
             
             const debounce = (func, delay) => {
                 let timeoutId;
@@ -939,7 +975,6 @@
                 const cardId = cardEl.dataset.cardId;
         
                 showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
-                    // Получаем актуальный sessionRef внутри обработчика
                     if (!state.activeSessionId) return;
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
 

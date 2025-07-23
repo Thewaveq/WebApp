@@ -307,3 +307,21 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     background-color: var(--accent); /* Точный цвет, как у кнопки чата */
     color: white;
 }
+
+#note-cards-grid {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    transition: max-width 0.4s ease-in-out; /* Плавный переход ширины */
+}
+
+/* Когда родитель (.notepad-scroll-container) имеет этот класс, сужаем саму сетку */
+.notepad-view-compact #note-cards-grid {
+    max-width: 896px; /* Такая же ширина, как в чате */
+}
+
+/* Стиль для активной кнопки, когда контент расширен */
+#notepad-width-toggle.active {
+    background-color: var(--accent); /* Правильный цвет активной кнопки */
+    color: white;
+}

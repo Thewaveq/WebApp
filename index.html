@@ -576,7 +576,7 @@
             );
             
             // 2. НОРМАЛИЗАЦИЯ: Заменяем три и более переноса строки на два.
-            const normalizedContent = processedContent.replace(/\n{3,}/g, '\n\n');
+            const normalizedContent = processedContent.replace(/(\n[ \t]*){3,}/g, '\n\n');
 
             // 3. ПАРСИНГ: Убираем `breaks: true`.
             const rawHtml = marked.parse(normalizedContent, { gfm: true }); 

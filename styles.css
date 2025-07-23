@@ -83,6 +83,27 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     padding-left: 0; 
 }
 
+#chat-messages .prose > :first-child {
+    margin-top: 0;
+}
+
+#chat-messages .prose > :last-child {
+    margin-bottom: 0;
+}
+
+#chat-messages .prose p,
+#chat-messages .prose ul,
+#chat-messages .prose ol,
+#chat-messages .prose li {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+#chat-messages .prose ul,
+#chat-messages .prose ol {
+    padding-left: 1.5rem; 
+}
+
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }
 

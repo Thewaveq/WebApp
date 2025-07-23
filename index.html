@@ -665,12 +665,12 @@
         function getNotepadViewHTML(activeSession) {
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
-            const contentContainerId = `notepad-content-container-${activeSession.id}`; // Уникальный ID для контейнера
         
+            // Создаем структуру, полностью аналогичную чату, для корректной анимации и стилей
             return `
                 <div class="flex flex-col h-full">
                     <div class="flex-shrink-0 p-3 border-b border-border-color">
-                        <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center justify-between gap-3 h-[38px]">
                             <button id="notepad-width-toggle" title="Переключить ширину контента" class="p-2 rounded-md hover:bg-bg-input hidden lg:flex flex-shrink-0">
                                 <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
                             </button>
@@ -678,12 +678,14 @@
                         </div>
                     </div>
                     
-                    <div id="${contentContainerId}" class="flex-grow overflow-y-auto p-4 ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
-                        <div id="note-cards-grid" class="grid grid-cols-1 gap-4 items-start">
-                            ${cardsHTML}
-                            <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
-                                <i data-lucide="plus" class="w-10 h-10"></i>
-                            </button>
+                    <div id="notepad-scroll-container" class="flex-grow overflow-y-auto p-4 ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
+                        <div class="notepad-content-wrapper">
+                             <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+                                ${cardsHTML}
+                                <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
+                                    <i data-lucide="plus" class="w-10 h-10"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -875,10 +877,9 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             const widthToggleBtn = document.getElementById('notepad-width-toggle');
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            const contentContainer = activeSession ? document.getElementById(`notepad-content-container-${activeSession.id}`) : null;
+            const scrollContainer = document.getElementById('notepad-scroll-container'); // Получаем контейнер для переключения класса
 
-            if(widthToggleBtn && contentContainer) {
+            if(widthToggleBtn && scrollContainer) {
                 const isExpanded = !state.isNotepadWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
                 widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
@@ -887,9 +888,9 @@
                     state.isNotepadWidthCompact = !state.isNotepadWidthCompact;
                     const isNowExpanded = !state.isNotepadWidthCompact;
         
-                    localStorage.setItem('notepadViewCompact', state.isNotepadWidthCompact);
+                    localStorage.setItem('notepadViewCompact', String(state.isNotepadWidthCompact));
         
-                    contentContainer.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
+                    scrollContainer.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
                     widthToggleBtn.classList.toggle('active', isNowExpanded);
         
                     widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";

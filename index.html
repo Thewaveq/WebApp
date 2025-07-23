@@ -345,6 +345,16 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             if (!cardsGrid) return;
         
+            // Утилита для корректного изменения высоты текстового поля
+            function autoResizeTextarea(textarea) {
+                if (!textarea) return;
+                // Небольшая задержка, чтобы браузер успел вычислить scrollHeight
+                setTimeout(() => {
+                    textarea.style.height = 'auto';
+                    textarea.style.height = (textarea.scrollHeight) + 'px';
+                }, 0);
+            }
+        
             const newCards = session.cards || [];
             const newCardIds = new Set(newCards.map(c => c.id));
             const addButton = document.getElementById('add-new-card-btn');
@@ -363,17 +373,17 @@
                 let cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardData.id}"]`);
         
                 if (cardEl) {
-                    // Карточка уже существует, проверяем и обновляем поля, если нужно
+                    // Карточка уже существует, проверяем и обновляем поля
                     const titleInput = cardEl.querySelector('.note-card-title');
                     const contentTextarea = cardEl.querySelector('.note-card-content');
                     
-                    // Обновляем только если значение в DOM отличается от данных,
-                    // и если элемент не в фокусе, чтобы не мешать вводу.
                     if (document.activeElement !== titleInput && titleInput.value !== cardData.title) {
                         titleInput.value = cardData.title || '';
                     }
                     if (document.activeElement !== contentTextarea && contentTextarea.value !== cardData.content) {
                         contentTextarea.value = cardData.content || '';
+                        // Вызываем изменение размера после обновления контента
+                        autoResizeTextarea(contentTextarea);
                     }
                 } else {
                     // Карточки нет в DOM, создаем и вставляем ее
@@ -382,9 +392,12 @@
                     tempDiv.innerHTML = newCardHTML;
                     const newCardElement = tempDiv.firstElementChild;
                     
-                    // Вставляем новую карточку перед кнопкой "Добавить"
                     cardsGrid.insertBefore(newCardElement, addButton);
                     lucide.createIcons({ nodes: [newCardElement] });
+                    
+                    // Вызываем изменение размера для новой карточки
+                    const newTextarea = newCardElement.querySelector('.note-card-content');
+                    autoResizeTextarea(newTextarea);
                 }
             });
         }
@@ -950,8 +963,10 @@
                 }
             });
 
-            const allTextareas = cardsGrid?.querySelectorAll('.note-card-content');
-            allTextareas?.forEach(autoResizeTextarea);
+            setTimeout(() => {
+                const allTextareas = cardsGrid?.querySelectorAll('.note-card-content');
+                allTextareas?.forEach(autoResizeTextarea);
+            }, 0);
 
             lucide.createIcons();
         }

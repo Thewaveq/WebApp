@@ -572,6 +572,7 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
+            // Используем marked для парсинга Markdown и DOMPurify для очистки HTML
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
@@ -612,8 +613,10 @@
             messageWrapper.appendChild(contentDiv);
             messageWrapper.appendChild(actionsContainer);
 
+            // Находим все блоки кода и применяем подсветку через highlight.js
             messageWrapper.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
+                // Проверяем, нет ли уже кнопки
                 if (preElement.querySelector('.copy-code-btn')) return;
                 
                 const copyBtn = document.createElement('button');
@@ -629,6 +632,7 @@
                     lucide.createIcons();
                 });
                 preElement.appendChild(copyBtn);
+                // Подсвечиваем код
                 hljs.highlightElement(block);
             });
 

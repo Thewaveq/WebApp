@@ -577,7 +577,8 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            processedContent = processedContent.replace(/\n{3,}/g, '\n\n');
+            //processedContent = processedContent.replace(/\n{3,}/g, '\n\n');
+            processedContent = processedContent.replace(/(\s*\n){3,}/g, '\n\n');
             const rawHtml = marked.parse(processedContent, { gfm: true }); 
             
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });

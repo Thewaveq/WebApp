@@ -569,25 +569,24 @@
             
             let content = msg.content || '';
 
-            // 1. Сначала обработаем наш кастомный тег <think>
             let processedContent = content.replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            // 2. НОРМАЛИЗАЦИЯ: Заменяем три и более переноса строки на два.
-            const normalizedContent = processedContent.replace(/(\n[ \t]*){3,}/g, '\n\n');
-
-            // 3. ПАРСИНГ: Убираем `breaks: true`.
+            // =======================================================================
+            // === ВОТ ОНО, ИСПРАВЛЕНИЕ, КОТОРОЕ РАБОТАЕТ ===
+            // Находим любую последовательность из ДВУХ и более "почти пустых" строк
+            // и схлопываем её в один чистый разрыв на два переноса.
+            const normalizedContent = processedContent.replace(/\n(\s*\n)+/g, '\n\n');
+            // =======================================================================
+            
             const rawHtml = marked.parse(normalizedContent, { gfm: true }); 
             
-            // 4. Очистка и вставка HTML
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
-            // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'message-actions absolute -bottom-4 right-2 flex items-center space-x-1 bg-bg-sidebar p-1 rounded-md border border-border-color opacity-0 group-hover:opacity-100 transition-opacity';
-
 
             if (isUser) {
                 const regenerateUserBtn = document.createElement('button');
@@ -644,9 +643,7 @@
             });
 
             lucide.createIcons({
-                attrs: {
-                    'stroke-width': 1.5
-                },
+                attrs: { 'stroke-width': 1.5 },
                 nodes: [messageWrapper]
             });
 

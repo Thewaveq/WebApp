@@ -70,12 +70,21 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
-#chat-messages .prose p {
+#chat-messages .prose > :is(p, ul, ol, blockquote, pre, details, h1, h2, h3, h4, table) {
   margin-top: 0;
   margin-bottom: 0;
 }
 
-.prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
+#chat-messages .prose > * + * {
+  margin-top: 0.75em; /* Можете настроить это значение (например, 12px) */
+}
+
+.prose h1, .prose h2, .prose h3 { 
+    color: white; 
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.2em; /* Добавляем внутренний отступ вместо внешнего */
+}
+
 .prose a { color: var(--accent-hover); }
 
 .prose pre { 
@@ -83,15 +92,17 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     padding: 1rem; 
     border-radius: 0.5rem; 
     position: relative; 
-    margin-top: 1.25em; 
-    margin-bottom: 1.25em;
     white-space: pre;
     overflow-x: auto;
 }
 
 .prose code { background-color: var(--bg-element); padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; }
 .prose pre code { background-color: transparent; padding: 0; border-radius: 0; }
-.prose blockquote { border-left-color: var(--accent); }
+.prose blockquote { 
+    border-left: 3px solid var(--accent);
+    padding-left: 1em;
+}
+
 .copy-code-btn { position: absolute; top: 0.5rem; right: 0.5rem; background-color: var(--bg-element); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 0.3rem; padding: 0.25rem; opacity: 0.5; transition: opacity 0.2s; }
 .prose pre:hover .copy-code-btn { opacity: 1; }
 .copy-code-btn:hover { background-color: var(--bg-input); color: var(--text-primary); }
@@ -101,9 +112,9 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     background-color: var(--bg-element);
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
-    margin: 1.25em 0;
     padding: 0.5rem 1rem;
 }
+
 .prose details summary {
     cursor: pointer;
     font-weight: 600;

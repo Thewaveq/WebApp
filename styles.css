@@ -276,3 +276,15 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     color: var(--accent);
     background-color: var(--bg-element);
 }
+/* Класс для сужения контента заметок по аналогии с чатом */
+.notepad-view-compact {
+    max-width: 896px; /* 56rem, как у chat-view-compact */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Стиль для активной кнопки переключения ширины (когда контент расширен) */
+#notepad-width-toggle.active {
+    background-color: hsl(225, 10%, 25%); /* Используем цвет, похожий на bg-bg-input */
+    color: white;
+}

@@ -46,9 +46,6 @@
              <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая папка заметок
             </button>
-            <button id="new-simplenote-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
-                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая простая заметка
-            </button>
         </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
         </nav>
@@ -79,9 +76,6 @@
             </button>
             <button data-tab="notepad" title="Заметки-карточки" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
                 <i data-lucide="notebook" class="w-5 h-5"></i>
-            </button>
-             <button data-tab="simplenote" title="Простые заметки" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
-                <i data-lucide="file-text" class="w-5 h-5"></i>
             </button>
         
             <!-- Кнопка справа с автоматическим отступом слева -->
@@ -199,7 +193,6 @@
         const mainNavItems = document.querySelectorAll('.main-nav-item');
         const newChatBtn = document.getElementById('new-chat-btn');
         const newNoteBtn = document.getElementById('new-note-btn');
-        const newSimpleNoteBtn = document.getElementById('new-simplenote-btn');
         const confirmModal = document.getElementById('confirm-modal');
         const confirmModalText = document.getElementById('confirm-modal-text');
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
@@ -231,7 +224,7 @@
         function renderSidebar() {
             sidebarList.innerHTML = '';
             const filteredSessions = state.sessions.filter(s => s.type === state.activeTab);
-    
+        
             if (filteredSessions.length > 0) {
                 filteredSessions.forEach(session => {
                     const item = document.createElement('div');
@@ -252,11 +245,10 @@
                     
                     sidebarList.appendChild(item);
                 });
-            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad' || state.activeTab === 'simplenote') {
+            } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                  const typeTextMap = {
                      chat: 'чатов',
-                     notepad: 'папок с заметками',
-                     simplenote: 'простых заметок'
+                     notepad: 'папок с заметками'
                  };
                  sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${typeTextMap[state.activeTab] || 'элементов'}.</div>`;
             } else {
@@ -317,14 +309,6 @@
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
-                case 'simplenote':
-                     if (activeSession) {
-                        mainContent.innerHTML = getSimpleNotepadViewHTML(activeSession);
-                        setupSimpleNotepadViewEventListeners();
-                    } else {
-                        mainContent.innerHTML = getEmptyStateHTML('simplenote');
-                    }
-                    break;
                 case 'settings':
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
@@ -341,20 +325,17 @@
             });
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
-            newSimpleNoteBtn.classList.toggle('hidden', state.activeTab !== 'simplenote');
         }
     
         // --- ШАБЛОНЫ HTML ---
         function getEmptyStateHTML(type) {
             const iconMap = {
                 'chat': 'message-square',
-                'notepad': 'notebook',
-                'simplenote': 'file-text'
+                'notepad': 'notebook'
             };
             const textMap = {
                 'chat': 'Выберите чат или создайте новый',
-                'notepad': 'Выберите папку с заметками-карточками или создайте новую',
-                'simplenote': 'Выберите простую заметку или создайте новую'
+                'notepad': 'Выберите папку с заметками-карточками или создайте новую'
             };
             const icon = iconMap[type] || 'alert-circle';
             const text = textMap[type] || 'Выберите элемент';
@@ -1345,7 +1326,7 @@
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
-                    if (state.activeTab === 'chat' || state.activeTab === 'notepad' || state.activeTab === 'simplenote') {
+                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                         const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
                         state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
                     } else {
@@ -1354,7 +1335,7 @@
                     render();
                 });
             });
-    
+        
             const createNewItem = async (type) => {
                 let newSessionData;
                 if (type === 'chat') {
@@ -1377,14 +1358,6 @@
                         createdAt: serverTimestamp(), 
                         updatedAt: serverTimestamp() 
                     };
-                } else if (type === 'simplenote') {
-                    newSessionData = {
-                        type: 'simplenote',
-                        title: 'Новая простая заметка',
-                        content: '',
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
-                    };
                 }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -1396,10 +1369,9 @@
                     sidebarBackdrop.classList.add('hidden'); 
                 }
             };
-    
+        
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
-            newSimpleNoteBtn.addEventListener('click', () => createNewItem('simplenote'));
             
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
@@ -1410,14 +1382,14 @@
                     updateSidebarView();
                 }
             });
-    
+        
             sidebarBackdrop.addEventListener('click', () => {
                 sidebar.classList.remove('open');
                 sidebarBackdrop.classList.add('hidden');
             });
             
             window.addEventListener('resize', updateSidebarView);
-    
+        
             document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
@@ -1431,7 +1403,7 @@
                 if (deleteMessageBtn) {
                     const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-    
+        
                     if (activeSession && !isNaN(messageIndex)) {
                         showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
@@ -1440,7 +1412,7 @@
                         });
                     }
                 }
-    
+        
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
                     if (state.isLoading) return;
@@ -1458,20 +1430,20 @@
                         );
                     }
                 }
-    
+        
                 const editBtn = e.target.closest('.edit-message-btn');
                 if (editBtn) {
                     if (state.isLoading) return;
                     const messageContainer = editBtn.closest('.message-container');
                     const contentDiv = messageContainer.querySelector('.prose');
                     if (messageContainer.querySelector('.edit-form')) return; 
-
+        
                     const messageIndex = parseInt(editBtn.dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const originalContent = activeSession.messages[messageIndex].content;
-
+        
                     contentDiv.classList.add('hidden');
-
+        
                     const editForm = document.createElement('div');
                     editForm.className = 'edit-form w-full mt-2';
                     editForm.innerHTML = `
@@ -1492,7 +1464,7 @@
                        textarea.style.height = 'auto';
                        textarea.style.height = (textarea.scrollHeight) + 'px';
                     });
-
+        
                     editForm.querySelector('.save-edit-btn').addEventListener('click', async () => {
                         const newContent = textarea.value.trim();
                         if (newContent) {
@@ -1504,7 +1476,7 @@
                             await generateAssistantResponse(messagesForSubmit);
                         }
                     });
-
+        
                     editForm.querySelector('.cancel-edit-btn').addEventListener('click', () => {
                         editForm.remove();
                         contentDiv.classList.remove('hidden');
@@ -1543,10 +1515,10 @@
             
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
             editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
-    
+        
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
-    
+        
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
@@ -1557,33 +1529,18 @@
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                let activeSimpleNoteChanged = false;
-
-                snapshot.docChanges().forEach(change => {
-                    if (change.doc.id === state.activeSessionId && state.activeTab === 'simplenote') {
-                        activeSimpleNoteChanged = true;
-                        updateSimpleNoteView({ id: change.doc.id, ...change.doc.data() });
-                    }
-                });
-
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
-
-                if (activeSimpleNoteChanged) {
-
-                    renderSidebar();
-                } else {
-                    const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
-                    if (!activeSessionExists) {
-                        state.activeSessionId = null;
-                    }
-                    if (!state.isLoading) {
-                        render();
-                    }
+        
+                const activeSessionExists = state.sessions.some(s => s.id === state.activeSessionId);
+                if (!activeSessionExists) {
+                    state.activeSessionId = null;
+                }
+                if (!state.isLoading) {
+                    render();
                 }
             }, error => console.error("Session listener error: ", error));
         
-            // Слушатели для провайдеров и ролей остаются без изменений
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);
             unsubscribeProviders = onSnapshot(providersCol, (snapshot) => {
                 state.providers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

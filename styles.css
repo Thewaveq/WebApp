@@ -70,14 +70,29 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
-/* --- ДОБАВЬТЕ ЭТОТ БЛОК --- */
-.prose ul, .prose ol, .prose p {
+.prose p,
+.prose ul,
+.prose ol {
     margin-top: 0;
-    margin-bottom: 0; /* Отступ после всего списка или параграфа, можно поставить 0 */
+    margin-bottom: 0;
+}
+
+.prose p + ul,
+.prose p + ol {
+    /* Можно добавить микро-отступ сверху, если хотите, но для "слитного" вида лучше 0 */
+    margin-top: 0.5em; 
+}
+
+.prose ul, .prose ol {
+    margin-bottom: 1em;
 }
 
 .prose li {
-    margin-bottom: 0.25em; /* Небольшой отступ между пунктами списка, можно поставить 0 */
+   margin-bottom: 0.2em; /* Совсем небольшой отступ между пунктами */
+}
+
+.prose li:last-child {
+   margin-bottom: 0;
 }
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }

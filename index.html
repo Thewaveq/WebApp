@@ -659,14 +659,12 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
         
-            // ИЗМЕНЕНО: Добавлен класс `items-start` для сетки.
-            // Это предотвратит растягивание низких карточек до высоты высоких в одном ряду.
             return `
                 <div class="flex flex-col h-full p-4">
                     <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                     
                     <div class="flex-grow overflow-y-auto pr-2">
-                        <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
+                        <div id="note-cards-grid" class="grid grid-cols-1 gap-4 items-start">
                             ${cardsHTML}
                             <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
                                 <i data-lucide="plus" class="w-10 h-10"></i>

@@ -70,13 +70,12 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
-#chat-messages .prose > :is(p, ul, ol, blockquote, pre, details, h1, h2, h3, h4, table) {
+.prose > :first-child {
   margin-top: 0;
-  margin-bottom: 0;
 }
 
-#chat-messages .prose > * + * {
-  margin-top: 0.75em; /* Можете настроить это значение (например, 12px) */
+.prose > :last-child {
+  margin-bottom: 0;
 }
 
 .prose h1, .prose h2, .prose h3 { 

@@ -646,14 +646,14 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
         
-            // ИЗМЕНЕНО: Обновлены классы для сетки (grid-auto-rows: minmax(min-content, max-content))
-            // и для кнопки добавления новой карточки, чтобы сделать ее менее навязчивой.
+            // ИЗМЕНЕНО: Добавлен класс `items-start` для сетки.
+            // Это предотвратит растягивание низких карточек до высоты высоких в одном ряду.
             return `
                 <div class="flex flex-col h-full p-4">
                     <input type="text" id="note-title-input" class="bg-transparent text-2xl font-bold mb-4 focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                     
                     <div class="flex-grow overflow-y-auto pr-2">
-                        <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" style="grid-auto-rows: minmax(min-content, max-content);">
+                        <div id="note-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
                             ${cardsHTML}
                             <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
                                 <i data-lucide="plus" class="w-10 h-10"></i>
@@ -853,9 +853,41 @@
             
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        func.apply(this, args);
+                    }, delay);
+                };
+            };
+            
+            const saveCardData = async (cardId) => {
+                const cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardId}"]`);
+                if (!cardEl) return;
+        
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                if (!activeSession || !activeSession.cards) return;
+        
+                const newTitle = cardEl.querySelector('.note-card-title').value;
+                const newContent = cardEl.querySelector('.note-card-content').value;
+        
+                const originalCard = activeSession.cards.find(c => c.id === cardId);
+                
+                if (originalCard && (originalCard.title !== newTitle || originalCard.content !== newContent)) {
+                    const updatedCards = activeSession.cards.map(card => 
+                        card.id === cardId ? { ...card, title: newTitle, content: newContent } : card
+                    );
+                    await updateDoc(sessionRef, { cards: updatedCards, updatedAt: serverTimestamp() });
+                }
+            };
+            
+            const debouncedSave = debounce(saveCardData, 750);
+            
             function autoResizeTextarea(textarea) {
                 if (!textarea) return;
-                textarea.style.height = 'auto'; 
+                textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             }
 
@@ -876,27 +908,12 @@
                     updatedAt: serverTimestamp()
                 });
             });
-        
-            cardsGrid?.addEventListener('focusout', async (e) => {
+            
+            cardsGrid?.addEventListener('focusout', (e) => {
                 const cardEl = e.target.closest('.note-card');
-                if (!cardEl || !e.target.matches('.note-card-title, .note-card-content')) return;
-                
-                const cardId = cardEl.dataset.cardId;
-                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                if (!activeSession || !activeSession.cards) return;
-        
-                const updatedCards = activeSession.cards.map(card => {
-                    if (card.id === cardId) {
-                        const newTitle = cardEl.querySelector('.note-card-title').value;
-                        const newContent = cardEl.querySelector('.note-card-content').value;
-                        if (card.title !== newTitle || card.content !== newContent) {
-                           return { ...card, title: newTitle, content: newContent };
-                        }
-                    }
-                    return card;
-                });
-        
-                await updateDoc(sessionRef, { cards: updatedCards, updatedAt: serverTimestamp() });
+                if (cardEl && e.target.matches('.note-card-title, .note-card-content')) {
+                    saveCardData(cardEl.dataset.cardId);
+                }
             });
         
             cardsGrid?.addEventListener('click', (e) => {
@@ -921,8 +938,15 @@
             });
             
             cardsGrid?.addEventListener('input', (e) => {
-                if (e.target && e.target.matches('.note-card-content')) {
+                if (!e.target) return;
+                const cardEl = e.target.closest('.note-card');
+                
+                if (e.target.matches('.note-card-content')) {
                     autoResizeTextarea(e.target);
+                }
+                
+                if (cardEl && e.target.matches('.note-card-title, .note-card-content')) {
+                    debouncedSave(cardEl.dataset.cardId);
                 }
             });
 

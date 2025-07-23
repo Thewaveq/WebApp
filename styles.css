@@ -92,7 +92,7 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     padding: 1rem; 
     border-radius: 0.5rem; 
     position: relative; 
-    white-space: pre;
+    white-space: pre-wrap;
     overflow-x: auto;
 }
 

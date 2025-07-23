@@ -565,12 +565,18 @@
             }
             
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
-
+            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full';
+            
+            // --- НАЧАЛО ОКОНЧАТЕЛЬНОГО РЕШЕНИЯ ---
             let originalContent = msg.content || '';
-
-            originalContent = originalContent.replace(/^[*-]\s*\?$/gm, '');
-            originalContent = originalContent.replace(/(\r\n|\n){3,}/g, '\n\n');
+            
+            // 1. Сначала убираем любые строки, которые состоят ТОЛЬКО ИЗ ПРОБЕЛОВ.
+            // Они невидимы, но `pre-wrap` их рендерит как пустую строку.
+            originalContent = originalContent.replace(/^\s*$/gm, '');
+            
+            // 2. Затем, любые ДВА ИЛИ БОЛЕЕ переноса строки подряд мы сжимаем в ровно ДВА.
+            // Это стандартный параграф в Markdown. Это убирает все "дыры" между блоками текста.
+            originalContent = originalContent.replace(/(\r\n|\n){2,}/g, '\n\n');
                                                       
             let processedContent = originalContent.replace(
                 /<think>([\s\S]*?)<\/think>/g,

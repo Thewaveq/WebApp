@@ -572,14 +572,8 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            // ИЗМЕНЕНИЕ: Опция "breaks: true" удалена для корректной обработки Markdown.
-            const rawHtml = marked.parse(processedContent, { gfm: true });
-            const sanitizedHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-
-            contentDiv.innerHTML = sanitizedHtml;
-            contentDiv.dataset.originalContent = msg.content || '';
-            contentDiv.dataset.processedHtml = sanitizedHtml;
-            contentDiv.dataset.viewMode = 'processed';
+            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
@@ -599,12 +593,6 @@
                 editButton.innerHTML = `<i data-lucide="pencil" class="w-4 h-4"></i>`;
                 actionsContainer.appendChild(editButton);
             } else {
-                const toggleViewButton = document.createElement('button');
-                toggleViewButton.className = 'toggle-view-btn p-1 text-text-secondary hover:text-accent transition-colors';
-                toggleViewButton.title = 'Показать исходный текст';
-                toggleViewButton.innerHTML = `<i data-lucide="code" class="w-4 h-4"></i>`;
-                actionsContainer.appendChild(toggleViewButton);
-
                 const regenerateButton = document.createElement('button');
                 regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary hover:text-accent transition-colors';
                 regenerateButton.title = 'Перегенерировать ответ';
@@ -653,7 +641,6 @@
 
             return messageWrapper;
         }
-
         
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
@@ -1490,61 +1477,6 @@
                     });
                 }
                 
-                // --- НАЧАЛО НОВОГО БЛОКА ---
-                const toggleViewBtn = e.target.closest('.toggle-view-btn');
-                if (toggleViewBtn) {
-                    const messageContainer = toggleViewBtn.closest('.message-container');
-                    const contentDiv = messageContainer.querySelector('.prose');
-                    const icon = toggleViewBtn.querySelector('i');
-                    const isShowingRaw = contentDiv.dataset.viewMode === 'raw';
-
-                    if (isShowingRaw) {
-                        // Переключаемся обратно на отформатированный HTML
-                        contentDiv.innerHTML = contentDiv.dataset.processedHtml;
-                        contentDiv.dataset.viewMode = 'processed';
-                        toggleViewBtn.title = 'Показать исходный текст';
-                        icon.setAttribute('data-lucide', 'code');
-                        
-                        // Повторно применяем подсветку синтаксиса и кнопки копирования
-                        contentDiv.querySelectorAll('pre code').forEach(block => {
-                            const preElement = block.parentElement;
-                            if (!preElement.querySelector('.copy-code-btn')) {
-                                const copyBtn = document.createElement('button');
-                                copyBtn.className = 'copy-code-btn';
-                                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                                copyBtn.addEventListener('click', () => {
-                                    navigator.clipboard.writeText(block.innerText);
-                                    copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                                    setTimeout(() => {
-                                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                                        lucide.createIcons();
-                                    }, 2000);
-                                    lucide.createIcons();
-                                });
-                                preElement.appendChild(copyBtn);
-                            }
-                            hljs.highlightElement(block);
-                        });
-
-                    } else {
-                        // Переключаемся на исходный текст
-                        contentDiv.innerHTML = ''; // Очищаем от HTML
-                        const pre = document.createElement('pre');
-                        const code = document.createElement('code');
-                        code.className = 'text-sm'; // Добавляем класс для стилизации если нужно
-                        code.textContent = contentDiv.dataset.originalContent;
-                        pre.appendChild(code);
-                        contentDiv.appendChild(pre);
-
-                        contentDiv.dataset.viewMode = 'raw';
-                        toggleViewBtn.title = 'Показать отформатированный текст';
-                        icon.setAttribute('data-lucide', 'eye');
-                    }
-                    // Обновляем иконку Lucide
-                    lucide.createIcons({ nodes: [toggleViewBtn] });
-                }
-                // --- КОНЕЦ НОВОГО БЛОКА ---
-
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;

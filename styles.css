@@ -64,82 +64,29 @@ details > summary::-webkit-details-marker {display: none;}
 details[open] > summary .details-arrow {transform: rotate(180deg);}
 
 /* --- Стили для Markdown-контента --- */
-.prose {
+.prose { 
     color: var(--text-primary);
-    /* ЭТО ПРАВИЛЬНО: Сохраняет переносы строк внутри текста. */
-    white-space: pre-line;
+    white-space: pre-wrap;
     word-wrap: break-word;
 }
 
-/*
- * ЕДИНОЕ ПРАВИЛО ДЛЯ ОТСТУПОВ:
- * Добавляет отступ СВЕРХУ ко всем блочным элементам (p, ul, h3, pre и т.д.),
- * кроме самого первого. Это создает аккуратные и одинаковые отступы
- * между всеми частями сообщения и решает все проблемы.
- */
-.prose > :where(p, ul, ol, blockquote, pre, details, h1, h2, h3, h4):not(:first-child) {
-    margin-top: 1em;
+#chat-messages .prose p {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
-.prose h1, .prose h2, .prose h3 {
-    color: white;
-    border-bottom: 1px solid var(--border-color);
-}
+.prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
+.prose a { color: var(--accent-hover); }
 
-.prose a {
-    color: var(--accent-hover);
-}
-
-/*
- * У блоков кода УБРАНЫ собственные отступы, так как они теперь
- * управляются единым правилом выше. Это предотвращает двойные отступы.
- */
-.prose pre {
-    background-color: #282c34;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    position: relative;
+.prose pre { 
+    background-color: #282c34; 
+    padding: 1rem; 
+    border-radius: 0.5rem; 
+    position: relative; 
+    margin-top: 1.25em; 
+    margin-bottom: 1.25em;
     white-space: pre;
     overflow-x: auto;
-}
-
-.prose code {
-    background-color: var(--bg-element);
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.3rem;
-    font-family: 'Courier New', Courier, monospace;
-}
-
-.prose pre code {
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
-}
-
-.prose blockquote {
-    border-left-color: var(--accent);
-}
-
-.copy-code-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background-color: var(--bg-element);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 0.3rem;
-    padding: 0.25rem;
-    opacity: 0.5;
-    transition: opacity 0.2s;
-}
-
-.prose pre:hover .copy-code-btn {
-    opacity: 1;
-}
-
-.copy-code-btn:hover {
-    background-color: var(--bg-input);
-    color: var(--text-primary);
 }
 
 .prose code { background-color: var(--bg-element); padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: 'Courier New', Courier, monospace; }

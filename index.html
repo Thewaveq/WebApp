@@ -584,7 +584,8 @@
             );
             processedContent = processedContent.trim();
 
-            processedContent = processedContent.replace(/(?:\s*\n){3,}/g, '\n\n');
+            processedContent = processedContent.replace(/^\s+$/gm, '');
+            processedContent = processedContent.replace(/\n{3,}/g, '\n\n');
             
             const listFixRegex = /(^([ \t]*)(?:[0-9]+\.|-|\*)[ \t].*\n)\n(?=([ \t]*)(?:[0-9]+\.|-|\*)[ \t].*)/gm;
             processedContent = processedContent.replace(listFixRegex, '$1');

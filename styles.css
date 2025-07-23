@@ -70,29 +70,28 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
-.prose ul,
-.prose ol {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding-left: 1.5em; /* Оставляем небольшой отступ для маркеров */
+.message-container .prose > :first-child {
+  margin-top: 0;
 }
 
-/* Убираем отступы у элементов списка */
-.prose li {
-    margin-top: 0;
-    margin-bottom: 0.25em; /* Небольшой отступ между элементами списка */
+/* Убираем нижний отступ у самого последнего элемента в сообщении */
+.message-container .prose > :last-child {
+  margin-bottom: 0;
 }
 
-/* Убираем отступы у параграфов, чтобы они не создавали лишнего пространства */
-.prose p {
-    margin-top: 0;
-    margin-bottom: 0.5em; /* Уменьшенный отступ после параграфа */
+/* Устанавливаем минимальные вертикальные отступы для всех основных текстовых блоков */
+.message-container .prose p,
+.message-container .prose ul,
+.message-container .prose ol,
+.message-container .prose li {
+  margin-top: 0;
+  margin-bottom: 0.25em; /* Оставляем крошечный отступ для разделения, можно поставить 0 */
 }
 
-/* Убираем верхний отступ у списка, если он идет сразу после параграфа */
-.prose p + ul,
-.prose p + ol {
-    margin-top: 0.25em;
+/* Для списков дополнительно убираем их собственные отступы, оставляя только отступ для маркеров */
+.message-container .prose ul,
+.message-container .prose ol {
+   padding-left: 1.5em; /* Отступ слева для буллет-поинтов, это НЕ вертикальный отступ */
 }
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }

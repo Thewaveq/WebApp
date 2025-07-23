@@ -572,9 +572,13 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            // Используем marked для парсинга Markdown и DOMPurify для очистки HTML
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            // ИЗМЕНЕНИЕ: Сохраняем и оригинальный, и обработанный HTML в data-атрибуты
+            const sanitizedHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            contentDiv.innerHTML = sanitizedHtml;
+            contentDiv.dataset.originalContent = msg.content || '';
+            contentDiv.dataset.processedHtml = sanitizedHtml;
+            contentDiv.dataset.viewMode = 'processed'; // 'processed' или 'raw'
 
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
@@ -594,6 +598,13 @@
                 editButton.innerHTML = `<i data-lucide="pencil" class="w-4 h-4"></i>`;
                 actionsContainer.appendChild(editButton);
             } else {
+                // ИЗМЕНЕНИЕ: Добавляем кнопку для переключения вида
+                const toggleViewButton = document.createElement('button');
+                toggleViewButton.className = 'toggle-view-btn p-1 text-text-secondary hover:text-accent transition-colors';
+                toggleViewButton.title = 'Показать исходный текст';
+                toggleViewButton.innerHTML = `<i data-lucide="code" class="w-4 h-4"></i>`;
+                actionsContainer.appendChild(toggleViewButton);
+
                 const regenerateButton = document.createElement('button');
                 regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary hover:text-accent transition-colors';
                 regenerateButton.title = 'Перегенерировать ответ';
@@ -613,10 +624,8 @@
             messageWrapper.appendChild(contentDiv);
             messageWrapper.appendChild(actionsContainer);
 
-            // Находим все блоки кода и применяем подсветку через highlight.js
             messageWrapper.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
-                // Проверяем, нет ли уже кнопки
                 if (preElement.querySelector('.copy-code-btn')) return;
                 
                 const copyBtn = document.createElement('button');
@@ -632,7 +641,6 @@
                     lucide.createIcons();
                 });
                 preElement.appendChild(copyBtn);
-                // Подсвечиваем код
                 hljs.highlightElement(block);
             });
 
@@ -645,6 +653,7 @@
 
             return messageWrapper;
         }
+
         
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');

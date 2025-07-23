@@ -577,7 +577,6 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            //const rawHtml = marked.parse(processedContent);
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
@@ -585,15 +584,22 @@
             actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
 
             if (isUser) {
+                const regenerateUserBtn = document.createElement('button');
+                regenerateUserBtn.className = 'regenerate-user-message-btn p-1 text-text-secondary hover:text-accent transition-colors';
+                regenerateUserBtn.title = 'Перегенерировать ответ на это сообщение';
+                regenerateUserBtn.dataset.messageIndex = index;
+                regenerateUserBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i>`;
+                actionsContainer.appendChild(regenerateUserBtn);
+
                 const editButton = document.createElement('button');
-                editButton.className = 'edit-message-btn p-1 text-text-secondary'
+                editButton.className = 'edit-message-btn p-1 text-text-secondary hover:text-accent transition-colors';
                 editButton.title = 'Редактировать и отправить заново';
                 editButton.dataset.messageIndex = index;
                 editButton.innerHTML = `<i data-lucide="pencil" class="w-4 h-4"></i>`;
                 actionsContainer.appendChild(editButton);
             } else {
                 const regenerateButton = document.createElement('button');
-                regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary';
+                regenerateButton.className = 'regenerate-message-btn p-1 text-text-secondary hover:text-accent transition-colors';
                 regenerateButton.title = 'Перегенерировать ответ';
                 regenerateButton.dataset.messageIndex = index;
                 regenerateButton.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i>`;
@@ -601,7 +607,7 @@
             }
 
             const deleteButton = document.createElement('button');
-            deleteButton.className = `delete-message-btn p-1 text-text-secondary`;
+            deleteButton.className = `delete-message-btn p-1 text-text-secondary hover:text-red-400 transition-colors`;
             deleteButton.title = 'Удалить сообщение';
             deleteButton.dataset.messageIndex = index;
             deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
@@ -1388,6 +1394,24 @@
                     }
                 }
         
+                const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
+                if (regenerateUserBtn) {
+                    if (state.isLoading) return;
+                    const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showConfirmModal(
+                            'Это действие удалит все сообщения после этого и сгенерирует новый ответ. Продолжить?',
+                            async () => {
+                                const messagesForRegen = activeSession.messages.slice(0, messageIndex + 1);
+                                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                                await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                                await generateAssistantResponse(messagesForRegen);
+                            }
+                        );
+                    }
+                }
+
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
                     if (state.isLoading) return;

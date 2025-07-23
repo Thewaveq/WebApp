@@ -572,13 +572,14 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            // ИЗМЕНЕНИЕ: Сохраняем и оригинальный, и обработанный HTML в data-атрибуты
+            // ИЗМЕНЕНИЕ: Опция "breaks: true" удалена для корректной обработки Markdown.
+            const rawHtml = marked.parse(processedContent, { gfm: true });
             const sanitizedHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+
             contentDiv.innerHTML = sanitizedHtml;
             contentDiv.dataset.originalContent = msg.content || '';
             contentDiv.dataset.processedHtml = sanitizedHtml;
-            contentDiv.dataset.viewMode = 'processed'; // 'processed' или 'raw'
+            contentDiv.dataset.viewMode = 'processed';
 
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
@@ -598,7 +599,6 @@
                 editButton.innerHTML = `<i data-lucide="pencil" class="w-4 h-4"></i>`;
                 actionsContainer.appendChild(editButton);
             } else {
-                // ИЗМЕНЕНИЕ: Добавляем кнопку для переключения вида
                 const toggleViewButton = document.createElement('button');
                 toggleViewButton.className = 'toggle-view-btn p-1 text-text-secondary hover:text-accent transition-colors';
                 toggleViewButton.title = 'Показать исходный текст';

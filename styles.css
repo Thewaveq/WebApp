@@ -78,7 +78,11 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 .prose ol {
     margin: 0;
     padding: 0;
-    list-style: none; /* Убирает маркеры (точки, цифры) */
+    list-style: none;
+}
+
+.prose li p {
+    margin: 0;
 }
 
 /* 

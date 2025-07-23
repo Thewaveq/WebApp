@@ -70,6 +70,31 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
+.prose ul,
+.prose ol {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 1.5em; /* Оставляем небольшой отступ для маркеров */
+}
+
+/* Убираем отступы у элементов списка */
+.prose li {
+    margin-top: 0;
+    margin-bottom: 0.25em; /* Небольшой отступ между элементами списка */
+}
+
+/* Убираем отступы у параграфов, чтобы они не создавали лишнего пространства */
+.prose p {
+    margin-top: 0;
+    margin-bottom: 0.5em; /* Уменьшенный отступ после параграфа */
+}
+
+/* Убираем верхний отступ у списка, если он идет сразу после параграфа */
+.prose p + ul,
+.prose p + ol {
+    margin-top: 0.25em;
+}
+
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }
 

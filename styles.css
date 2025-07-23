@@ -70,6 +70,31 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
+.prose p,
+        .prose ul,
+        .prose ol,
+        .prose li,
+        .prose blockquote,
+        .prose h1,
+        .prose h2,
+        .prose h3,
+        .prose h4,
+        .prose h5,
+        .prose h6,
+        .prose pre {
+            margin-top: 0;
+            margin-bottom: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+.prose > * + * {
+            margin-top: 0.5rem; /* 8px */
+        }
+.prose > *:last-child {
+            margin-bottom: 0 !important;
+        }
+
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }
 

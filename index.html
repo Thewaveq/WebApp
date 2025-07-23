@@ -860,10 +860,6 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             
-            if (!state.activeSessionId) return;
-            
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-            
             const debounce = (func, delay) => {
                 let timeoutId;
                 return (...args) => {
@@ -875,6 +871,9 @@
             };
             
             const saveCardData = async (cardId) => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
                 const cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardId}"]`);
                 if (!cardEl) return;
         
@@ -903,10 +902,15 @@
             }
 
             titleInput?.addEventListener('change', () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
             });
         
             addNewCardBtn?.addEventListener('click', async () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
                 const newCard = {
                     id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
                     title: '',
@@ -935,6 +939,10 @@
                 const cardId = cardEl.dataset.cardId;
         
                 showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
+                    // Получаем актуальный sessionRef внутри обработчика
+                    if (!state.activeSessionId) return;
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const cards = activeSession.cards || [];
                     const cardToDelete = cards.find(c => c.id === cardId);

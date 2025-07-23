@@ -288,3 +288,22 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     background-color: hsl(225, 10%, 25%); /* Используем цвет, похожий на bg-bg-input */
     color: white;
 }
+
+/* Этот контейнер будет плавно изменять свою ширину */
+.notepad-content-wrapper {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    transition: max-width 0.4s ease-in-out; /* Плавный переход, как в чате */
+}
+
+/* Когда родительский элемент имеет этот класс, ширина wrapper'а ограничивается */
+.notepad-view-compact .notepad-content-wrapper {
+    max-width: 896px; /* Точная ширина, как у чата */
+}
+
+/* Стиль для активной кнопки, когда контент расширен */
+#notepad-width-toggle.active {
+    background-color: var(--accent); /* Точный цвет, как у кнопки чата */
+    color: white;
+}

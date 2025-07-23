@@ -69,50 +69,6 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     white-space: pre-wrap;
     word-wrap: break-word;
 }
-.prose p,
-.prose ul {
-    margin-top: 0;
-    margin-bottom: 0;
-}
-.prose li {
-    margin-top: 0;
-    margin-bottom: 0.25em; /* Небольшой отступ для читаемости между элементами списка */
-}
-
-#chat-messages .prose p {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.prose ul,
-.prose ol {
-  padding-left: 0;
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.prose li {
-  margin-bottom: 0;
-}
-
-.prose p {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.prose li + li {
-  margin-top: 0.25em; /* Минимальный отступ между пунктами списка */
-}
-
-.prose ul:first-child,
-.prose ol:first-child {
-  margin-top: 0;
-}
-
-.prose ul:last-child,
-.prose ol:last-child {
-  margin-bottom: 0;
-}
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }

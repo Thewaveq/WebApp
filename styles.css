@@ -70,6 +70,11 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
+.prose p {
+    margin-top: 0.75em;
+    margin-bottom: 0.75em;
+}
+
 .prose > :first-child {
   margin-top: 0;
 }

@@ -29,8 +29,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     
     <!-- Стили вынесены в отдельный файл -->
-    <!-- <link rel="stylesheet" href="styles.css"> -->
-    <link rel="stylesheet" href="styles.css?t=1627881600">
+    <link rel="stylesheet" href="styles.css">
 
 </head>
 <body class="h-dvh w-full flex">
@@ -159,7 +158,6 @@
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
         // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
-        // Используем импортированную конфигурацию для запуска Firebase
         const app = initializeApp(firebaseConfig);
         
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
@@ -272,8 +270,6 @@
             }
         
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            
-            // Если активная вкладка не совпадает с тем, что сейчас отображается, очищаем контент
             const currentTabType = mainContent.dataset.activeTabType;
             if (currentTabType !== state.activeTab) {
                 mainContent.innerHTML = '';
@@ -283,7 +279,7 @@
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
-                        // Для чата оставляем старую логику, т.к. там свои сложности
+
                         mainContent.innerHTML = getChatViewHTML(activeSession);
                         
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
@@ -320,10 +316,10 @@
                      if (activeSession) {
                         const isNotepadVisible = mainContent.querySelector('#note-cards-grid');
                         if (isNotepadVisible) {
-                            // Если поле для заметок уже отображено, просто обновляем карточки
+
                             renderNotepadCards(activeSession);
                         } else {
-                            // Иначе (при первом открытии или смене таба) рендерим всё с нуля
+
                             mainContent.innerHTML = getNotepadViewHTML(activeSession);
                             setupNotepadViewEventListeners();
                         }
@@ -353,10 +349,10 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             if (!cardsGrid) return;
         
-            // Утилита для корректного изменения высоты текстового поля
+
             function autoResizeTextarea(textarea) {
                 if (!textarea) return;
-                // Небольшая задержка, чтобы браузер успел вычислить scrollHeight
+
                 setTimeout(() => {
                     textarea.style.height = 'auto';
                     textarea.style.height = (textarea.scrollHeight) + 'px';
@@ -367,7 +363,7 @@
             const newCardIds = new Set(newCards.map(c => c.id));
             const addButton = document.getElementById('add-new-card-btn');
         
-            // 1. Удалить карточки, которых больше нет в данных
+
             const existingCardElements = cardsGrid.querySelectorAll('.note-card');
             existingCardElements.forEach(cardEl => {
                 const cardId = cardEl.dataset.cardId;
@@ -376,12 +372,12 @@
                 }
             });
         
-            // 2. Добавить или обновить существующие карточки
+
             newCards.forEach((cardData, index) => {
                 let cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardData.id}"]`);
         
                 if (cardEl) {
-                    // Карточка уже существует, проверяем и обновляем поля
+
                     const titleInput = cardEl.querySelector('.note-card-title');
                     const contentTextarea = cardEl.querySelector('.note-card-content');
                     
@@ -390,11 +386,11 @@
                     }
                     if (document.activeElement !== contentTextarea && contentTextarea.value !== cardData.content) {
                         contentTextarea.value = cardData.content || '';
-                        // Вызываем изменение размера после обновления контента
+
                         autoResizeTextarea(contentTextarea);
                     }
                 } else {
-                    // Карточки нет в DOM, создаем и вставляем ее
+
                     const newCardHTML = getCardHTML(cardData);
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newCardHTML;
@@ -403,7 +399,6 @@
                     cardsGrid.insertBefore(newCardElement, addButton);
                     lucide.createIcons({ nodes: [newCardElement] });
                     
-                    // Вызываем изменение размера для новой карточки
                     const newTextarea = newCardElement.querySelector('.note-card-content');
                     autoResizeTextarea(newTextarea);
                 }
@@ -490,7 +485,6 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
         
-            // ИЗМЕНЕНИЕ: Добавлен класс bg-bg-element для установки фона по умолчанию
             return `
                 <div class="flex flex-col h-full">
                     <div class="flex-shrink-0 p-3 border-b border-border-color">
@@ -571,29 +565,16 @@
             }
             
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full';
+            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
             
-            let processedContent = (msg.content || '');
-            
-            // --- Начало блока обработки контента ---
-            
-            // 1. Раскрываем теги <think>
-            processedContent = processedContent.replace(
+            let processedContent = (msg.content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
-            processedContent = processedContent.trim();
-
-            processedContent = processedContent.replace(/^\s+$/gm, '');
-            processedContent = processedContent.replace(/\n{3,}/g, '\n\n');
             
-            const listFixRegex = /(^([ \t]*)(?:[0-9]+\.|-|\*)[ \t].*\n)\n(?=([ \t]*)(?:[0-9]+\.|-|\*)[ \t].*)/gm;
-            processedContent = processedContent.replace(listFixRegex, '$1');
-            
-            const rawHtml = marked.parse(processedContent, { gfm: true });
-            
+            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-            
+
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
 
@@ -900,7 +881,7 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             const widthToggleBtn = document.getElementById('notepad-width-toggle');
-            const scrollContainer = document.getElementById('notepad-scroll-container'); // Получаем контейнер для переключения класса
+            const scrollContainer = document.getElementById('notepad-scroll-container');
 
             if(widthToggleBtn && scrollContainer) {
                 const isExpanded = !state.isNotepadWidthCompact;

@@ -576,15 +576,18 @@
             );
             
             // 2. НОРМАЛИЗАЦИЯ: Заменяем три и более переноса строки на два.
-            // Это убирает "дыры" и приводит форматирование к стандарту.
             const normalizedContent = processedContent.replace(/\n{3,}/g, '\n\n');
 
-            // 3. ПАРСИНГ: Убираем `breaks: true`. Теперь marked.js будет
-            // корректно создавать параграфы (<p>) только там, где есть двойной перенос.
+            // 3. ПАРСИНГ: Убираем `breaks: true`.
             const rawHtml = marked.parse(normalizedContent, { gfm: true }); 
             
             // 4. Очистка и вставка HTML
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+
+            // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = 'message-actions absolute -bottom-4 right-2 flex items-center space-x-1 bg-bg-sidebar p-1 rounded-md border border-border-color opacity-0 group-hover:opacity-100 transition-opacity';
+
 
             if (isUser) {
                 const regenerateUserBtn = document.createElement('button');

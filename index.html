@@ -566,19 +566,25 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
-
-            let cleanedContent = (msg.content || '').replace(/\n{3,}/g, '\n\n');
             
-            let processedContent = cleanedContent.replace(
+            let content = msg.content || '';
+
+            // 1. Сначала обработаем наш кастомный тег <think>
+            let processedContent = content.replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             
-            const rawHtml = marked.parse(processedContent, { gfm: true });
-            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            // 2. НОРМАЛИЗАЦИЯ: Заменяем три и более переноса строки на два.
+            // Это убирает "дыры" и приводит форматирование к стандарту.
+            const normalizedContent = processedContent.replace(/\n{3,}/g, '\n\n');
 
-            const actionsContainer = document.createElement('div');
-            actionsContainer.className = 'absolute bottom-1 right-2 flex items-center space-x-1 bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            // 3. ПАРСИНГ: Убираем `breaks: true`. Теперь marked.js будет
+            // корректно создавать параграфы (<p>) только там, где есть двойной перенос.
+            const rawHtml = marked.parse(normalizedContent, { gfm: true }); 
+            
+            // 4. Очистка и вставка HTML
+            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             if (isUser) {
                 const regenerateUserBtn = document.createElement('button');

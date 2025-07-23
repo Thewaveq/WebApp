@@ -69,41 +69,6 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     white-space: pre-wrap;
     word-wrap: break-word;
 }
-.prose h1, .prose h2, .prose h3 { 
-        color: white; 
-        border-bottom: 1px solid var(--border-color);
-        /* Добавим немного воздуха ПОД заголовком для читаемости */
-        padding-bottom: 0.25rem; 
-    }
-    .prose a { 
-        color: var(--accent-hover); 
-    }
-    .prose hr {
-        border-color: var(--border-color);
-    }
-
-.prose p,
-    .prose ul,
-    .prose ol,
-    .prose li,
-    .prose blockquote,
-    .prose hr,
-    .prose h1,
-    .prose h2,
-    .prose h3,
-    .prose h4,
-    .prose h5,
-    .prose h6,
-    .prose pre {
-        margin-top: 0;
-        margin-bottom: 0;
-        padding-top: 0;
-        padding-bottom: 0;
-    }
-
-.prose * + * {
-        margin-top: 0.75rem; /* 12px - можно поменять на 0.5rem, если нужно еще плотнее */
-    }
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
 .prose a { color: var(--accent-hover); }

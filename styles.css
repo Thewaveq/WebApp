@@ -276,52 +276,19 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     color: var(--accent);
     background-color: var(--bg-element);
 }
-/* Класс для сужения контента заметок по аналогии с чатом */
-.notepad-view-compact {
-    max-width: 896px; /* 56rem, как у chat-view-compact */
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* Стиль для активной кнопки переключения ширины (когда контент расширен) */
-#notepad-width-toggle.active {
-    background-color: hsl(225, 10%, 25%); /* Используем цвет, похожий на bg-bg-input */
-    color: white;
-}
-
-/* Этот контейнер будет плавно изменять свою ширину */
-.notepad-content-wrapper {
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    transition: max-width 0.4s ease-in-out; /* Плавный переход, как в чате */
-}
-
-/* Когда родительский элемент имеет этот класс, ширина wrapper'а ограничивается */
-.notepad-view-compact .notepad-content-wrapper {
-    max-width: 896px; /* Точная ширина, как у чата */
-}
-
-/* Стиль для активной кнопки, когда контент расширен */
-#notepad-width-toggle.active {
-    background-color: var(--accent); /* Точный цвет, как у кнопки чата */
-    color: white;
-}
 
 #note-cards-grid {
     max-width: 100%;
     margin-left: auto;
     margin-right: auto;
-    transition: max-width 0.4s ease-in-out; /* Плавный переход ширины */
+    transition: max-width 0.4s ease-in-out; 
 }
 
-/* Когда родитель (.notepad-scroll-container) имеет этот класс, сужаем саму сетку */
-.notepad-view-compact #note-cards-grid {
-    max-width: 896px; /* Такая же ширина, как в чате */
+#notepad-scroll-container.notepad-view-compact #note-cards-grid {
+    max-width: 896px;
 }
 
-/* Стиль для активной кнопки, когда контент расширен */
 #notepad-width-toggle.active {
-    background-color: var(--accent); /* Правильный цвет активной кнопки */
+    background-color: var(--accent);
     color: white;
 }

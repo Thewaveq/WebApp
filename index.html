@@ -1490,6 +1490,61 @@
                     });
                 }
                 
+                // --- НАЧАЛО НОВОГО БЛОКА ---
+                const toggleViewBtn = e.target.closest('.toggle-view-btn');
+                if (toggleViewBtn) {
+                    const messageContainer = toggleViewBtn.closest('.message-container');
+                    const contentDiv = messageContainer.querySelector('.prose');
+                    const icon = toggleViewBtn.querySelector('i');
+                    const isShowingRaw = contentDiv.dataset.viewMode === 'raw';
+
+                    if (isShowingRaw) {
+                        // Переключаемся обратно на отформатированный HTML
+                        contentDiv.innerHTML = contentDiv.dataset.processedHtml;
+                        contentDiv.dataset.viewMode = 'processed';
+                        toggleViewBtn.title = 'Показать исходный текст';
+                        icon.setAttribute('data-lucide', 'code');
+                        
+                        // Повторно применяем подсветку синтаксиса и кнопки копирования
+                        contentDiv.querySelectorAll('pre code').forEach(block => {
+                            const preElement = block.parentElement;
+                            if (!preElement.querySelector('.copy-code-btn')) {
+                                const copyBtn = document.createElement('button');
+                                copyBtn.className = 'copy-code-btn';
+                                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                                copyBtn.addEventListener('click', () => {
+                                    navigator.clipboard.writeText(block.innerText);
+                                    copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                                    setTimeout(() => {
+                                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                                        lucide.createIcons();
+                                    }, 2000);
+                                    lucide.createIcons();
+                                });
+                                preElement.appendChild(copyBtn);
+                            }
+                            hljs.highlightElement(block);
+                        });
+
+                    } else {
+                        // Переключаемся на исходный текст
+                        contentDiv.innerHTML = ''; // Очищаем от HTML
+                        const pre = document.createElement('pre');
+                        const code = document.createElement('code');
+                        code.className = 'text-sm'; // Добавляем класс для стилизации если нужно
+                        code.textContent = contentDiv.dataset.originalContent;
+                        pre.appendChild(code);
+                        contentDiv.appendChild(pre);
+
+                        contentDiv.dataset.viewMode = 'raw';
+                        toggleViewBtn.title = 'Показать отформатированный текст';
+                        icon.setAttribute('data-lucide', 'eye');
+                    }
+                    // Обновляем иконку Lucide
+                    lucide.createIcons({ nodes: [toggleViewBtn] });
+                }
+                // --- КОНЕЦ НОВОГО БЛОКА ---
+
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;

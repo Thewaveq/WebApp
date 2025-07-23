@@ -70,17 +70,16 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     word-wrap: break-word;
 }
 
-.prose p {
-    margin-top: 0;
-    margin-bottom: 0;
+.prose p,
+.prose ul,
+.prose ol {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
-.prose ul, .prose ol {
-    margin-top: 0;
-    margin-bottom: 0;
-}
+
 .prose li {
-    margin-top: 0;
-    margin-bottom: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 
 .prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }

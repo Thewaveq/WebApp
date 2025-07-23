@@ -69,6 +69,15 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     white-space: pre-wrap;
     word-wrap: break-word;
 }
+.prose p,
+.prose ul {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+.prose li {
+    margin-top: 0;
+    margin-bottom: 0.25em; /* Небольшой отступ для читаемости между элементами списка */
+}
 
 #chat-messages .prose p {
   margin-top: 0;

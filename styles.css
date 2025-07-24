@@ -81,14 +81,14 @@ input::placeholder, textarea::placeholder {
     /* А здесь мы используем эту переменную для создания маски */
     -webkit-mask-image: linear-gradient(to bottom, 
         transparent 0%, 
-        black 20px, /* Затенение сверху, фиксированное */
-        black calc(100% - var(--form-height) - 40px), /* Четкая область до начала нижнего затенения */
+        black 40px, /* Затенение сверху, фиксированное */
+        black calc(100% - var(--form-height) - 20px), /* Четкая область до начала нижнего затенения */
         transparent calc(100% - var(--form-height) + 15px) /* Плавное нижнее затенение */
     );
     mask-image: linear-gradient(to bottom, 
         transparent 0%, 
-        black 20px, 
-        black calc(100% - var(--form-height) - 40px), 
+        black 40px, 
+        black calc(100% - var(--form-height) - 20px), 
         transparent calc(100% - var(--form-height) + 15px)
     );
 }

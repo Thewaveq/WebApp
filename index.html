@@ -554,6 +554,9 @@
             const isUser = msg.role === 'user';
             
             const messageWrapper = document.createElement('div');
+            // ДОБАВЛЯЕМ data-content для возможности сравнения
+            messageWrapper.dataset.content = msg.content; 
+            
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -670,52 +673,43 @@
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
-            
-            const sessionMessages = session.messages || [];
+
+            // 1. Запоминаем, был ли пользователь в самом низу чата ДО изменений
             const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5;
-            const existingMessageElements = messagesContainer.querySelectorAll('.message-placeholder, .message-container');
 
-            if (sessionMessages.length < existingMessageElements.length) {
-                if (chatObserver) chatObserver.disconnect();
-                messagesContainer.innerHTML = '';
-                
-                const observerCallback = (entries, observer) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const placeholder = entry.target;
-                            const msg = JSON.parse(placeholder.dataset.message);
-                            const index = parseInt(placeholder.dataset.messageIndex, 10);
-                            const messageElement = createMessageElement(msg, index);
-                            placeholder.parentNode.replaceChild(messageElement, placeholder);
-                            observer.unobserve(messageElement);
-                        }
-                    });
-                };
-                chatObserver = new IntersectionObserver(observerCallback, { root: messagesContainer, rootMargin: '200px 0px' });
+            const newMessages = session.messages || [];
+            const existingMessageElements = messagesContainer.querySelectorAll('.message-container');
 
-                sessionMessages.forEach((msg, index) => {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'message-placeholder';
-                    placeholder.dataset.message = JSON.stringify(msg);
-                    placeholder.dataset.messageIndex = String(index);
-                    messagesContainer.appendChild(placeholder);
-                    chatObserver.observe(placeholder);
-                });
+            // 2. "Умная" сверка и обновление DOM без полной перерисовки
+            // Проходим по новому списку сообщений
+            newMessages.forEach((msg, index) => {
+                const existingEl = existingMessageElements[index];
 
-            } else {
-                const messagesToAdd = sessionMessages.slice(existingMessageElements.length);
-                if (messagesToAdd.length > 0) {
-                    const loadingIndicator = document.getElementById('loading-message-placeholder');
-                    if(loadingIndicator) loadingIndicator.remove();
+                if (existingEl) {
+                    // Если DOM-элемент для этого индекса уже есть, проверяем, не изменился ли он
+                    const oldContent = existingEl.dataset.content;
+                    if (oldContent !== msg.content) {
+                        // Содержимое изменилось (редактирование/регенерация). Заменяем только этот элемент.
+                        const newElement = createMessageElement(msg, index);
+                        newElement.dataset.content = msg.content; // Сохраняем новое содержимое для будущих проверок
+                        existingEl.replaceWith(newElement);
+                    }
+                } else {
+                    // Если DOM-элемента для этого индекса нет, значит это новое сообщение. Добавляем его.
+                    const newElement = createMessageElement(msg, index);
+                    newElement.dataset.content = msg.content; // Сохраняем содержимое для будущих проверок
+                    messagesContainer.appendChild(newElement);
+                }
+            });
 
-                    messagesToAdd.forEach((msg, i) => {
-                        const newIndex = existingMessageElements.length + i;
-                        const messageElement = createMessageElement(msg, newIndex);
-                        messagesContainer.appendChild(messageElement);
-                    });
+            // Удаляем лишние DOM-элементы, если новый список сообщений стал короче
+            if (existingMessageElements.length > newMessages.length) {
+                for (let i = newMessages.length; i < existingMessageElements.length; i++) {
+                    existingMessageElements[i].remove();
                 }
             }
-
+            
+            // 3. Восстанавливаем прокрутку, если это было необходимо
             if (isScrolledToBottom) {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }

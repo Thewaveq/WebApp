@@ -271,13 +271,33 @@
 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
-            mainContent.innerHTML = ''; // Очищаем полностью
+            // Определяем, нужно ли полностью перерисовывать контент.
+            // Это нужно при смене вкладки (chat -> notepad) или при выборе другой сессии в сайдбаре.
+            const needsFullRender = mainContent.dataset.activeTabType !== state.activeTab ||
+                                  mainContent.dataset.activeSessionId !== (state.activeSessionId || '');
+
+            // Если полная перерисовка не нужна и мы находимся во вкладке с активной сессией,
+            // то мы не перерисовываем все, а только обновляем динамические части.
+            if (!needsFullRender && activeSession) {
+                 if (state.activeTab === 'chat') {
+                    // Для чата обновляем только сообщения и индикатор загрузки
+                    renderChatMessages(activeSession);
+                    updateLoadingIndicator();
+                 } else if (state.activeTab === 'notepad') {
+                    // Для заметок обновляем только список карточек
+                    renderNotepadCards(activeSession);
+                 }
+                 return; // Выходим, чтобы не выполнять лишний код полной перерисовки ниже
+            }
+
+            // --- ЕСЛИ ТРЕБУЕТСЯ ПОЛНАЯ ПЕРЕРИСОВКА ---
+            mainContent.innerHTML = ''; // Очищаем полностью, только когда это необходимо
             mainContent.dataset.activeTabType = state.activeTab;
+            mainContent.dataset.activeSessionId = state.activeSessionId || '';
 
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
-                        // Оборачиваем вид чата в контейнер для легкого управления видимостью
                         const chatContainer = document.createElement('div');
                         chatContainer.id = 'chat-view-container';
                         chatContainer.className = 'flex flex-col h-full';
@@ -318,6 +338,14 @@
                      if (activeSession) {
                         mainContent.innerHTML = getNotepadViewHTML(activeSession);
                         setupNotepadViewEventListeners();
+                        // ВОЗВРАЩАЕМ ПРОКРУТКУ ВНИЗ ПРИ ПЕРВОЙ ЗАГРУЗКЕ
+                        const scrollContainer = document.getElementById('notepad-scroll-container');
+                        if(scrollContainer) {
+                            // Прокручиваем в самый низ, чтобы видеть последние заметки и кнопку добавления
+                            setTimeout(() => {
+                               scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                            }, 0);
+                        }
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }

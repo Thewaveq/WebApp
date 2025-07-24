@@ -920,8 +920,13 @@
                     const maxTextareaHeight = maxFormHeight - formVerticalPadding;
 
                     input.style.height = 'auto';
-                    const newHeight = Math.min(input.scrollHeight, maxTextareaHeight);
-                    input.style.height = `${newHeight}px`;
+                    if (input.scrollHeight <= maxTextareaHeight) {
+                        input.style.height = `${input.scrollHeight}px`;
+                        input.style.overflowY = 'hidden'; 
+                    } else {
+                        input.style.height = `${maxTextareaHeight}px`;
+                        input.style.overflowY = 'auto';
+                    }
 
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;

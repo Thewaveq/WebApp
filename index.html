@@ -271,6 +271,7 @@
                     }
         
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    mainContent.className = 'flex-grow flex flex-col overflow-y-auto';
                     mainContent.dataset.activeTabType = state.activeTab;
                     mainContent.innerHTML = ''; // Всегда очищаем для простоты и надежности
         

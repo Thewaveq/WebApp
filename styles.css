@@ -144,8 +144,9 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
 
+/* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar {
-    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out, border-width 0.1s ease-in-out;
     width: 280px;
     flex-shrink: 0;
 }
@@ -170,8 +171,21 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
         padding-left: 0;
         padding-right: 0;
         overflow: hidden;
+        border-right-width: 0;
     }
 }
+
+/* --- СТИЛИ ДЛЯ ПЛАВНОГО ИСЧЕЗНОВЕНИЯ КОНТЕНТА В САЙДБАРЕ --- */
+#sidebar > * {
+    transition: opacity 0.15s ease-out;
+}
+
+@media (min-width: 1024px) {
+    #sidebar.collapsed > * {
+        opacity: 0;
+    }
+}
+
 /* --- СТИЛИ ДЛЯ СВОРАЧИВАЕМОЙ ПАНЕЛИ --- */
 .collapsible-panel {
     display: grid;

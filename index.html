@@ -478,7 +478,7 @@
             return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`;
         }
         
-        function getChatViewHTML(activeSession) {
+        function getChatViewHTML(activeSession) { 
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
         
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
@@ -529,14 +529,10 @@
                 </div>
                 <div class="flex-grow relative min-h-0">
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                    <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-bg-main to-transparent">
-                        <div class="w-full max-w-4xl mx-auto flex items-end gap-2 p-2 rounded-xl bg-bg-sidebar border border-border-color shadow-2xl focus-within:border-accent/80 focus-within:ring-1 focus-within:ring-accent/50 transition-all duration-200">
-                            <textarea 
-                                id="chat-input" 
-                                class="flex-grow bg-transparent p-1 text-base resize-none border-0 focus:outline-none focus:ring-0" 
-                                placeholder="Введите ваше сообщение..." 
-                                rows="1"></textarea>
-                            <button type="submit" class="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
+                    <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 pt-2 bg-gradient-to-t from-bg-main to-transparent">
+                        <div class="relative w-full max-w-4xl mx-auto">
+                            <textarea id="chat-input" class="w-full bg-bg-sidebar border-2 border-transparent focus:border-accent/50 rounded-xl p-4 pr-16 text-base resize-none focus:outline-none focus:ring-0 transition-colors duration-200 shadow-md" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                            <button type="submit" class="absolute right-4 bottom-4 w-10 h-10 flex items-center justify-center bg-accent hover:bg-accent-hover rounded-lg transition-all duration-200 disabled:bg-gray-600 disabled:opacity-50 disabled:scale-95">
                                 <i data-lucide="send" class="w-5 h-5 text-white"></i>
                             </button>
                         </div>

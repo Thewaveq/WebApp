@@ -350,3 +350,8 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     color: var(--text-primary);
     background-color: var(--bg-element);
 }
+
+/* FIX: Ensure custom border color class applies correctly */
+.border-border-color {
+    border-color: var(--border-color);
+}

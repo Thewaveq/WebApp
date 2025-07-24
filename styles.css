@@ -78,15 +78,19 @@ input::placeholder, textarea::placeholder {
     /* Значение по умолчанию, которое будет обновляться из JS */
     --form-height: 70px; 
     
+    #chat-messages {
+    /* Значение по умолчанию, которое будет обновляться из JS */
+    --form-height: 70px; 
+    
     -webkit-mask-image: linear-gradient(to bottom, 
         transparent 0%, 
-        black 20px, 
+        black 30px, /* ИЗМЕНЕНО: Было 20px. Теперь затенение 30px, как и нижнее. */
         black calc(100% - var(--form-height) - 15px), 
         transparent calc(100% - var(--form-height) + 15px)
     );
     mask-image: linear-gradient(to bottom, 
         transparent 0%, 
-        black 20px, 
+        black 30px, /* ИЗМЕНЕНО: И здесь тоже. */
         black calc(100% - var(--form-height) - 15px), 
         transparent calc(100% - var(--form-height) + 15px)
     );

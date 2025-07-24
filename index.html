@@ -527,15 +527,17 @@
                         </div>
                     </div>
                 </div>
-                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                <form id="chat-form" class="flex-shrink-0 p-4">
-                    <div class="relative w-full max-w-4xl mx-auto">
-                        <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                        <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                            <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                        </button>
-                    </div>
-                </form>
+                <div class="flex-grow relative min-h-0">
+                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
+                    <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-bg-main/80 backdrop-blur-sm border-t border-border-color/50">
+                        <div class="relative w-full max-w-4xl mx-auto">
+                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>`; 
         }
         
@@ -845,7 +847,6 @@
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select'); 
             const messagesContainer = document.getElementById('chat-messages'); 
-            const chatViewContainer = document.getElementById('chat-view-container');
             
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-collapsible');
@@ -884,33 +885,25 @@
                 }
             });
             
-            if (input && form && chatViewContainer && messagesContainer) {
-                const handleInputResize = () => {
+            if (input && form && messagesContainer) {
+                const adjustLayout = () => {
+                    if (!form || !messagesContainer || !input) return;
 
                     input.style.height = 'auto';
-                    
-                    const chatHeader = chatViewContainer.querySelector('.flex-shrink-0.p-3.border-b');
-                    if (!chatHeader) return;
+                    input.style.height = `${input.scrollHeight}px`;
 
-                    const MIN_MESSAGES_HEIGHT = 80;
-
-                    const maxFormHeight = chatViewContainer.offsetHeight - chatHeader.offsetHeight - MIN_MESSAGES_HEIGHT;
-                    const formStyle = window.getComputedStyle(form);
-                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
-                    const maxTextareaHeight = maxFormHeight - formVerticalPadding;
-                    const newHeight = Math.min(input.scrollHeight, maxTextareaHeight);
-                    
-                    input.style.height = `${newHeight}px`;
+                    const formHeight = form.offsetHeight;
+                    messagesContainer.style.paddingBottom = `${formHeight}px`;
                 };
 
-                input.addEventListener('input', handleInputResize);
+                input.addEventListener('input', adjustLayout);
 
                 const resizeObserver = new ResizeObserver(() => {
-                    handleInputResize();
+                    adjustLayout();
                 });
-                resizeObserver.observe(chatViewContainer);
+                resizeObserver.observe(form);
 
-                setTimeout(handleInputResize, 30);
+                setTimeout(adjustLayout, 50);
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 

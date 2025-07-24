@@ -274,36 +274,22 @@
             mainContent.dataset.activeTabType = state.activeTab;
             mainContent.innerHTML = ''; // Всегда очищаем для простоты и надежности
 
-            // Стандартная логика рендеринга, если загрузка не активна
-            mainContent.innerHTML = ''; // Очищаем полностью
-            mainContent.dataset.activeTabType = state.activeTab;
-
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
-                        // Оборачиваем вид чата в контейнер для легкого управления видимостью
-                        const chatContainer = document.createElement('div');
-                        chatContainer.id = 'chat-view-container';
-                        chatContainer.className = 'flex flex-col h-full';
-                        chatContainer.innerHTML = getChatViewHTML(activeSession);
-                        mainContent.appendChild(chatContainer);
-
+                        mainContent.innerHTML = getChatViewHTML(activeSession);
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         let needsUpdate = false;
                         const updatePayload = {};
 
                         if (!provider && state.providers.length > 0) {
                             const firstProvider = state.providers[0];
-                            const models = firstProvider.models || [];
                             updatePayload.providerId = firstProvider.id;
-                            updatePayload.modelName = models.length > 0 ? models[0] : null;
+                            updatePayload.modelName = (firstProvider.models || [])[0] || null;
                             needsUpdate = true;
                         } else if (provider && !activeSession.modelName) {
-                            const models = provider.models || [];
-                            if (models.length > 0) {
-                                updatePayload.modelName = models[0];
-                                needsUpdate = true;
-                            }
+                            updatePayload.modelName = (provider.models || [])[0] || null;
+                            needsUpdate = true;
                         }
 
                         if (needsUpdate) {
@@ -313,7 +299,7 @@
 
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
-                        updateLoadingIndicator();
+                        updateLoadingIndicator(); // Обновит индикатор для текущего чата
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
                     }

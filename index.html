@@ -274,54 +274,6 @@
             mainContent.dataset.activeTabType = state.activeTab;
             mainContent.innerHTML = ''; // Всегда очищаем для простоты и надежности
 
-            switch (state.activeTab) {
-                case 'chat':
-                    if (activeSession) {
-                        mainContent.innerHTML = getChatViewHTML(activeSession);
-                        const provider = state.providers.find(p => p.id === activeSession.providerId);
-                        let needsUpdate = false;
-                        const updatePayload = {};
-
-                        if (!provider && state.providers.length > 0) {
-                            const firstProvider = state.providers[0];
-                            updatePayload.providerId = firstProvider.id;
-                            updatePayload.modelName = (firstProvider.models || [])[0] || null;
-                            needsUpdate = true;
-                        } else if (provider && !activeSession.modelName) {
-                            updatePayload.modelName = (provider.models || [])[0] || null;
-                            needsUpdate = true;
-                        }
-
-                        if (needsUpdate) {
-                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, updatePayload);
-                        }
-
-                        renderChatMessages(activeSession);
-                        setupChatViewEventListeners();
-                        updateLoadingIndicator(); // Обновит индикатор для текущего чата
-                    } else {
-                         mainContent.innerHTML = getEmptyStateHTML('chat');
-                    }
-                    break;
-                case 'notepad':
-                     if (activeSession) {
-                        mainContent.innerHTML = getNotepadViewHTML(activeSession);
-                        setupNotepadViewEventListeners();
-                    } else {
-                        mainContent.innerHTML = getEmptyStateHTML('notepad');
-                    }
-                    break;
-                case 'settings':
-                    mainContent.innerHTML = getSettingsViewHTML();
-                    renderProviders();
-                    renderRoles();
-                    setupSettingsViewEventListeners();
-                    break;
-            }
-            lucide.createIcons();
-        }
-
             // Стандартная логика рендеринга, если загрузка не активна
             mainContent.innerHTML = ''; // Очищаем полностью
             mainContent.dataset.activeTabType = state.activeTab;

@@ -534,11 +534,6 @@
 
                 <form id="chat-form" class="p-4"> {/* Форма - третья строка грида */}
                     <div class="relative w-full max-w-4xl mx-auto">
-                        {/* 
-                          - `max-height: 40vh` — это ограничение. Textarea будет расти до 40% высоты экрана.
-                          - Когда лимит достигнут, JS-скрипт продолжит увеличивать `style.height`, 
-                            но `max-height` не даст элементу стать выше, и у textarea появится собственный скролл.
-                        */}
                         <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1" style="max-height: 40vh;"></textarea>
                         <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
                             <i data-lucide="send" class="w-5 h-5 text-white"></i>

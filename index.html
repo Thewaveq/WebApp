@@ -1470,10 +1470,6 @@
          */
         function showInAppNotification(title, body, sessionId) {
 
-            if (notificationTimeout) {
-                clearTimeout(notificationTimeout);
-            }
-
             const originalNotification = document.getElementById('in-app-notification');
             if (!originalNotification) {
                 console.error("Элемент уведомления #in-app-notification не найден.");
@@ -1491,20 +1487,15 @@
 
             const hideNotification = () => {
                 newNotification.classList.add('-translate-y-[150%]', 'opacity-0');
-
-                setTimeout(() => {
-                    if(newNotification.parentNode) {
-                       newNotification.classList.add('hidden');
-                    }
-                }, 300);
+                newNotification.addEventListener('transitionend', () => newNotification.remove(), { once: true });
             };
-
-            newNotification.addEventListener('click', () => {
-                state.activeTab = 'chat';
-                state.activeSessionId = sessionId;
-                render();
-                hideNotification();
-            });
+            
+            const swipeOutNotification = (direction) => {
+                newNotification.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                newNotification.style.opacity = '0';
+                newNotification.style.transform = `translateX(${direction === 'right' ? '120%' : '-120%'}) rotate(${direction === 'right' ? '10' : '-10'}deg)`;
+                newNotification.addEventListener('transitionend', () => newNotification.remove(), { once: true });
+            };
 
             if(closeBtn) {
                 closeBtn.addEventListener('click', (e) => {
@@ -1513,17 +1504,77 @@
                 });
             }
 
+            // --- Логика для обработки свайпов и кликов ---
+            let isPointerDown = false;
+            let isDragging = false;
+            let startX = 0;
+            const clickThreshold = 10;
+
+            const onPointerDown = (e) => {
+                if (e.target.closest('#in-app-notification-close')) return;
+                
+                isPointerDown = true;
+                startX = e.clientX;
+                newNotification.style.transition = 'none';
+                try {
+                    newNotification.setPointerCapture(e.pointerId);
+                } catch(err) { /* Игнорируем возможные ошибки */ }
+            };
+
+            const onPointerMove = (e) => {
+                if (!isPointerDown) return;
+                
+                const deltaX = e.clientX - startX;
+                if (Math.abs(deltaX) > clickThreshold) {
+                    isDragging = true;
+                }
+
+                if (isDragging) {
+                    newNotification.style.transform = `translateX(${deltaX}px) rotate(${deltaX / 20}deg)`;
+                }
+            };
+
+            const onPointerUp = (e) => {
+                if (!isPointerDown) return;
+                isPointerDown = false;
+
+                try {
+                   newNotification.releasePointerCapture(e.pointerId);
+                } catch(err) { /* Игнорируем возможные ошибки */ }
+
+                if (isDragging) {
+                    const deltaX = e.clientX - startX;
+                    const elementWidth = newNotification.offsetWidth;
+
+                    if (Math.abs(deltaX) > elementWidth / 3) {
+                        swipeOutNotification(deltaX > 0 ? 'right' : 'left');
+                    } else {
+                        newNotification.style.transition = 'transform 0.3s ease-out';
+                        newNotification.style.transform = 'translateX(0) rotate(0)';
+                    }
+                } else { 
+                    state.activeTab = 'chat';
+                    state.activeSessionId = sessionId;
+                    render();
+                    hideNotification();
+                }
+                
+                isDragging = false;
+            };
+
+            newNotification.addEventListener('pointerdown', onPointerDown);
+            newNotification.addEventListener('pointermove', onPointerMove);
+            newNotification.addEventListener('pointerup', onPointerUp);
+            newNotification.addEventListener('pointercancel', onPointerUp);
+
             originalNotification.parentNode.replaceChild(newNotification, originalNotification);
             
             lucide.createIcons({ nodes: [newNotification] });
 
             newNotification.classList.remove('hidden');
-            
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 newNotification.classList.remove('-translate-y-[150%]', 'opacity-0');
-            }, 0); 
-
-            notificationTimeout = setTimeout(hideNotification, 7000);
+            });
         }
     
         function setupGlobalEventListeners() {

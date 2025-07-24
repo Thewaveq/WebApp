@@ -499,8 +499,8 @@
             const panelClasses = `collapsible-panel ${isExpanded ? 'expanded' : ''}`;
             const iconClasses = `w-5 h-5 transition-transform ${isExpanded ? 'expanded' : ''}`;
         
-            return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-3 border-b border-border-color">
+            return `<div class="grid h-full" style="grid-template-rows: auto 1fr auto;">
+                <div class="p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
                         <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md bg-bg-element hover:bg-bg-input hidden lg:flex flex-shrink-0">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -527,10 +527,10 @@
                         </div>
                     </div>
                 </div>
-                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                <form id="chat-form" class="flex-shrink-0 p-4">
+                <div id="chat-messages" class="p-4 overflow-y-auto min-h-0 ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
+                <form id="chat-form" class="p-4">
                     <div class="relative w-full max-w-4xl mx-auto">
-                        <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1" style="max-height: 40vh;"></textarea>
+                        <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Введите ваше сообщение..." rows="1" style="max-height: 50vh; overflow-y: auto;"></textarea>
                         <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
                             <i data-lucide="send" class="w-5 h-5 text-white"></i>
                         </button>

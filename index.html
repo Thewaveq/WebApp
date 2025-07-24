@@ -589,7 +589,7 @@
             const isUser = msg.role === 'user';
             
             const messageWrapper = document.createElement('div');
-            // ДОБАВЛЯЕМ data-content для возможности сравнения
+
             messageWrapper.dataset.content = msg.content; 
             
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
@@ -663,6 +663,24 @@
                 regenerateButton.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i>`;
                 actionsContainer.appendChild(regenerateButton);
             }
+
+            const copyButton = document.createElement('button');
+            copyButton.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
+            copyButton.title = 'Копировать текст';
+            copyButton.innerHTML = `<i data-lucide="clipboard" class="w-4 h-4"></i>`;
+            copyButton.addEventListener('click', () => {
+                navigator.clipboard.writeText(msg.content).then(() => {
+                    copyButton.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-400"></i>`;
+                    lucide.createIcons({ nodes: [copyButton] });
+                    setTimeout(() => {
+                        copyButton.innerHTML = `<i data-lucide="clipboard" class="w-4 h-4"></i>`;
+                        lucide.createIcons({ nodes: [copyButton] });
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Не удалось скопировать текст:', err);
+                });
+            });
+            actionsContainer.appendChild(copyButton);
 
             const deleteButton = document.createElement('button');
             deleteButton.className = `delete-message-btn p-1 text-text-secondary hover:text-red-400 transition-colors`;

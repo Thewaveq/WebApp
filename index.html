@@ -269,24 +269,68 @@
                 chatObserver.disconnect();
                 chatObserver = null;
             }
-        
+
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const currentTabType = mainContent.dataset.activeTabType;
-            if (currentTabType !== state.activeTab) {
-                mainContent.innerHTML = '';
+
+            // Если идет генерация ответа, не очищаем полностью mainContent,
+            // чтобы сохранить индикатор загрузки.
+            if (state.isLoading && mainContent.querySelector('#loading-message-placeholder')) {
+                 // Просто рендерим новый контент поверх, если это не чат
+                if (state.activeTab !== 'chat') {
+                    // Удаляем старый не-чатовый контент, если он был
+                    const nonChatContent = mainContent.querySelector(':scope > :not(#chat-view-container)');
+                    if(nonChatContent) nonChatContent.remove();
+                    
+                    const newContentContainer = document.createElement('div');
+                    mainContent.prepend(newContentContainer); // Добавляем новый контент в начало
+                    
+                    switch (state.activeTab) {
+                        case 'notepad':
+                            newContentContainer.innerHTML = activeSession ? getNotepadViewHTML(activeSession) : getEmptyStateHTML('notepad');
+                            if(activeSession) setupNotepadViewEventListeners();
+                            break;
+                        case 'settings':
+                            newContentContainer.innerHTML = getSettingsViewHTML();
+                            renderProviders();
+                            renderRoles();
+                            setupSettingsViewEventListeners();
+                            break;
+                    }
+                    // Скрываем контейнер чата, но не удаляем его
+                    const chatContainer = mainContent.querySelector('#chat-view-container');
+                    if (chatContainer) chatContainer.style.display = 'none';
+                } else {
+                    // Если мы вернулись на вкладку чата, показываем его обратно
+                    const chatContainer = mainContent.querySelector('#chat-view-container');
+                    if (chatContainer) chatContainer.style.display = 'flex';
+                     // Удаляем другой контент (настройки/заметки), который мог быть открыт
+                    const nonChatContent = mainContent.querySelector(':scope > :not(#chat-view-container)');
+                    if(nonChatContent) nonChatContent.remove();
+                }
+
+                lucide.createIcons();
+                return; // Выходим, чтобы не перерисовывать всё заново
             }
+
+            // Стандартная логика рендеринга, если загрузка не активна
+            mainContent.innerHTML = ''; // Очищаем полностью
             mainContent.dataset.activeTabType = state.activeTab;
-        
+
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
+                        // Оборачиваем вид чата в контейнер для легкого управления видимостью
+                        const chatContainer = document.createElement('div');
+                        chatContainer.id = 'chat-view-container';
+                        chatContainer.className = 'flex flex-col h-full';
+                        chatContainer.innerHTML = getChatViewHTML(activeSession);
+                        mainContent.appendChild(chatContainer);
 
-                        mainContent.innerHTML = getChatViewHTML(activeSession);
-                        
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         let needsUpdate = false;
                         const updatePayload = {};
-        
+
                         if (!provider && state.providers.length > 0) {
                             const firstProvider = state.providers[0];
                             const models = firstProvider.models || [];
@@ -300,12 +344,12 @@
                                 needsUpdate = true;
                             }
                         }
-        
+
                         if (needsUpdate) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, updatePayload);
                         }
-                        
+
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
@@ -315,15 +359,8 @@
                     break;
                 case 'notepad':
                      if (activeSession) {
-                        const isNotepadVisible = mainContent.querySelector('#note-cards-grid');
-                        if (isNotepadVisible) {
-
-                            renderNotepadCards(activeSession);
-                        } else {
-
-                            mainContent.innerHTML = getNotepadViewHTML(activeSession);
-                            setupNotepadViewEventListeners();
-                        }
+                        mainContent.innerHTML = getNotepadViewHTML(activeSession);
+                        setupNotepadViewEventListeners();
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
@@ -421,14 +458,14 @@
             return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`;
         }
         
-        function getChatViewHTML(activeSession) { 
+        function getChatViewHTML(activeSession) {
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-        
+
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
-        
+
             let modelOptions = '<option disabled>Выберите провайдера</option>';
             const selectedProvider = state.providers.find(p => p.id === activeSession.providerId);
-            
+
             if (selectedProvider) {
                 const models = selectedProvider.models || [];
                 if (models.length > 0) {
@@ -437,13 +474,13 @@
                    modelOptions = '<option disabled>Нет моделей</option>';
                 }
             }
-            
+
             const isExpanded = state.isSettingsPanelExpanded;
             const panelClasses = `collapsible-panel ${isExpanded ? 'expanded' : ''}`;
             const iconClasses = `w-5 h-5 transition-transform ${isExpanded ? 'expanded' : ''}`;
-        
-            return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-3 border-b border-border-color">
+
+            // Вся разметка чата теперь внутри одного div'a, которым мы будем управлять
+            return `<div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
                         <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md bg-bg-element hover:bg-bg-input hidden lg:flex flex-shrink-0">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -478,8 +515,7 @@
                             <i data-lucide="send" class="w-5 h-5 text-white"></i>
                         </button>
                     </div>
-                </form>
-            </div>`; 
+                </form>`;
         }
         
         function getNotepadViewHTML(activeSession) {

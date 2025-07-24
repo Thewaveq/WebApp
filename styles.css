@@ -80,16 +80,24 @@ input::placeholder, textarea::placeholder {
     
     /* А здесь мы используем эту переменную для создания маски */
     -webkit-mask-image: linear-gradient(to bottom, 
-        transparent 0%, 
-        black 40px, /* Затенение сверху, фиксированное */
-        black calc(100% - var(--form-height) - 20px), /* Четкая область до начала нижнего затенения */
-        transparent calc(100% - var(--form-height) + 0px) /* Плавное нижнее затенение */
+        /* --- РЕЗКОЕ ВЕРХНЕЕ ЗАТЕНЕНИЕ --- */
+        transparent 0%,
+        transparent 15px,       /* <-- ДОБАВЛЕНО: до 15px все еще не видно */
+        black 20px,             /* <-- ИЗМЕНЕНО: переход от "не видно" к "видно" всего за 5px */
+
+        /* --- РЕЗКОЕ НИЖНЕЕ ЗАТЕНЕНИЕ --- */
+        black calc(100% - var(--form-height) - 25px),  /* <-- ИЗМЕНЕНО: Видимая часть заканчивается */
+        transparent calc(100% - var(--form-height) - 20px) /* <-- ИЗМЕНЕНО: и всего за 5px текст полностью исчезает */
     );
     mask-image: linear-gradient(to bottom, 
-        transparent 0%, 
-        black 40px, 
-        black calc(100% - var(--form-height) - 20px), 
-        transparent calc(100% - var(--form-height) + 0px)
+        /* --- РЕЗКОЕ ВЕРХНЕЕ ЗАТЕНЕНИЕ --- */
+        transparent 0%,
+        transparent 15px,
+        black 20px,
+
+        /* --- РЕЗКОЕ НИЖНЕЕ ЗАТЕНЕНИЕ --- */
+        black calc(100% - var(--form-height) - 25px),
+        transparent calc(100% - var(--form-height) - 20px)
     );
 }
 

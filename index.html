@@ -884,29 +884,33 @@
                 }
             });
             
-            if (input && form && chatViewContainer) {
+            if (input && form && chatViewContainer && messagesContainer) {
                 const handleInputResize = () => {
 
                     input.style.height = 'auto';
-
-                    const chatHeader = chatViewContainer.querySelector('.p-3.border-b');
+                    
+                    const chatHeader = chatViewContainer.querySelector('.flex-shrink-0.p-3.border-b');
                     if (!chatHeader) return;
 
+                    const MIN_MESSAGES_HEIGHT = 80;
+
+                    const maxFormHeight = chatViewContainer.offsetHeight - chatHeader.offsetHeight - MIN_MESSAGES_HEIGHT;
                     const formStyle = window.getComputedStyle(form);
                     const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
-                    const maxAvailableHeightForForm = chatViewContainer.offsetHeight - chatHeader.offsetHeight;
-                    const maxTextareaHeight = maxAvailableHeightForForm - formVerticalPadding;
+                    const maxTextareaHeight = maxFormHeight - formVerticalPadding;
                     const newHeight = Math.min(input.scrollHeight, maxTextareaHeight);
-
+                    
                     input.style.height = `${newHeight}px`;
                 };
 
                 input.addEventListener('input', handleInputResize);
-                
-                const resizeObserver = new ResizeObserver(handleInputResize);
+
+                const resizeObserver = new ResizeObserver(() => {
+                    handleInputResize();
+                });
                 resizeObserver.observe(chatViewContainer);
 
-                setTimeout(handleInputResize, 50);
+                setTimeout(handleInputResize, 30);
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); }); 

@@ -287,3 +287,46 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     background-color: var(--accent);
     color: white;
 }
+
+/* --- Стили для In-App Уведомления --- */
+#in-app-notification > div {
+    /* Основной фон, как у сайдбара или карточек */
+    background-color: var(--bg-sidebar);
+
+    /* Четкая граница в стиле приложения (как у карточек настроек) */
+    border: 1px solid var(--border-color);
+
+    /* Более выраженная тень для "всплывающего" эффекта */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
+    /* Скругляем углы в соответствии с общим дизайном */
+    border-radius: 0.75rem; /* 12px */
+    
+    /* Убедимся, что нет лишних стилей от Tailwind, которые могут мешать */
+    margin: 1rem;
+    padding: 1rem;
+}
+
+/* Заголовок уведомления */
+#in-app-notification-title {
+    color: var(--text-primary);
+    font-weight: 600; /* Немного жирнее для акцента */
+}
+
+/* Текст уведомления */
+#in-app-notification-body {
+    color: var(--text-secondary);
+}
+
+/* Улучшаем кнопку закрытия "крестик" */
+#in-app-notification-close {
+    color: var(--text-secondary);
+    transition: color 0.2s, background-color 0.2s;
+    border-radius: 9999px; /* Делаем область клика круглой */
+    padding: 0.25rem;
+}
+
+#in-app-notification-close:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-element);
+}

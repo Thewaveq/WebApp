@@ -545,7 +545,7 @@
                 </div>
             </div>`; 
         }
-
+        
         function getNotepadViewHTML(activeSession) {
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
@@ -872,13 +872,11 @@
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
 
-            // ИЗМЕНЕНИЕ: Получаем новые элементы для плавающей панели
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
             const widthToggleBtn = document.getElementById('chat-width-toggle');
 
-            // ИЗМЕНЕНИЕ: Элементы управления теперь находятся внутри новой панели
             const titleInput = document.getElementById('chat-title-input');
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
@@ -901,12 +899,11 @@
                 });
             }
 
-            // ИЗМЕНЕНИЕ: Логика для открытия/закрытия плавающей панели
+
             settingsToggle?.addEventListener('click', (e) => {
-                e.stopPropagation(); // Останавливаем всплытие, чтобы не закрыть панель сразу же
+                e.stopPropagation();
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
                 
-                // Напрямую управляем классами для анимации
                 const isVisible = state.isSettingsPanelExpanded;
                 settingsPanel.classList.toggle('opacity-100', isVisible);
                 settingsPanel.classList.toggle('translate-y-0', isVisible);
@@ -914,14 +911,18 @@
                 settingsPanel.classList.toggle('-translate-y-4', !isVisible);
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
-            });
 
-            // ИЗМЕНЕНИЕ: Закрываем панель при клике вне ее
-            document.addEventListener('click', (e) => {
-                if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target.closest('button'))) {
-                    settingsToggle.click(); // Имитируем клик по кнопке, чтобы закрыть панель
+                // Добавляем/удаляем слушатель на клик вне панели
+                const closeOnOutsideClick = (event) => {
+                    if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
+                        settingsToggle.click(); // Повторный клик скроет панель и удалит этот слушатель
+                    }
+                };
+
+                if (isVisible) {
+                    document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
                 }
-            }, { once: true }); // Вешаем обработчик один раз после рендера, чтобы он не конфликтовал сам с собой
+            });
 
 
             form?.addEventListener('submit', handleChatSubmit);
@@ -932,16 +933,13 @@
                 }
             });
 
-            // ИЗМЕНЕНИЕ: Упрощаем и исправляем функцию adjustLayout
+
             if (input && form && messagesContainer && chatViewContainer) {
                 const adjustLayout = () => {
                     if (!form || !messagesContainer || !input || !chatViewContainer) return;
 
-                    // УДАЛЕНО: больше не ищем chatHeader
                     const MIN_MESSAGES_HEIGHT = 40;
-                    // ИСПРАВЛЕНО: Максимальная высота формы теперь зависит только от высоты всего контейнера чата
                     const maxFormHeight = chatViewContainer.offsetHeight - MIN_MESSAGES_HEIGHT;
-
                     const formStyle = window.getComputedStyle(form);
                     const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
                     const maxTextareaHeight = maxFormHeight - formVerticalPadding;
@@ -957,14 +955,18 @@
 
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
-                        // ИСПРАВЛЕНО: Устанавливаем paddingBottom И для прокрутки, И для маски
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
 
-                        const fadeHeight = 30; // Высота градиента внизу
-                        const maskValue = `linear-gradient(to bottom, 
-                            black, 
-                            black calc(100% - ${formHeight + fadeHeight}px), 
-                            transparent calc(100% - ${formHeight}px))`;
+                        // ИСПРАВЛЕНАЯ ЛОГИКА МАСКИ
+                        // Этот градиент создает плавное появление контента сверху и плавное исчезновение снизу
+                        const topFadeHeight = 20;    // Высота затухания сверху
+                        const bottomFadeHeight = 30; // Высота затухания снизу
+                        const maskValue = `linear-gradient(to bottom,
+                            transparent 0%,
+                            black ${topFadeHeight}px,
+                            black calc(100% - ${bottomFadeHeight}px),
+                            transparent 100%
+                        )`;
                         
                         messagesContainer.style.webkitMaskImage = maskValue;
                         messagesContainer.style.maskImage = maskValue;
@@ -974,7 +976,7 @@
                 input.addEventListener('input', adjustLayout);
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 resizeObserver.observe(chatViewContainer);
-                setTimeout(adjustLayout, 50); // Первичный вызов
+                setTimeout(adjustLayout, 50);
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });

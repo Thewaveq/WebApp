@@ -82,13 +82,13 @@ input::placeholder, textarea::placeholder {
     -webkit-mask-image: linear-gradient(to bottom, 
         transparent 0%, 
         black 20px, /* Затенение сверху, фиксированное */
-        black calc(100% - var(--form-height) - 30px), /* Четкая область до начала нижнего затенения */
+        black calc(100% - var(--form-height) - 40px), /* Четкая область до начала нижнего затенения */
         transparent calc(100% - var(--form-height) + 15px) /* Плавное нижнее затенение */
     );
     mask-image: linear-gradient(to bottom, 
         transparent 0%, 
         black 20px, 
-        black calc(100% - var(--form-height) - 30px), 
+        black calc(100% - var(--form-height) - 40px), 
         transparent calc(100% - var(--form-height) + 15px)
     );
 }

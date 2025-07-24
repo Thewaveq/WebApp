@@ -42,6 +42,10 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
 }
 
+#chat-input {
+    overflow-y: auto;
+}
+
 .sidebar-item { 
     background-color: var(--bg-element);
     margin-bottom: 2px;

@@ -170,6 +170,7 @@
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
         let chatObserver = null;
+        let generationAbortController = null;
     
         let state = {
             activeTab: 'chat',
@@ -1042,33 +1043,70 @@
         }
 
         async function generateAssistantResponse(messagesToSubmit) {
+            if (state.isLoading) return; // Не запускать новую генерацию, если одна уже идет
+        
+            generationAbortController = new AbortController();
+            const signal = generationAbortController.signal;
+        
+            const form = document.getElementById('chat-form');
+            const button = form?.querySelector('button');
+            const textarea = form?.querySelector('textarea');
+        
+            // --- 1. Настройка UI для состояния загрузки ---
+            state.isLoading = true;
+            
+            // Динамически меняем кнопку на "Стоп"
+            if (button) {
+                button.setAttribute('type', 'button'); // Важно, чтобы предотвратить отправку формы
+                button.title = 'Остановить генерацию';
+                button.innerHTML = '<i data-lucide="square" class="w-5 h-5 text-white"></i>';
+                lucide.createIcons();
+            }
+            if (textarea) textarea.disabled = true;
+        
+            // Добавляем временный обработчик для остановки
+            const stopHandler = (e) => {
+                e.preventDefault();
+                generationAbortController.abort();
+            };
+            button?.addEventListener('click', stopHandler);
+        
+            // --- 2. Основная логика генерации ответа ---
             const messagesContainer = document.getElementById('chat-messages');
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
             const modelName = activeSession.modelName;
-
+        
             if (!provider) {
                 showModalAlert("Пожалуйста, выберите или добавьте провайдера API в настройках.");
+                state.isLoading = false; // Сброс состояния
+                if (button) button.removeEventListener('click', stopHandler);
+                updateLoadingIndicator(); // Восстанавливаем кнопку
                 return;
             }
             if (!modelName) {
                 showModalAlert("Пожалуйста, выберите модель для этого провайдера.");
+                state.isLoading = false;
+                if (button) button.removeEventListener('click', stopHandler);
+                updateLoadingIndicator();
                 return;
             }
             const apiKeys = provider.apiKeys || [];
             if (apiKeys.length === 0) {
                 showModalAlert("У выбранного провайдера нет API ключей. Добавьте их в настройках.");
+                state.isLoading = false;
+                if (button) button.removeEventListener('click', stopHandler);
+                updateLoadingIndicator();
                 return;
             }
-
-            state.isLoading = true;
-            updateLoadingIndicator();
+        
             showTypingIndicatorInChat();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
+        
             let assistantMessageContent = '';
             let isSuccess = false;
+            let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
             
             const apiMessagesPayload = [];
@@ -1076,13 +1114,20 @@
                 apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
             }
             apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
-
+        
             const startIndex = provider.currentKeyIndex || 0;
             for (let i = 0; i < apiKeys.length; i++) {
                 const keyIndex = (startIndex + i) % apiKeys.length;
                 const currentKey = apiKeys[keyIndex];
                 
                 try {
+                    // Проверяем перед каждым запросом, не была ли нажата отмена
+                    if (signal.aborted) {
+                        wasAborted = true;
+                        lastError = 'Генерация остановлена пользователем.';
+                        break;
+                    }
+        
                     const fullUrl = new URL(provider.path, provider.baseUrl).href; 
                     const proxyRequestBody = {
                         targetUrl: fullUrl,
@@ -1092,8 +1137,10 @@
                     const response = await fetch('/api/proxy', { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify(proxyRequestBody) 
+                        body: JSON.stringify(proxyRequestBody),
+                        signal: signal // Передаем сигнал в fetch
                     }); 
+        
                     if (!response.ok) {
                         const errorData = await response.json().catch(() => response.text());
                         throw new Error(`Ошибка от прокси-сервера (статус ${response.status}): ${JSON.stringify(errorData)}`);
@@ -1103,30 +1150,55 @@
                         const errorMessage = data.error?.message || JSON.stringify(data.error);
                         throw new Error(`Ошибка от внешнего API: ${errorMessage}`);
                     }
-
+        
                     assistantMessageContent = data.choices[0].message.content;
                     isSuccess = true;
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
                     break;
                 } catch (error) {
+                    if (error.name === 'AbortError') {
+                        console.log('Fetch aborted by user.');
+                        lastError = 'Генерация остановлена пользователем.';
+                        wasAborted = true;
+                        break; 
+                    }
                     console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
                     lastError = error.message;
                 }
             }
             
-            const assistantMessage = isSuccess
-                ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
-                : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: modelName };
+            // --- 3. Очистка и финализация ---
+            // Этот код выполнится после завершения цикла, независимо от результата
+        
+            // Удаляем временный обработчик
+            button?.removeEventListener('click', stopHandler);
             
-            const finalMessages = [...messagesToSubmit, assistantMessage];
+            // Восстанавливаем UI из состояния загрузки
+            state.isLoading = false;
+            if (button) {
+                button.setAttribute('type', 'submit');
+                button.title = 'Отправить';
+                button.innerHTML = '<i data-lucide="send" class="w-5 h-5 text-white"></i>';
+                lucide.createIcons();
+            }
+            if (textarea) textarea.disabled = false;
+        
+            const loadingPlaceholder = document.getElementById('loading-message-placeholder');
+            if (loadingPlaceholder) loadingPlaceholder.remove();
+        
+            // Сохраняем итоговое сообщение, включая сообщение об остановке
+            const messageToAdd = wasAborted
+                ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: modelName }
+                : isSuccess
+                    ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
+                    : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. Последняя ошибка: \n\n${lastError}`, modelName: modelName };
+            
+            const finalMessages = [...messagesToSubmit, messageToAdd];
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
             
-            state.isLoading = false;
-            updateLoadingIndicator();
-            const loadingPlaceholder = document.getElementById('loading-message-placeholder');
-            if (loadingPlaceholder) loadingPlaceholder.remove();
+            generationAbortController = null; // Очищаем контроллер
         }
         
         function showTypingIndicatorInChat() {

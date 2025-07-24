@@ -178,7 +178,7 @@
             sessions: [],
             providers: [],
             roles: [],
-            loadingSessionId: null,
+            loadingSessionId: null
             isAuthReady: false,
             isSidebarCollapsed: false,
             isChatWidthCompact: true,
@@ -265,31 +265,93 @@
         }
     
         function renderMainContent() {
-            if (chatObserver) {
-                chatObserver.disconnect();
-                chatObserver = null;
-            }
+                    if (chatObserver) {
+                        chatObserver.disconnect();
+                        chatObserver = null;
+                    }
+        
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    mainContent.dataset.activeTabType = state.activeTab;
+                    mainContent.innerHTML = ''; // Всегда очищаем для простоты и надежности
+        
+                    switch (state.activeTab) {
+                        case 'chat':
+                            if (activeSession) {
+                                mainContent.innerHTML = getChatViewHTML(activeSession);
+                                const provider = state.providers.find(p => p.id === activeSession.providerId);
+                                let needsUpdate = false;
+                                const updatePayload = {};
+        
+                                if (!provider && state.providers.length > 0) {
+                                    const firstProvider = state.providers[0];
+                                    updatePayload.providerId = firstProvider.id;
+                                    updatePayload.modelName = (firstProvider.models || [])[0] || null;
+                                    needsUpdate = true;
+                                } else if (provider && !activeSession.modelName) {
+                                    updatePayload.modelName = (provider.models || [])[0] || null;
+                                    needsUpdate = true;
+                                }
+        
+                                if (needsUpdate) {
+                                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                                    updateDoc(sessionRef, updatePayload);
+                                }
+        
+                                renderChatMessages(activeSession);
+                                setupChatViewEventListeners();
+                                updateLoadingIndicator(); // Обновит индикатор для текущего чата
+                            } else {
+                                 mainContent.innerHTML = getEmptyStateHTML('chat');
+                            }
+                            break;
+                        case 'notepad':
+                             if (activeSession) {
+                                mainContent.innerHTML = getNotepadViewHTML(activeSession);
+                                setupNotepadViewEventListeners();
+                            } else {
+                                mainContent.innerHTML = getEmptyStateHTML('notepad');
+                            }
+                            break;
+                        case 'settings':
+                            mainContent.innerHTML = getSettingsViewHTML();
+                            renderProviders();
+                            renderRoles();
+                            setupSettingsViewEventListeners();
+                            break;
+                    }
+                    lucide.createIcons();
+                }
 
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            // Стандартная логика рендеринга, если загрузка не активна
+            mainContent.innerHTML = ''; // Очищаем полностью
             mainContent.dataset.activeTabType = state.activeTab;
-            mainContent.innerHTML = ''; // Всегда очищаем для простоты и надежности
 
             switch (state.activeTab) {
                 case 'chat':
                     if (activeSession) {
-                        mainContent.innerHTML = getChatViewHTML(activeSession);
+                        // Оборачиваем вид чата в контейнер для легкого управления видимостью
+                        const chatContainer = document.createElement('div');
+                        chatContainer.id = 'chat-view-container';
+                        chatContainer.className = 'flex flex-col h-full';
+                        chatContainer.innerHTML = getChatViewHTML(activeSession);
+                        mainContent.appendChild(chatContainer);
+
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         let needsUpdate = false;
                         const updatePayload = {};
 
                         if (!provider && state.providers.length > 0) {
                             const firstProvider = state.providers[0];
+                            const models = firstProvider.models || [];
                             updatePayload.providerId = firstProvider.id;
-                            updatePayload.modelName = (firstProvider.models || [])[0] || null;
+                            updatePayload.modelName = models.length > 0 ? models[0] : null;
                             needsUpdate = true;
                         } else if (provider && !activeSession.modelName) {
-                            updatePayload.modelName = (provider.models || [])[0] || null;
-                            needsUpdate = true;
+                            const models = provider.models || [];
+                            if (models.length > 0) {
+                                updatePayload.modelName = models[0];
+                                needsUpdate = true;
+                            }
                         }
 
                         if (needsUpdate) {
@@ -299,7 +361,7 @@
 
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
-                        updateLoadingIndicator(); // Обновит индикатор для текущего чата
+                        updateLoadingIndicator();
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
                     }
@@ -1397,155 +1459,155 @@
             window.addEventListener('resize', updateSidebarView);
         
             document.body.addEventListener('click', async (e) => {
-                    const deleteSessionBtn = e.target.closest('.delete-session-btn');
-                    if (deleteSessionBtn) {
-                        const idToDelete = deleteSessionBtn.dataset.id;
-                        showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
-                            await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
+                const deleteSessionBtn = e.target.closest('.delete-session-btn');
+                if (deleteSessionBtn) {
+                    const idToDelete = deleteSessionBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
+                    });
+                }
+                
+                const deleteMessageBtn = e.target.closest('.delete-message-btn');
+                if (deleteMessageBtn) {
+                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+        
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
+                            const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: newMessages });
                         });
                     }
+                }
+    
+                const handleRegeneration = (messageIndex, sliceEnd) => {
+                    if (state.loadingSessionId) return;
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    if (!activeSession || isNaN(messageIndex)) return;
+    
+                    const confirmationText = sliceEnd === messageIndex
+                        ? 'Вы уверены, что хотите перегенерировать этот ответ? Текущий ответ будет удален.'
+                        : 'Это действие удалит все сообщения после этого и сгенерирует новый ответ. Продолжить?';
+    
+                    showConfirmModal(confirmationText, async () => {
+                        const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
+                        const provider = state.providers.find(p => p.id === activeSession.providerId);
+                        const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+    
+                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                        await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                        
+                        await generateAssistantResponse(
+                            state.activeSessionId,
+                            messagesForRegen,
+                            provider,
+                            selectedRole,
+                            activeSession.modelName
+                        );
+                    });
+                };
+                
+                const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
+                if (regenerateUserBtn) {
+                    const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
+                    handleRegeneration(messageIndex, messageIndex + 1);
+                }
+    
+                const regenerateBtn = e.target.closest('.regenerate-message-btn');
+                if (regenerateBtn) {
+                    const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
+                    handleRegeneration(messageIndex, messageIndex);
+                }
+        
+                const editBtn = e.target.closest('.edit-message-btn');
+                if (editBtn) {
+                    if (state.loadingSessionId) return;
+                    const messageContainer = editBtn.closest('.message-container');
+                    const contentDiv = messageContainer.querySelector('.prose');
+                    if (messageContainer.querySelector('.edit-form')) return; 
+        
+                    const messageIndex = parseInt(editBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const originalContent = activeSession.messages[messageIndex].content;
+        
+                    contentDiv.classList.add('hidden');
+        
+                    const editForm = document.createElement('div');
+                    editForm.className = 'edit-form w-full mt-2';
+                    editForm.innerHTML = `
+                        <textarea class="w-full bg-input border border-border-color rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-accent" rows="3"></textarea>
+                        <div class="flex justify-end items-center mt-2 space-x-2">
+                             <button class="cancel-edit-btn px-3 py-1 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Отмена</button>
+                             <button class="save-edit-btn px-3 py-1 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors text-sm">Сохранить и отправить</button>
+                        </div>
+                    `;
+                    contentDiv.after(editForm);
                     
-                    const deleteMessageBtn = e.target.closest('.delete-message-btn');
-                    if (deleteMessageBtn) {
-                        const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            
-                        if (activeSession && !isNaN(messageIndex)) {
-                            showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
-                                const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
-                                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                                await updateDoc(sessionRef, { messages: newMessages });
-                            });
-                        }
-                    }
+                    const textarea = editForm.querySelector('textarea');
+                    textarea.value = originalContent;
+                    textarea.focus();
+                    textarea.style.height = 'auto';
+                    textarea.style.height = (textarea.scrollHeight) + 'px';
+                    textarea.addEventListener('input', () => {
+                       textarea.style.height = 'auto';
+                       textarea.style.height = (textarea.scrollHeight) + 'px';
+                    });
         
-                    const handleRegeneration = (messageIndex, sliceEnd) => {
-                        if (state.loadingSessionId) return;
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        if (!activeSession || isNaN(messageIndex)) return;
-        
-                        const confirmationText = sliceEnd === messageIndex
-                            ? 'Вы уверены, что хотите перегенерировать этот ответ? Текущий ответ будет удален.'
-                            : 'Это действие удалит все сообщения после этого и сгенерирует новый ответ. Продолжить?';
-        
-                        showConfirmModal(confirmationText, async () => {
-                            const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
+                    editForm.querySelector('.save-edit-btn').addEventListener('click', async () => {
+                        const newContent = textarea.value.trim();
+                        if (newContent) {
+                            const messagesForSubmit = activeSession.messages.slice(0, messageIndex);
+                            messagesForSubmit.push({ role: 'user', content: newContent });
+                            
                             const provider = state.providers.find(p => p.id === activeSession.providerId);
                             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-        
+    
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                            await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
                             
                             await generateAssistantResponse(
                                 state.activeSessionId,
-                                messagesForRegen,
+                                messagesForSubmit,
                                 provider,
                                 selectedRole,
                                 activeSession.modelName
                             );
-                        });
-                    };
-                    
-                    const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
-                    if (regenerateUserBtn) {
-                        const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                        handleRegeneration(messageIndex, messageIndex + 1);
-                    }
+                        }
+                    });
         
-                    const regenerateBtn = e.target.closest('.regenerate-message-btn');
-                    if (regenerateBtn) {
-                        const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                        handleRegeneration(messageIndex, messageIndex);
-                    }
-            
-                    const editBtn = e.target.closest('.edit-message-btn');
-                    if (editBtn) {
-                        if (state.loadingSessionId) return;
-                        const messageContainer = editBtn.closest('.message-container');
-                        const contentDiv = messageContainer.querySelector('.prose');
-                        if (messageContainer.querySelector('.edit-form')) return; 
-            
-                        const messageIndex = parseInt(editBtn.dataset.messageIndex, 10);
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        const originalContent = activeSession.messages[messageIndex].content;
-            
-                        contentDiv.classList.add('hidden');
-            
-                        const editForm = document.createElement('div');
-                        editForm.className = 'edit-form w-full mt-2';
-                        editForm.innerHTML = `
-                            <textarea class="w-full bg-input border border-border-color rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-accent" rows="3"></textarea>
-                            <div class="flex justify-end items-center mt-2 space-x-2">
-                                 <button class="cancel-edit-btn px-3 py-1 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Отмена</button>
-                                 <button class="save-edit-btn px-3 py-1 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors text-sm">Сохранить и отправить</button>
-                            </div>
-                        `;
-                        contentDiv.after(editForm);
-                        
-                        const textarea = editForm.querySelector('textarea');
-                        textarea.value = originalContent;
-                        textarea.focus();
-                        textarea.style.height = 'auto';
-                        textarea.style.height = (textarea.scrollHeight) + 'px';
-                        textarea.addEventListener('input', () => {
-                           textarea.style.height = 'auto';
-                           textarea.style.height = (textarea.scrollHeight) + 'px';
-                        });
-            
-                        editForm.querySelector('.save-edit-btn').addEventListener('click', async () => {
-                            const newContent = textarea.value.trim();
-                            if (newContent) {
-                                const messagesForSubmit = activeSession.messages.slice(0, messageIndex);
-                                messagesForSubmit.push({ role: 'user', content: newContent });
-                                
-                                const provider = state.providers.find(p => p.id === activeSession.providerId);
-                                const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-        
-                                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                                await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
-                                
-                                await generateAssistantResponse(
-                                    state.activeSessionId,
-                                    messagesForSubmit,
-                                    provider,
-                                    selectedRole,
-                                    activeSession.modelName
-                                );
-                            }
-                        });
-            
-                        editForm.querySelector('.cancel-edit-btn').addEventListener('click', () => {
-                            editForm.remove();
-                            contentDiv.classList.remove('hidden');
-                        });
-                    }
-                    
-                    const deleteProviderBtn = e.target.closest('.delete-provider-btn');
-                    if (deleteProviderBtn) {
-                        const idToDelete = deleteProviderBtn.dataset.id;
-                        showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
-                            await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
-                        });
-                    }
-                    const editProviderBtn = e.target.closest('.edit-provider-btn');
-                    if (editProviderBtn) {
-                        const idToEdit = editProviderBtn.dataset.id;
-                        handleOpenEditProviderModal(idToEdit);
-                    }
-                    
-                    const deleteRoleBtn = e.target.closest('.delete-role-btn');
-                    if (deleteRoleBtn) {
-                        const idToDelete = deleteRoleBtn.dataset.id;
-                        showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
-                            await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
-                        });
-                    }
-                    const editRoleBtn = e.target.closest('.edit-role-btn');
-                    if (editRoleBtn) {
-                        const idToEdit = editRoleBtn.dataset.id;
-                        handleOpenEditRoleModal(idToEdit);
-                    }
-                });
+                    editForm.querySelector('.cancel-edit-btn').addEventListener('click', () => {
+                        editForm.remove();
+                        contentDiv.classList.remove('hidden');
+                    });
+                }
+                
+                const deleteProviderBtn = e.target.closest('.delete-provider-btn');
+                if (deleteProviderBtn) {
+                    const idToDelete = deleteProviderBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
+                    });
+                }
+                const editProviderBtn = e.target.closest('.edit-provider-btn');
+                if (editProviderBtn) {
+                    const idToEdit = editProviderBtn.dataset.id;
+                    handleOpenEditProviderModal(idToEdit);
+                }
+                
+                const deleteRoleBtn = e.target.closest('.delete-role-btn');
+                if (deleteRoleBtn) {
+                    const idToDelete = deleteRoleBtn.dataset.id;
+                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
+                    });
+                }
+                const editRoleBtn = e.target.closest('.edit-role-btn');
+                if (editRoleBtn) {
+                    const idToEdit = editRoleBtn.dataset.id;
+                    handleOpenEditRoleModal(idToEdit);
+                }
+            });
             
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });

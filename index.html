@@ -493,12 +493,12 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления -->
+                <!-- Плавающие кнопки управления (ИСПОЛЬЗУЮТ НОВЫЙ CSS-КЛАСС) -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
-                    <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-full bg-bg-sidebar/80 backdrop-blur-sm border border-border-color/50 hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
+                    <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
                     </button>
-                    <button id="chat-settings-toggle" title="Настройки чата" class="p-2 rounded-full bg-bg-sidebar/80 backdrop-blur-sm border border-border-color/50 hover:bg-bg-input transition-colors flex-shrink-0">
+                    <button id="chat-settings-toggle" title="Настройки чата" class="chat-action-btn">
                         <i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i>
                     </button>
                 </div>
@@ -533,7 +533,7 @@
                 
                 <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
-                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}" style="scroll-padding-top: 4rem;"></div>
+                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="relative w-full max-w-4xl mx-auto">
                             <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
@@ -890,15 +890,12 @@
                 widthToggleBtn.addEventListener('click', () => {
                     state.isChatWidthCompact = !state.isChatWidthCompact;
                     const isNowExpanded = !state.isChatWidthCompact;
-
                     localStorage.setItem('chatViewCompact', state.isChatWidthCompact);
-
                     messagesContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
                     widthToggleBtn.classList.toggle('active', isNowExpanded);
                     widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
                 });
             }
-
 
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -912,10 +909,9 @@
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
 
-                // Добавляем/удаляем слушатель на клик вне панели
                 const closeOnOutsideClick = (event) => {
                     if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
-                        settingsToggle.click(); // Повторный клик скроет панель и удалит этот слушатель
+                        settingsToggle.click();
                     }
                 };
 
@@ -956,20 +952,9 @@
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
-
-                        // ИСПРАВЛЕНАЯ ЛОГИКА МАСКИ
-                        // Этот градиент создает плавное появление контента сверху и плавное исчезновение снизу
-                        const topFadeHeight = 20;    // Высота затухания сверху
-                        const bottomFadeHeight = 30; // Высота затухания снизу
-                        const maskValue = `linear-gradient(to bottom,
-                            transparent 0%,
-                            black ${topFadeHeight}px,
-                            black calc(100% - ${bottomFadeHeight}px),
-                            transparent 100%
-                        )`;
                         
-                        messagesContainer.style.webkitMaskImage = maskValue;
-                        messagesContainer.style.maskImage = maskValue;
+                        // ИЗМЕНЕНО: Обновляем только CSS-переменную, а не весь стиль
+                        messagesContainer.style.setProperty('--form-height', `${formHeight}px`);
                     }, 0);
                 };
 
@@ -988,16 +973,8 @@
                 let newModelName = null;
                 if (selectedProvider) {
                     const models = selectedProvider.models || [];
-                    if (models.length > 0) {
-                        newModelName = models[0];
-                        if (modelSelect) {
-                            modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-                        }
-                    } else {
-                        if (modelSelect) {
-                            modelSelect.innerHTML = '<option disabled>Нет моделей</option>';
-                        }
-                    }
+                    if (models.length > 0) { newModelName = models[0]; if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
+                    } else { if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } }
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });

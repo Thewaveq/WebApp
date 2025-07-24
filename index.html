@@ -264,75 +264,13 @@
         }
     
         function renderMainContent() {
-                    if (chatObserver) {
-                        chatObserver.disconnect();
-                        chatObserver = null;
-                    }
-        
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    
-                    mainContent.innerHTML = ''; // Очищаем полностью
-                    mainContent.dataset.activeTabType = state.activeTab;
-        
-                    switch (state.activeTab) {
-                        case 'chat':
-                            if (activeSession) {
-                                // Оборачиваем вид чата в контейнер для легкого управления видимостью
-                                const chatContainer = document.createElement('div');
-                                chatContainer.id = 'chat-view-container';
-                                chatContainer.className = 'flex flex-col h-full';
-                                chatContainer.innerHTML = getChatViewHTML(activeSession);
-                                mainContent.appendChild(chatContainer);
-        
-                                const provider = state.providers.find(p => p.id === activeSession.providerId);
-                                let needsUpdate = false;
-                                const updatePayload = {};
-        
-                                if (!provider && state.providers.length > 0) {
-                                    const firstProvider = state.providers[0];
-                                    const models = firstProvider.models || [];
-                                    updatePayload.providerId = firstProvider.id;
-                                    updatePayload.modelName = models.length > 0 ? models[0] : null;
-                                    needsUpdate = true;
-                                } else if (provider && !activeSession.modelName) {
-                                    const models = provider.models || [];
-                                    if (models.length > 0) {
-                                        updatePayload.modelName = models[0];
-                                        needsUpdate = true;
-                                    }
-                                }
-        
-                                if (needsUpdate) {
-                                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                                    updateDoc(sessionRef, updatePayload);
-                                }
-        
-                                renderChatMessages(activeSession);
-                                setupChatViewEventListeners();
-                                updateLoadingIndicator();
-                            } else {
-                                 mainContent.innerHTML = getEmptyStateHTML('chat');
-                            }
-                            break;
-                        case 'notepad':
-                             if (activeSession) {
-                                mainContent.innerHTML = getNotepadViewHTML(activeSession);
-                                setupNotepadViewEventListeners();
-                            } else {
-                                mainContent.innerHTML = getEmptyStateHTML('notepad');
-                            }
-                            break;
-                        case 'settings':
-                            mainContent.innerHTML = getSettingsViewHTML();
-                            renderProviders();
-                            renderRoles();
-                            setupSettingsViewEventListeners();
-                            break;
-                    }
-                    lucide.createIcons();
-                }
+            if (chatObserver) {
+                chatObserver.disconnect();
+                chatObserver = null;
+            }
 
-            // Стандартная логика рендеринга, если загрузка не активна
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            
             mainContent.innerHTML = ''; // Очищаем полностью
             mainContent.dataset.activeTabType = state.activeTab;
 

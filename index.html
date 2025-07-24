@@ -476,6 +476,7 @@
         }
         
         function getChatViewHTML(activeSession) { 
+            // --- Опции для селекторов ---
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
         
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
@@ -492,50 +493,72 @@
                 }
             }
             
-            const isExpanded = state.isSettingsPanelExpanded;
-            const panelClasses = `collapsible-panel ${isExpanded ? 'expanded' : ''}`;
-            const iconClasses = `w-5 h-5 transition-transform ${isExpanded ? 'expanded' : ''}`;
-        
-            return `<div class="flex flex-col h-full">
-                <div class="flex-shrink-0 p-3 border-b border-border-color">
-                    <div class="flex items-center justify-between gap-3">
-                        <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md bg-bg-element hover:bg-bg-input hidden lg:flex flex-shrink-0">
-                            <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+            // --- Новый HTML-шаблон для чата ---
+            // Старая панель с заголовком и настройками заменена плавающими кнопками и модальным окном.
+            return `
+                <div class="flex flex-col h-full relative">
+                    <!-- Плавающие кнопки управления -->
+                    <div class="absolute top-4 left-4 right-4 z-20 flex justify-between items-center pointer-events-none">
+                        <button id="chat-width-toggle" title="Переключить ширину чата" class="p-3 rounded-full bg-bg-sidebar hover:bg-bg-element hidden lg:flex flex-shrink-0 shadow-lg transition-transform hover:scale-110 pointer-events-auto">
+                            <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
                         </button>
-                        <input type="text" id="chat-title-input" class="bg-transparent text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-accent rounded px-2 py-1 flex-grow min-w-0" value="${activeSession.title || ''}" placeholder="Название чата">
-                        <button id="chat-settings-toggle" class="p-1 rounded-full hover:bg-bg-element transition-colors flex-shrink-0">
-                            <i data-lucide="chevron-down" id="chat-settings-icon" class="${iconClasses}"></i>
+                        <button id="chat-settings-fab" title="Настройки чата" class="p-3 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg transition-transform hover:scale-110 pointer-events-auto">
+                            <i data-lucide="settings-2" class="w-5 h-5"></i>
                         </button>
                     </div>
-                    <div id="chat-settings-collapsible" class="${panelClasses}">
-                        <div>
-                            <div class="flex flex-col sm:flex-row items-center gap-3 w-full pt-3 flex-wrap">
-                                <select id="role-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto">
-                                <option value="">Без роли</option>
-                                ${roleOptions}
+
+                    <!-- Панель настроек (модальное окно), изначально скрыта -->
+                    <div id="chat-settings-panel" class="absolute inset-0 bg-black/70 backdrop-blur-sm z-30 flex items-center justify-center p-4 hidden">
+                        <div class="bg-bg-sidebar rounded-lg border border-border-color p-6 w-full max-w-lg relative shadow-2xl space-y-4">
+                            <button id="close-chat-settings-panel" class="absolute top-3 right-3 p-2 text-text-secondary hover:text-white rounded-full hover:bg-bg-element">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                            <h2 class="text-2xl font-bold mb-4">Настройки чата</h2>
+
+                            <div>
+                                <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1.5">Название чата</label>
+                                <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded-md border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
+                            </div>
+
+                            <div>
+                                <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1.5">Роль (Системный промпт)</label>
+                                <select id="role-select" class="w-full bg-input border border-border-color rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                                    <option value="">Без роли</option>
+                                    ${roleOptions}
                                 </select>
-                                <select id="provider-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-grow sm:flex-grow-0">
-                                    ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
-                                </select>
-                                <select id="model-select" class="bg-input border border-border-color rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent w-full sm:w-auto flex-grow sm:flex-grow-0">
-                                    ${modelOptions}
-                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1.5">Провайдер</label>
+                                    <select id="provider-select" class="w-full bg-input border border-border-color rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                                        ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="model-select" class="text-sm font-medium text-text-secondary block mb-1.5">Модель</label>
+                                    <select id="model-select" class="w-full bg-input border border-border-color rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                                        ${modelOptions}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Основной контент чата -->
+                    <div class="flex-grow relative min-h-0">
+                        <div id="chat-messages" class="absolute inset-0 p-4 pt-20 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
+                        <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
+                            <div class="relative w-full max-w-4xl mx-auto">
+                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px] shadow-lg" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                    <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <div class="flex-grow relative min-h-0">
-                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                    <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4">
-                        <div class="relative w-full max-w-4xl mx-auto">
-                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>`; 
+            `; 
         }
 
         function getNotepadViewHTML(activeSession) {

@@ -1077,7 +1077,7 @@
             const signal = generationAbortController.signal;
 
             state.loadingSessionId = sessionId;
-            render(); // Обновляем UI, чтобы показать индикатор загрузки
+            render();
 
             let assistantMessageContent = '';
             let isSuccess = false;
@@ -1158,9 +1158,16 @@
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
 
+                if (isSuccess && (document.hidden || state.activeSessionId !== sessionId)) {
+                    const session = state.sessions.find(s => s.id === sessionId);
+                    const chatTitle = session?.title || 'Новый чат';
+                    const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 150);
+                    showDesktopNotification(`Ответ в чате "${chatTitle}"`, `${messagePreview}...`, sessionId);
+                }
+
                 state.loadingSessionId = null;
                 generationAbortController = null;
-                render(); // Финальное обновление UI после завершения генерации
+                render();
             }
         }
         
@@ -1361,6 +1368,53 @@
                 toggleIcon.setAttribute('data-lucide', state.isSidebarCollapsed ? 'panel-right-close' : 'panel-left-close');
             }
             lucide.createIcons();
+        }
+
+        /**
+         * Показывает всплывающее уведомление на рабочем столе.
+         * @param {string} title - Заголовок уведомления.
+         * @param {string} body - Текст уведомления.
+         * @param {string} sessionId - ID сессии чата, чтобы открыть его по клику.
+         */
+
+        function showDesktopNotification(title, body, sessionId) {
+            if (!('Notification' in window)) {
+                console.log("Этот браузер не поддерживает уведомления на рабочем столе.");
+                return;
+            }
+
+            const iconUrl = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22256%22 height=%22256%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238b5cf6%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 class=%22lucide lucide-sparkles%22><path d=%22m12 3-1.9 5.8-5.8 1.9 5.8 1.9 1.9 5.8 1.9-5.8 5.8-1.9-5.8-1.9Z%22/><path d=%22M5 3v4%22/><path d=%22M19 17v4%22/><path d=%22M3 5h4%22/><path d=%22M17 19h4%22/></svg>`;
+
+            const doNotify = () => {
+                const notification = new Notification(title, {
+                    body: body,
+                    icon: iconUrl,
+                    tag: sessionId 
+                });
+
+                notification.onclick = () => {
+                    window.focus();
+                    
+                    if (sessionId) {
+                        state.activeTab = 'chat';
+                        state.activeSessionId = sessionId;
+                        render();
+                    }
+                    
+                    notification.close();
+                };
+            }
+
+            if (Notification.permission === "granted") {
+                doNotify();
+            } 
+            else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === "granted") {
+                        doNotify();
+                    }
+                });
+            }
         }
     
         function setupGlobalEventListeners() {

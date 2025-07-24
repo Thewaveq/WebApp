@@ -477,12 +477,9 @@
         
         function getChatViewHTML(activeSession) { 
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-        
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
-        
             let modelOptions = '<option disabled>Выберите провайдера</option>';
             const selectedProvider = state.providers.find(p => p.id === activeSession.providerId);
-            
             if (selectedProvider) {
                 const models = selectedProvider.models || [];
                 if (models.length > 0) {
@@ -491,31 +488,28 @@
                    modelOptions = '<option disabled>Нет моделей</option>';
                 }
             }
-            
             const isSettingsPanelVisible = state.isSettingsPanelExpanded;
         
             return `
-            <div class="flex flex-col h-full relative overflow-x-hidden" id="chat-view-container">
+            <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
                 <!-- Плавающие кнопки управления -->
-                <div class="absolute top-3 right-3 z-20 flex items-center gap-2">
-                    <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-full bg-bg-element hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
+                <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
+                    <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-full bg-bg-sidebar/80 backdrop-blur-sm border border-border-color/50 hover:bg-bg-input transition-colors hidden lg:flex flex-shrink-0">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
                     </button>
-                    <button id="chat-settings-toggle" title="Настройки чата" class="p-2 rounded-full bg-bg-element hover:bg-bg-input transition-colors flex-shrink-0">
+                    <button id="chat-settings-toggle" title="Настройки чата" class="p-2 rounded-full bg-bg-sidebar/80 backdrop-blur-sm border border-border-color/50 hover:bg-bg-input transition-colors flex-shrink-0">
                         <i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i>
                     </button>
                 </div>
 
                 <!-- Плавающая панель настроек -->
-                <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar border border-border-color rounded-lg shadow-xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'}">
+                <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                     <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
-                    
                     <div>
                         <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
                         <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
                     </div>
-
                     <div>
                         <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label>
                         <select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
@@ -523,14 +517,12 @@
                             ${roleOptions}
                         </select>
                     </div>
-
                     <div>
                         <label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1">Провайдер</label>
                         <select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
                             ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
                         </select>
                     </div>
-                    
                     <div>
                         <label for="model-select" class="text-sm font-medium text-text-secondary block mb-1">Модель</label>
                         <select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
@@ -541,9 +533,7 @@
                 
                 <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
-                    <!-- ИСПРАВЛЕНИЕ: Удален pt-16 и добавлен style="scroll-padding-top: 4.5rem;" -->
-                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}" style="scroll-padding-top: 4.5rem;"></div>
-                    
+                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}" style="scroll-padding-top: 4rem;"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="relative w-full max-w-4xl mx-auto">
                             <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
@@ -882,18 +872,18 @@
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
 
-            // Новые элементы для плавающей панели
+            // ИЗМЕНЕНИЕ: Получаем новые элементы для плавающей панели
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
+            const widthToggleBtn = document.getElementById('chat-width-toggle');
 
-            // Элементы, которые теперь ВНУТРИ панели
+            // ИЗМЕНЕНИЕ: Элементы управления теперь находятся внутри новой панели
             const titleInput = document.getElementById('chat-title-input');
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
-            const widthToggleBtn = document.getElementById('chat-width-toggle');
-
+            
             if (widthToggleBtn) {
                 const isExpanded = !state.isChatWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
@@ -907,33 +897,32 @@
 
                     messagesContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
                     widthToggleBtn.classList.toggle('active', isNowExpanded);
-
                     widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
                 });
             }
-            
-            // ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ ПАНЕЛИ НАСТРОЕК
+
+            // ИЗМЕНЕНИЕ: Логика для открытия/закрытия плавающей панели
             settingsToggle?.addEventListener('click', (e) => {
-                e.stopPropagation(); // Предотвращаем закрытие панели сразу после открытия
+                e.stopPropagation(); // Останавливаем всплытие, чтобы не закрыть панель сразу же
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
                 
-                settingsPanel.classList.toggle('opacity-100', state.isSettingsPanelExpanded);
-                settingsPanel.classList.toggle('translate-x-0', state.isSettingsPanelExpanded);
-                settingsPanel.classList.toggle('opacity-0', !state.isSettingsPanelExpanded);
-                settingsPanel.classList.toggle('translate-x-8', !state.isSettingsPanelExpanded);
-                settingsPanel.classList.toggle('pointer-events-none', !state.isSettingsPanelExpanded);
-
-                settingsIcon.classList.toggle('rotate-90', state.isSettingsPanelExpanded);
+                // Напрямую управляем классами для анимации
+                const isVisible = state.isSettingsPanelExpanded;
+                settingsPanel.classList.toggle('opacity-100', isVisible);
+                settingsPanel.classList.toggle('translate-y-0', isVisible);
+                settingsPanel.classList.toggle('opacity-0', !isVisible);
+                settingsPanel.classList.toggle('-translate-y-4', !isVisible);
+                settingsPanel.classList.toggle('pointer-events-none', !isVisible);
+                settingsIcon.classList.toggle('rotate-90', isVisible);
             });
 
-            // Логика для закрытия панели при клике вне ее
+            // ИЗМЕНЕНИЕ: Закрываем панель при клике вне ее
             document.addEventListener('click', (e) => {
-                if (state.isSettingsPanelExpanded && settingsPanel && settingsToggle) {
-                    if (!settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
-                       settingsToggle.click(); // Имитируем клик по кнопке для закрытия
-                    }
+                if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target.closest('button'))) {
+                    settingsToggle.click(); // Имитируем клик по кнопке, чтобы закрыть панель
                 }
-            });
+            }, { once: true }); // Вешаем обработчик один раз после рендера, чтобы он не конфликтовал сам с собой
+
 
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
@@ -943,11 +932,14 @@
                 }
             });
 
+            // ИЗМЕНЕНИЕ: Упрощаем и исправляем функцию adjustLayout
             if (input && form && messagesContainer && chatViewContainer) {
                 const adjustLayout = () => {
                     if (!form || !messagesContainer || !input || !chatViewContainer) return;
 
-                    const MIN_MESSAGES_HEIGHT = 40; 
+                    // УДАЛЕНО: больше не ищем chatHeader
+                    const MIN_MESSAGES_HEIGHT = 40;
+                    // ИСПРАВЛЕНО: Максимальная высота формы теперь зависит только от высоты всего контейнера чата
                     const maxFormHeight = chatViewContainer.offsetHeight - MIN_MESSAGES_HEIGHT;
 
                     const formStyle = window.getComputedStyle(form);
@@ -965,14 +957,12 @@
 
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
-                        // Увеличиваем отступ у сообщений, чтобы было место для плавающих кнопок сверху
-                        messagesContainer.style.paddingTop = '6rem';
+                        // ИСПРАВЛЕНО: Устанавливаем paddingBottom И для прокрутки, И для маски
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
-                        
-                        const fadeHeight = 30;
+
+                        const fadeHeight = 30; // Высота градиента внизу
                         const maskValue = `linear-gradient(to bottom, 
-                            transparent 50px, 
-                            black 80px, 
+                            black, 
                             black calc(100% - ${formHeight + fadeHeight}px), 
                             transparent calc(100% - ${formHeight}px))`;
                         
@@ -984,22 +974,16 @@
                 input.addEventListener('input', adjustLayout);
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 resizeObserver.observe(chatViewContainer);
-                setTimeout(adjustLayout, 50);
+                setTimeout(adjustLayout, 50); // Первичный вызов
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
-
-            roleSelect?.addEventListener('change', (e) => {
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, { roleId: e.target.value });
-            });
-
+            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
             providerSelect?.addEventListener('change', (e) => {
                 const newProviderId = e.target.value;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 const selectedProvider = state.providers.find(p => p.id === newProviderId);
                 let newModelName = null;
-
                 if (selectedProvider) {
                     const models = selectedProvider.models || [];
                     if (models.length > 0) {
@@ -1015,12 +999,7 @@
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
-
-            modelSelect?.addEventListener('change', (e) => {
-                const newModelName = e.target.value;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                updateDoc(sessionRef, { modelName: newModelName });
-            });
+            modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
         }
         
         function setupNotepadViewEventListeners() {

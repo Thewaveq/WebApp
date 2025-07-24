@@ -248,20 +248,40 @@
             if (filteredSessions.length > 0) {
                 filteredSessions.forEach(session => {
                     const item = document.createElement('div');
-                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${session.id === state.activeSessionId ? 'active' : ''}`;
+                    const isActive = session.id === state.activeSessionId;
+                    
+                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${isActive ? 'active' : ''}`;
+                    
                     item.innerHTML = `
                         <span class="truncate pr-2">${session.title || 'Без названия'}</span>
-                        <button class="delete-session-btn hidden text-white hover:text-red-400" data-id="${session.id}">
+                        <button class="delete-session-btn text-text-secondary hover:text-red-400" data-id="${session.id}">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     `;
+                    
+                    const deleteBtn = item.querySelector('.delete-session-btn');
+
+                    if (isActive) {
+                        deleteBtn.classList.remove('hidden');
+                    } else {
+                        deleteBtn.classList.add('hidden');
+                    }
+                    
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.delete-session-btn')) return;
                         state.activeSessionId = session.id;
                         render(); 
                     });
-                    item.addEventListener('mouseenter', () => item.querySelector('.delete-session-btn').classList.remove('hidden'));
-                    item.addEventListener('mouseleave', () => item.querySelector('.delete-session-btn').classList.add('hidden'));
+
+                    item.addEventListener('mouseenter', () => {
+                        deleteBtn.classList.remove('hidden');
+                    });
+                    
+                    item.addEventListener('mouseleave', () => {
+                        if (!isActive) {
+                           deleteBtn.classList.add('hidden');
+                        }
+                    });
                     
                     sidebarList.appendChild(item);
                 });

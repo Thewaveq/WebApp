@@ -847,6 +847,7 @@
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select'); 
             const messagesContainer = document.getElementById('chat-messages'); 
+            const chatViewContainer = document.getElementById('chat-view-container');
             
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-collapsible');
@@ -885,23 +886,34 @@
                 }
             });
             
-            if (input && form && messagesContainer) {
+            if (input && form && messagesContainer && chatViewContainer) {
                 const adjustLayout = () => {
-                    if (!form || !messagesContainer || !input) return;
+                    if (!form || !messagesContainer || !input || !chatViewContainer) return;
+
+                    const chatHeader = chatViewContainer.querySelector('.flex-shrink-0.p-3.border-b');
+                    if (!chatHeader) return;
+
+                    const MIN_MESSAGES_HEIGHT = 80; 
+                    const maxFormHeight = chatViewContainer.offsetHeight - chatHeader.offsetHeight - MIN_MESSAGES_HEIGHT;
+
+                    const formStyle = window.getComputedStyle(form);
+                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
+                    const maxTextareaHeight = maxFormHeight - formVerticalPadding;
 
                     input.style.height = 'auto';
-                    input.style.height = `${input.scrollHeight}px`;
+                    const newHeight = Math.min(input.scrollHeight, maxTextareaHeight);
+                    input.style.height = `${newHeight}px`;
 
-                    const formHeight = form.offsetHeight;
-                    messagesContainer.style.paddingBottom = `${formHeight}px`;
+                    setTimeout(() => {
+                        const formHeight = form.offsetHeight;
+                        messagesContainer.style.paddingBottom = `${formHeight}px`;
+                    }, 0);
                 };
 
                 input.addEventListener('input', adjustLayout);
 
-                const resizeObserver = new ResizeObserver(() => {
-                    adjustLayout();
-                });
-                resizeObserver.observe(form);
+                const resizeObserver = new ResizeObserver(adjustLayout);
+                resizeObserver.observe(chatViewContainer);
 
                 setTimeout(adjustLayout, 50);
             }

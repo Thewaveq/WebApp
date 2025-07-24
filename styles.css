@@ -288,42 +288,62 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     color: white;
 }
 
-/* --- Стили для In-App Уведомления --- */
+/* --- Стили для In-App Уведомления с эффектом свечения --- */
+
+/* 1. Определяем анимацию "пульсации" */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
+    }
+    50% {
+        /* В пике анимации свечение становится шире и ярче */
+        box-shadow: 0 0 10px 3px var(--accent), 0 0 7px 2px var(--accent);
+    }
+    100% {
+        box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
+    }
+}
+
+/* 2. Стилизуем основной контейнер уведомления */
 #in-app-notification > div {
-    /* Основной фон, как у сайдбара или карточек */
-    background-color: var(--bg-sidebar);
-
-    /* Четкая граница в стиле приложения (как у карточек настроек) */
-    border: 1px solid var(--border-color);
-
-    /* Более выраженная тень для "всплывающего" эффекта */
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-
-    /* Скругляем углы в соответствии с общим дизайном */
-    border-radius: 0.75rem; /* 12px */
+    /* Делаем его позиционным контекстом для псевдо-элемента */
+    position: relative; 
     
-    /* Убедимся, что нет лишних стилей от Tailwind, которые могут мешать */
+    background-color: var(--bg-sidebar);
+    
+    /* Убираем обычную рамку, так как свечение будет ее заменять */
+    border: none;
+    
+    /* Глубокая тень для эффекта "парения" над интерфейсом */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    
+    border-radius: 0.75rem; /* 12px */
     margin: 1rem;
     padding: 1rem;
+    
+    /* Применяем саму анимацию */
+    animation: pulse-glow 2.5s infinite ease-in-out;
 }
 
-/* Заголовок уведомления */
+/* 3. Стили для текста и кнопки закрытия остаются прежними */
 #in-app-notification-title {
     color: var(--text-primary);
-    font-weight: 600; /* Немного жирнее для акцента */
+    font-weight: 600;
 }
 
-/* Текст уведомления */
 #in-app-notification-body {
     color: var(--text-secondary);
 }
 
-/* Улучшаем кнопку закрытия "крестик" */
 #in-app-notification-close {
     color: var(--text-secondary);
     transition: color 0.2s, background-color 0.2s;
-    border-radius: 9999px; /* Делаем область клика круглой */
+    border-radius: 9999px;
     padding: 0.25rem;
+    
+    /* Поднимаем кнопку выше слоя свечения, чтобы она была кликабельной */
+    position: relative;
+    z-index: 2;
 }
 
 #in-app-notification-close:hover {

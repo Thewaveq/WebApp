@@ -64,13 +64,13 @@ input::placeholder, textarea::placeholder {
     -webkit-mask-image: linear-gradient(to bottom, 
         transparent, 
         black 50px, 
-        black calc(100% - 50px), 
+        black calc(100% - 30px), 
         transparent
     );
     mask-image: linear-gradient(to bottom, 
         transparent, 
         black 50px, 
-        black calc(100% - 50px), 
+        black calc(100% - 30px), 
         transparent
     );
 }

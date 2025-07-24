@@ -877,16 +877,19 @@
         function setupChatViewEventListeners() {
             const form = document.getElementById('chat-form');
             const input = document.getElementById('chat-input');
+            const messagesContainer = document.getElementById('chat-messages');
+            const chatViewContainer = document.getElementById('chat-view-container');
+
+            // Новые элементы для плавающей панели
+            const settingsToggle = document.getElementById('chat-settings-toggle');
+            const settingsPanel = document.getElementById('chat-settings-panel');
+            const settingsIcon = document.getElementById('chat-settings-icon');
+
+            // Элементы, которые теперь ВНУТРИ панели
             const titleInput = document.getElementById('chat-title-input');
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
-            const messagesContainer = document.getElementById('chat-messages');
-            const chatViewContainer = document.getElementById('chat-view-container');
-
-            const settingsToggle = document.getElementById('chat-settings-toggle');
-            const settingsPanel = document.getElementById('chat-settings-collapsible');
-            const settingsIcon = document.getElementById('chat-settings-icon');
             const widthToggleBtn = document.getElementById('chat-width-toggle');
 
             if (widthToggleBtn) {
@@ -906,11 +909,28 @@
                     widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
                 });
             }
-
-            settingsToggle?.addEventListener('click', () => {
+            
+            // ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ ПАНЕЛИ НАСТРОЕК
+            settingsToggle?.addEventListener('click', (e) => {
+                e.stopPropagation(); // Предотвращаем закрытие панели сразу после открытия
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
-                settingsPanel.classList.toggle('expanded');
-                settingsIcon.classList.toggle('expanded');
+                
+                settingsPanel.classList.toggle('opacity-100', state.isSettingsPanelExpanded);
+                settingsPanel.classList.toggle('translate-x-0', state.isSettingsPanelExpanded);
+                settingsPanel.classList.toggle('opacity-0', !state.isSettingsPanelExpanded);
+                settingsPanel.classList.toggle('translate-x-8', !state.isSettingsPanelExpanded);
+                settingsPanel.classList.toggle('pointer-events-none', !state.isSettingsPanelExpanded);
+
+                settingsIcon.classList.toggle('rotate-90', state.isSettingsPanelExpanded);
+            });
+
+            // Логика для закрытия панели при клике вне ее
+            document.addEventListener('click', (e) => {
+                if (state.isSettingsPanelExpanded && settingsPanel && settingsToggle) {
+                    if (!settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+                       settingsToggle.click(); // Имитируем клик по кнопке для закрытия
+                    }
+                }
             });
 
             form?.addEventListener('submit', handleChatSubmit);
@@ -925,11 +945,8 @@
                 const adjustLayout = () => {
                     if (!form || !messagesContainer || !input || !chatViewContainer) return;
 
-                    const chatHeader = chatViewContainer.querySelector('.flex-shrink-0.p-3.border-b');
-                    if (!chatHeader) return;
-
-                    const MIN_MESSAGES_HEIGHT = 40;
-                    const maxFormHeight = chatViewContainer.offsetHeight - chatHeader.offsetHeight - MIN_MESSAGES_HEIGHT;
+                    const MIN_MESSAGES_HEIGHT = 40; 
+                    const maxFormHeight = chatViewContainer.offsetHeight - MIN_MESSAGES_HEIGHT;
 
                     const formStyle = window.getComputedStyle(form);
                     const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
@@ -946,12 +963,14 @@
 
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
+                        // Увеличиваем отступ у сообщений, чтобы было место для плавающих кнопок сверху
+                        messagesContainer.style.paddingTop = '6rem';
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
-
+                        
                         const fadeHeight = 30;
                         const maskValue = `linear-gradient(to bottom, 
-                            transparent, 
-                            black 50px, 
+                            transparent 50px, 
+                            black 80px, 
                             black calc(100% - ${formHeight + fadeHeight}px), 
                             transparent calc(100% - ${formHeight}px))`;
                         
@@ -961,10 +980,8 @@
                 };
 
                 input.addEventListener('input', adjustLayout);
-
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 resizeObserver.observe(chatViewContainer);
-
                 setTimeout(adjustLayout, 50);
             }
 

@@ -1678,6 +1678,9 @@
                     editForm.querySelector('.save-edit-btn').addEventListener('click', async () => {
                         const newContent = textarea.value.trim();
                         if (newContent) {
+                            editForm.remove();
+                            contentDiv.classList.remove('hidden');
+                            
                             const messagesForSubmit = activeSession.messages.slice(0, messageIndex);
                             messagesForSubmit.push({ role: 'user', content: newContent });
                             

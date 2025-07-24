@@ -495,7 +495,8 @@
             const isSettingsPanelVisible = state.isSettingsPanelExpanded;
         
             return `
-            <div class="flex flex-col h-full relative" id="chat-view-container">
+            <!-- ИСПРАВЛЕНИЕ: Добавлен класс overflow-x-hidden для предотвращения горизонтального скролла -->
+            <div class="flex flex-col h-full relative overflow-x-hidden" id="chat-view-container">
                 
                 <!-- Плавающие кнопки управления -->
                 <div class="absolute top-3 right-3 z-20 flex items-center gap-2">

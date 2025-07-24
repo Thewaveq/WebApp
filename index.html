@@ -1391,67 +1391,75 @@
          * @param {string} sessionId - ID сессии, на которую нужно переключиться по клику.
          */
         function showInAppNotification(title, body, sessionId) {
-            // Находим оригинальный элемент в DOM
-            const originalNotification = document.getElementById('in-app-notification');
-            if (!originalNotification) return;
-        
-            // Очищаем предыдущий таймер авто-скрытия, если он был
+            // Очищаем любой предыдущий таймер, чтобы новые уведомления не скрывались преждевременно
             if (notificationTimeout) {
                 clearTimeout(notificationTimeout);
             }
-        
-            // Клонируем узел. Это самый простой способ удалить все предыдущие обработчики событий.
+
+            // Находим исходный элемент уведомления в DOM
+            const originalNotification = document.getElementById('in-app-notification');
+            if (!originalNotification) {
+                console.error("Элемент уведомления #in-app-notification не найден.");
+                return;
+            }
+
+            // Клонируем узел, чтобы безопасно и чисто заменить обработчики событий
             const newNotification = originalNotification.cloneNode(true);
-        
+
             // Находим дочерние элементы в новом, клонированном узле
             const titleEl = newNotification.querySelector('#in-app-notification-title');
             const bodyEl = newNotification.querySelector('#in-app-notification-body');
             const closeBtn = newNotification.querySelector('#in-app-notification-close');
-        
-            // Обновляем контент в клоне
-            titleEl.textContent = title;
-            bodyEl.textContent = body;
-        
-            // Функция для скрытия уведомления (замыкает newNotification)
+
+            // Обновляем текст в клоне
+            if(titleEl) titleEl.textContent = title;
+            if(bodyEl) bodyEl.textContent = body;
+
+            // Определяем функцию для скрытия уведомления
             const hideNotification = () => {
                 newNotification.classList.add('-translate-y-[150%]', 'opacity-0');
-                // После завершения анимации (300ms) можно снова добавить класс hidden,
-                // чтобы узел не занимал места, хотя это необязательно, так как он будет заменен при следующем вызове.
+                // После завершения анимации (300ms) снова добавляем класс 'hidden',
+                // чтобы он не мешал взаимодействию с другими элементами.
                 setTimeout(() => {
-                    newNotification.classList.add('hidden');
+                    if(newNotification.parentNode) { // Убедимся, что узел все еще в DOM
+                       newNotification.classList.add('hidden');
+                    }
                 }, 300);
             };
-        
-            // Добавляем обработчик клика на все уведомление
+
+            // Добавляем обработчики событий на новый узел
             newNotification.addEventListener('click', () => {
                 state.activeTab = 'chat';
                 state.activeSessionId = sessionId;
                 render();
                 hideNotification();
             });
-        
-            // Добавляем обработчик на кнопку закрытия
-            closeBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Предотвращаем клик по всему уведомлению
-                hideNotification();
-            });
-        
-            // Заменяем старый узел в DOM на новый, настроенный узел
+
+            if(closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Предотвращаем клик по родительскому элементу
+                    hideNotification();
+                });
+            }
+
+            // Заменяем старый узел в DOM на новый, полностью настроенный узел
             originalNotification.parentNode.replaceChild(newNotification, originalNotification);
-        
-            // Иконки Lucide были потеряны при клонировании, воссоздаем их
+            
+            // Восстанавливаем иконки, которые были потеряны при клонировании
             lucide.createIcons({ nodes: [newNotification] });
-        
-            // Теперь, когда новый узел в DOM, делаем его видимым и анимируем
-            // Сначала убираем класс 'hidden', чтобы элемент появился
+
+            // --- Ключевой момент для запуска анимации ---
+            // 1. Сначала убираем 'hidden', чтобы элемент появился в потоке документа (например, display: flex).
             newNotification.classList.remove('hidden');
-        
-            // Небольшая задержка, чтобы браузер успел обработать изменение display
-            // и применил CSS-анимацию для transform и opacity.
+            
+            // 2. Используем setTimeout с нулевой задержкой. Это заставляет браузер
+            // обработать изменение display, выполнить перерасчет стилей, и только
+            // на следующем "тике" выполнить код внутри. Это гарантирует,
+            // что CSS-переход (transition) будет запущен корректно.
             setTimeout(() => {
                 newNotification.classList.remove('-translate-y-[150%]', 'opacity-0');
-            }, 50);
-        
+            }, 0); 
+
             // Устанавливаем таймер на автоматическое скрытие уведомления
             notificationTimeout = setTimeout(hideNotification, 7000);
         }

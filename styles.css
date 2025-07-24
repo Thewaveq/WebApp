@@ -145,7 +145,7 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
 
 #sidebar {
-    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out;
     width: 280px;
     flex-shrink: 0;
 }

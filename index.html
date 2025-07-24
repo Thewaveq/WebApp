@@ -271,7 +271,9 @@
                     }
         
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    
                     mainContent.className = 'flex-grow flex flex-col overflow-y-auto';
+                    
                     mainContent.dataset.activeTabType = state.activeTab;
                     mainContent.innerHTML = ''; // Всегда очищаем для простоты и надежности
         
@@ -468,14 +470,14 @@
             return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`;
         }
         
-        function getChatViewHTML(activeSession) {
+        function getChatViewHTML(activeSession) { 
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
-
+        
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
-
+        
             let modelOptions = '<option disabled>Выберите провайдера</option>';
             const selectedProvider = state.providers.find(p => p.id === activeSession.providerId);
-
+            
             if (selectedProvider) {
                 const models = selectedProvider.models || [];
                 if (models.length > 0) {
@@ -484,13 +486,15 @@
                    modelOptions = '<option disabled>Нет моделей</option>';
                 }
             }
-
+            
             const isExpanded = state.isSettingsPanelExpanded;
             const panelClasses = `collapsible-panel ${isExpanded ? 'expanded' : ''}`;
             const iconClasses = `w-5 h-5 transition-transform ${isExpanded ? 'expanded' : ''}`;
-
-            // Вся разметка чата теперь внутри одного div'a, которым мы будем управлять
-            return `<div class="flex-shrink-0 p-3 border-b border-border-color">
+        
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // Возвращаем div-обертку с классами для правильного растягивания
+            return `<div class="flex flex-col h-full">
+                <div class="flex-shrink-0 p-3 border-b border-border-color">
                     <div class="flex items-center justify-between gap-3">
                         <button id="chat-width-toggle" title="Переключить ширину чата" class="p-2 rounded-md bg-bg-element hover:bg-bg-input hidden lg:flex flex-shrink-0">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -525,7 +529,8 @@
                             <i data-lucide="send" class="w-5 h-5 text-white"></i>
                         </button>
                     </div>
-                </form>`;
+                </form>
+            </div>`; 
         }
         
         function getNotepadViewHTML(activeSession) {

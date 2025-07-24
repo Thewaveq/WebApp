@@ -306,27 +306,24 @@
 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             
-            // Определяем, нужно ли полностью перерисовывать контент.
-            // Это нужно при смене вкладки (chat -> notepad) или при выборе другой сессии в сайдбаре.
             const needsFullRender = mainContent.dataset.activeTabType !== state.activeTab ||
                                   mainContent.dataset.activeSessionId !== (state.activeSessionId || '');
 
-            // Если полная перерисовка не нужна и мы находимся во вкладке с активной сессией,
-            // то мы не перерисовываем все, а только обновляем динамические части.
+
             if (!needsFullRender && activeSession) {
                  if (state.activeTab === 'chat') {
-                    // Для чата обновляем только сообщения и индикатор загрузки
+
                     renderChatMessages(activeSession);
                     updateLoadingIndicator();
                  } else if (state.activeTab === 'notepad') {
-                    // Для заметок обновляем только список карточек
+
                     renderNotepadCards(activeSession);
                  }
-                 return; // Выходим, чтобы не выполнять лишний код полной перерисовки ниже
+                 return;
             }
 
             // --- ЕСЛИ ТРЕБУЕТСЯ ПОЛНАЯ ПЕРЕРИСОВКА ---
-            mainContent.innerHTML = ''; // Очищаем полностью, только когда это необходимо
+            mainContent.innerHTML = '';
             mainContent.dataset.activeTabType = state.activeTab;
             mainContent.dataset.activeSessionId = state.activeSessionId || '';
 
@@ -373,10 +370,10 @@
                      if (activeSession) {
                         mainContent.innerHTML = getNotepadViewHTML(activeSession);
                         setupNotepadViewEventListeners();
-                        // ВОЗВРАЩАЕМ ПРОКРУТКУ ВНИЗ ПРИ ПЕРВОЙ ЗАГРУЗКЕ
+
                         const scrollContainer = document.getElementById('notepad-scroll-container');
                         if(scrollContainer) {
-                            // Прокручиваем в самый низ, чтобы видеть последние заметки и кнопку добавления
+
                             setTimeout(() => {
                                scrollContainer.scrollTop = scrollContainer.scrollHeight;
                             }, 0);
@@ -531,8 +528,8 @@
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4">
                         <div class="relative w-full max-w-4xl mx-auto">
-                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-lg p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent/80 focus:shadow-lg focus:shadow-accent/10 transition-all duration-300" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-transform hover:scale-110 active:scale-100 disabled:bg-gray-500">
+                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
                                 <i data-lucide="send" class="w-5 h-5 text-white"></i>
                             </button>
                         </div>
@@ -727,42 +724,37 @@
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
 
-            // 1. Запоминаем, был ли пользователь в самом низу чата ДО изменений
             const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 5;
 
             const newMessages = session.messages || [];
             const existingMessageElements = messagesContainer.querySelectorAll('.message-container');
 
-            // 2. "Умная" сверка и обновление DOM без полной перерисовки
-            // Проходим по новому списку сообщений
             newMessages.forEach((msg, index) => {
                 const existingEl = existingMessageElements[index];
 
                 if (existingEl) {
-                    // Если DOM-элемент для этого индекса уже есть, проверяем, не изменился ли он
+
                     const oldContent = existingEl.dataset.content;
                     if (oldContent !== msg.content) {
-                        // Содержимое изменилось (редактирование/регенерация). Заменяем только этот элемент.
+
                         const newElement = createMessageElement(msg, index);
-                        newElement.dataset.content = msg.content; // Сохраняем новое содержимое для будущих проверок
+                        newElement.dataset.content = msg.content;
                         existingEl.replaceWith(newElement);
                     }
                 } else {
-                    // Если DOM-элемента для этого индекса нет, значит это новое сообщение. Добавляем его.
+
                     const newElement = createMessageElement(msg, index);
-                    newElement.dataset.content = msg.content; // Сохраняем содержимое для будущих проверок
+                    newElement.dataset.content = msg.content;
                     messagesContainer.appendChild(newElement);
                 }
             });
 
-            // Удаляем лишние DOM-элементы, если новый список сообщений стал короче
             if (existingMessageElements.length > newMessages.length) {
                 for (let i = newMessages.length; i < existingMessageElements.length; i++) {
                     existingMessageElements[i].remove();
                 }
             }
             
-            // 3. Восстанавливаем прокрутку, если это было необходимо
             if (isScrolledToBottom) {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
@@ -935,7 +927,7 @@
                         const formHeight = form.offsetHeight;
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
 
-                        const fadeHeight = 30; // Высота зоны затухания в пикселях
+                        const fadeHeight = 30;
                         const maskValue = `linear-gradient(to bottom, 
                             transparent, 
                             black 50px, 
@@ -1156,7 +1148,6 @@
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: messagesToSubmit, updatedAt: serverTimestamp() });
 
-            // Передаем все нужные данные напрямую
             await generateAssistantResponse(
                 state.activeSessionId,
                 messagesToSubmit,
@@ -1299,7 +1290,7 @@
 
             if (textarea) textarea.disabled = isLoadingThisSession;
             if (button) {
-                button.disabled = false; // Кнопка всегда активна для нажатия (отправка/стоп)
+                button.disabled = false;
                 if (isLoadingThisSession) {
                     button.setAttribute('type', 'button');
                     button.title = 'Остановить генерацию';
@@ -1309,7 +1300,7 @@
                         e.preventDefault();
                         if(generationAbortController) generationAbortController.abort();
                     };
-                    // Удаляем старый обработчик, чтобы избежать дублирования
+
                     button.replaceWith(button.cloneNode(true));
                     form.querySelector('button').addEventListener('click', stopHandler);
 
@@ -1473,43 +1464,36 @@
          * @param {string} sessionId - ID сессии, на которую нужно переключиться по клику.
          */
         function showInAppNotification(title, body, sessionId) {
-            // Очищаем любой предыдущий таймер, чтобы новые уведомления не скрывались преждевременно
+
             if (notificationTimeout) {
                 clearTimeout(notificationTimeout);
             }
 
-            // Находим исходный элемент уведомления в DOM
             const originalNotification = document.getElementById('in-app-notification');
             if (!originalNotification) {
                 console.error("Элемент уведомления #in-app-notification не найден.");
                 return;
             }
 
-            // Клонируем узел, чтобы безопасно и чисто заменить обработчики событий
             const newNotification = originalNotification.cloneNode(true);
 
-            // Находим дочерние элементы в новом, клонированном узле
             const titleEl = newNotification.querySelector('#in-app-notification-title');
             const bodyEl = newNotification.querySelector('#in-app-notification-body');
             const closeBtn = newNotification.querySelector('#in-app-notification-close');
 
-            // Обновляем текст в клоне
             if(titleEl) titleEl.textContent = title;
             if(bodyEl) bodyEl.textContent = body;
 
-            // Определяем функцию для скрытия уведомления
             const hideNotification = () => {
                 newNotification.classList.add('-translate-y-[150%]', 'opacity-0');
-                // После завершения анимации (300ms) снова добавляем класс 'hidden',
-                // чтобы он не мешал взаимодействию с другими элементами.
+
                 setTimeout(() => {
-                    if(newNotification.parentNode) { // Убедимся, что узел все еще в DOM
+                    if(newNotification.parentNode) {
                        newNotification.classList.add('hidden');
                     }
                 }, 300);
             };
 
-            // Добавляем обработчики событий на новый узел
             newNotification.addEventListener('click', () => {
                 state.activeTab = 'chat';
                 state.activeSessionId = sessionId;
@@ -1519,30 +1503,21 @@
 
             if(closeBtn) {
                 closeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Предотвращаем клик по родительскому элементу
+                    e.stopPropagation();
                     hideNotification();
                 });
             }
 
-            // Заменяем старый узел в DOM на новый, полностью настроенный узел
             originalNotification.parentNode.replaceChild(newNotification, originalNotification);
             
-            // Восстанавливаем иконки, которые были потеряны при клонировании
             lucide.createIcons({ nodes: [newNotification] });
 
-            // --- Ключевой момент для запуска анимации ---
-            // 1. Сначала убираем 'hidden', чтобы элемент появился в потоке документа (например, display: flex).
             newNotification.classList.remove('hidden');
             
-            // 2. Используем setTimeout с нулевой задержкой. Это заставляет браузер
-            // обработать изменение display, выполнить перерасчет стилей, и только
-            // на следующем "тике" выполнить код внутри. Это гарантирует,
-            // что CSS-переход (transition) будет запущен корректно.
             setTimeout(() => {
                 newNotification.classList.remove('-translate-y-[150%]', 'opacity-0');
             }, 0); 
 
-            // Устанавливаем таймер на автоматическое скрытие уведомления
             notificationTimeout = setTimeout(hideNotification, 7000);
         }
     
@@ -1600,7 +1575,7 @@
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
                     sidebar.classList.toggle('open');
-                    sidebarBackdrop.classList.toggle('active'); // <-- СТАЛО
+                    sidebarBackdrop.classList.toggle('active');
                 } else {
                     state.isSidebarCollapsed = !state.isSidebarCollapsed;
                     updateSidebarView();

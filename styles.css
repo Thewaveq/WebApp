@@ -42,10 +42,13 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
 }
 
+/* --- СТИЛЬ ВВОБДА ТЕКСТА СООБЩЕНИЯ --- */
 #chat-input {
+    box-sizing: border-box;
     overflow-y: auto;
 }
 
+/* --- СТИЛЬ САЙДБАРА --- */
 .sidebar-item { 
     background-color: var(--bg-element);
     margin-bottom: 2px;

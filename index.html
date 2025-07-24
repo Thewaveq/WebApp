@@ -495,7 +495,6 @@
             const isSettingsPanelVisible = state.isSettingsPanelExpanded;
         
             return `
-            <!-- ИСПРАВЛЕНИЕ: Добавлен класс overflow-x-hidden для предотвращения горизонтального скролла -->
             <div class="flex flex-col h-full relative overflow-x-hidden" id="chat-view-container">
                 
                 <!-- Плавающие кнопки управления -->
@@ -542,7 +541,9 @@
                 
                 <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
-                    <div id="chat-messages" class="absolute inset-0 p-4 pt-16 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
+                    <!-- ИСПРАВЛЕНИЕ: Удален pt-16 и добавлен style="scroll-padding-top: 4.5rem;" -->
+                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}" style="scroll-padding-top: 4.5rem;"></div>
+                    
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="relative w-full max-w-4xl mx-auto">
                             <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>

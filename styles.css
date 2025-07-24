@@ -186,6 +186,22 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     }
 }
 
+/* --- СТИЛИ ДЛЯ АНИМАЦИИ ФОНА САЙДБАРА --- */
+#sidebar-backdrop {
+    /* Добавляем плавный переход для прозрачности */
+    transition: opacity 0.3s ease-in-out;
+}
+
+#sidebar-backdrop:not(.active) {
+    opacity: 0;
+    pointer-events: none; /* Чтобы нельзя было кликнуть на невидимый фон */
+}
+
+/* Когда фон активен, он становится непрозрачным */
+#sidebar-backdrop.active {
+    opacity: 1;
+}
+
 /* --- СТИЛИ ДЛЯ СВОРАЧИВАЕМОЙ ПАНЕЛИ --- */
 .collapsible-panel {
     display: grid;

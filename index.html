@@ -951,10 +951,11 @@
 
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
+
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
                         
-                        // ИЗМЕНЕНО: Обновляем только CSS-переменную, а не весь стиль
-                        messagesContainer.style.setProperty('--form-height', `${formHeight}px`);
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
                     }, 0);
                 };
 
@@ -962,6 +963,30 @@
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 resizeObserver.observe(chatViewContainer);
                 setTimeout(adjustLayout, 50);
+
+                if ('visualViewport' in window) {
+                    const main = document.querySelector('main');
+                    const initialHeight = window.innerHeight;
+
+                    const viewportResizeHandler = () => {
+                        const formHeight = form.offsetHeight;
+                        const viewportHeight = window.visualViewport.height;
+                        const offsetBottom = initialHeight - (viewportHeight + window.visualViewport.offsetTop);
+                        
+                        form.style.transform = `translateY(-${Math.max(0, offsetBottom)}px)`;
+                        messagesContainer.style.paddingBottom = `${formHeight}px`;
+                    };
+                    
+                    input.addEventListener('focus', () => {
+                       window.visualViewport.addEventListener('resize', viewportResizeHandler);
+                       viewportResizeHandler();
+                    });
+
+                    input.addEventListener('blur', () => {
+                       window.visualViewport.removeEventListener('resize', viewportResizeHandler);
+                       form.style.transform = 'translateY(0px)';
+                    });
+                }
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });

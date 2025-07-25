@@ -1007,21 +1007,9 @@
                     const layoutContainer = form.parentElement;
                     if (!layoutContainer) return;
         
-                    const formStyle = window.getComputedStyle(form);
-                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
-        
-                    const maxTextareaHeight = layoutContainer.offsetHeight - formVerticalPadding;
-        
                     input.style.height = 'auto';
         
-                    if (input.scrollHeight < maxTextareaHeight) {
-                        input.style.height = `${input.scrollHeight}px`;
-                        input.style.overflowY = 'hidden';
-                    } else {
-
-                        input.style.height = `${maxTextareaHeight}px`;
-                        input.style.overflowY = 'auto';
-                    }
+                    input.style.height = `${input.scrollHeight}px`;
         
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;

@@ -532,11 +532,12 @@
                 </div>
                 
                 <!-- Область чата -->
-                <div class="flex-grow relative min-h-0">
-                    <div id="chat-messages" class="p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}">
+                <div class="flex-grow flex flex-col min-h-0">
+                    <div id="chat-messages" class="flex-grow p-4 overflow-y-auto min-h-0 ${state.isChatWidthCompact ? 'chat-view-compact' : ''}">
+                        <!-- Сообщения будут рендериться здесь -->
                     </div>
-    
-                    <form id="chat-form" class="p-4 bg-transparent">
+                    
+                    <form id="chat-form" class="flex-shrink-0 p-4 pt-2">
                         <div class="relative w-full max-w-4xl mx-auto">
                             <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
                             <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
@@ -936,11 +937,10 @@
                 const adjustTextareaHeight = () => {
                     input.style.height = 'auto';
                     input.style.height = `${input.scrollHeight}px`;
-
                 };
 
                 input.addEventListener('input', adjustTextareaHeight);
-                setTimeout(adjustTextareaHeight, 50); // Первичная настройка
+                setTimeout(adjustTextareaHeight, 50);
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });

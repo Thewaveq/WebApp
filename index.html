@@ -47,7 +47,7 @@
             <h1 class="text-xl font-bold flex items-center">
                 <img src="/icon/favicon.svg" alt="Логотип MBOX" class="w-6 h-6 mr-2">MBOX
             </h1>
-            <span class="text-sm text-text-secondary font-medium">V39.</span>
+            <span class="text-sm text-text-secondary font-medium">V40.</span>
         </div>
         <div class="p-2 flex-shrink-0">
             <button id="new-chat-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors">
@@ -1602,7 +1602,10 @@
             };
 
             newNotification.addEventListener('click', () => {
-                state.activeTab = 'chat';
+                const session = state.sessions.find(s => s.id === sessionId);
+                const targetTab = session ? session.type : 'chat';
+
+                state.activeTab = targetTab;
                 state.activeSessionId = sessionId;
                 render();
                 hideNotification();

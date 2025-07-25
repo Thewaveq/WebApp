@@ -561,8 +561,6 @@
             const isSettingsPanelVisible = state.isNotepadSettingsPanelExpanded || false;
             const savedCols = localStorage.getItem('notepadColumnCount') || '1';
             
-            const wrapperClasses = state.isNotepadWidthCompact ? 'w-full max-w-7xl mx-auto' : 'w-full';                   
-        
             return `
                 <div class="flex flex-col h-full relative overflow-hidden" id="notepad-view-container">
                     
@@ -591,9 +589,9 @@
                         </div>
                     </div>
                     
-                    <!-- Основная область с правильной структурой -->
+                    <!-- Основная область с правильной обёрткой для ваших стилей -->
                     <div id="notepad-scroll-container" class="flex-grow overflow-y-auto p-4">
-                        <div id="notepad-content-wrapper" class="${wrapperClasses}">
+                        <div id="notepad-content-wrapper" class="${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
                             <div id="note-cards-grid" class="grid gap-4 items-start">
                                 ${cardsHTML}
                             </div>
@@ -1155,11 +1153,7 @@
                     state.isNotepadWidthCompact = !state.isNotepadWidthCompact;
                     localStorage.setItem('notepadViewCompact', String(state.isNotepadWidthCompact));
         
-                    if (state.isNotepadWidthCompact) {
-                        contentWrapper.classList.add('max-w-7xl', 'mx-auto');
-                    } else {
-                        contentWrapper.classList.remove('max-w-7xl', 'mx-auto');
-                    }
+                    contentWrapper.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
                     
                     const isNowExpanded = !state.isNotepadWidthCompact;
                     widthToggleBtn.classList.toggle('active', isNowExpanded);

@@ -1335,33 +1335,42 @@
             const textarea = form.querySelector('textarea');
             const isLoadingThisSession = state.loadingSessionId === state.activeSessionId;
 
-            if (textarea) textarea.disabled = isLoadingThisSession;
+            if (textarea) {
+                textarea.disabled = isLoadingThisSession;
+            }
+
             if (button) {
-                button.disabled = false;
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+
                 if (isLoadingThisSession) {
-                    button.setAttribute('type', 'button');
-                    button.title = 'Остановить генерацию';
-                    button.innerHTML = '<i data-lucide="square" class="w-5 h-5 text-white"></i>';
+                    newButton.setAttribute('type', 'button');
+                    newButton.title = 'Остановить генерацию';
+                    newButton.innerHTML = '<i data-lucide="square" class="w-5 h-5 text-white"></i>';
+                    newButton.disabled = false;
 
                     const stopHandler = (e) => {
                         e.preventDefault();
-                        if(generationAbortController) generationAbortController.abort();
+                        if (generationAbortController) {
+                            generationAbortController.abort();
+                        }
                     };
-
-                    button.replaceWith(button.cloneNode(true));
-                    form.querySelector('button').addEventListener('click', stopHandler);
+                    newButton.addEventListener('click', stopHandler);
 
                 } else {
-                    button.setAttribute('type', 'submit');
-                    button.title = 'Отправить';
-                    button.innerHTML = '<i data-lucide="send" class="w-5 h-5 text-white"></i>';
+                    newButton.setAttribute('type', 'submit');
+                    newButton.title = 'Отправить';
+                    newButton.innerHTML = '<i data-lucide="send" class="w-5 h-5 text-white"></i>';
+                    newButton.disabled = false;
                 }
-                lucide.createIcons();
+                lucide.createIcons({ nodes: [newButton] });
             }
-            
+
             const typingIndicator = document.getElementById('loading-message-placeholder');
-            if (typingIndicator) typingIndicator.remove();
-            
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+
             if (isLoadingThisSession) {
                 showTypingIndicatorInChat();
             }

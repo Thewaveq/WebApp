@@ -32,8 +32,8 @@
     <link rel="stylesheet" href="styles.css">
 
 </head>
-<body class="bg-bg-main">
-    <div id="app-container" class="fixed inset-0 flex">
+<body class="h-dvh w-full flex">
+
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"></div>
     <aside id="sidebar" class="bg-bg-sidebar flex flex-col h-full border-r border-border-color">
         <div class="p-4 border-b border-border-color flex justify-between items-center">
@@ -86,7 +86,7 @@
         <div id="main-content" class="flex-grow overflow-y-auto">
         </div>
     </main>
-    </div>
+    
     <div id="confirm-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <p id="confirm-modal-text" class="text-text-primary mb-6 text-center">Вы уверены?</p>
@@ -493,7 +493,7 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления -->
+                <!-- Плавающие кнопки управления (ИСПОЛЬЗУЮТ НОВЫЙ CSS-КЛАСС) -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -531,18 +531,20 @@
                     </div>
                 </div>
                 
-                <!-- ИЗМЕНЕНИЕ: Область чата теперь занимает всё пространство и является контейнером для прокрутки -->
-                <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                
-                <!-- ИЗМЕНЕНИЕ: Форма теперь абсолютно спозиционирована внизу -->
-                <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent z-10">
-                    <div class="relative w-full max-w-4xl mx-auto">
-                        <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                        <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                            <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                        </button>
+                <!-- Область чата -->
+                <div class="flex-grow relative min-h-0">
+                    <div id="chat-messages" class="p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}">
                     </div>
-                </form>
+    
+                    <form id="chat-form" class="p-4 bg-transparent">
+                        <div class="relative w-full max-w-4xl mx-auto">
+                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>`; 
         }
         
@@ -930,46 +932,15 @@
             });
 
 
-            if (input && form && messagesContainer && chatViewContainer) {
-                const adjustLayout = () => {
-                    if (!form || !messagesContainer || !input || !chatViewContainer) return;
-
-                    // Логика ограничения высоты, которая теперь будет работать правильно
-                    const MIN_MESSAGES_HEIGHT = 40; // Оставляем 40px для видимости сообщений
-                    const maxFormHeight = chatViewContainer.offsetHeight - MIN_MESSAGES_HEIGHT;
-                    const formStyle = window.getComputedStyle(form);
-                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
-                    const maxTextareaHeight = maxFormHeight - formVerticalPadding;
-
+             if (input) {
+                const adjustTextareaHeight = () => {
                     input.style.height = 'auto';
-                    
-                    if (input.scrollHeight <= maxTextareaHeight) {
-                        input.style.height = `${input.scrollHeight}px`;
-                        input.style.overflowY = 'hidden'; 
-                    } else {
-                        input.style.height = `${maxTextareaHeight}px`;
-                        input.style.overflowY = 'auto';
-                    }
+                    input.style.height = `${input.scrollHeight}px`;
 
-                    // Обновляем padding для сообщений
-                    requestAnimationFrame(() => {
-                        const formHeight = form.offsetHeight;
-                        messagesContainer.style.paddingBottom = `${formHeight}px`;
-                    });
                 };
 
-                input.addEventListener('input', adjustLayout);
-                const resizeObserver = new ResizeObserver(adjustLayout);
-                resizeObserver.observe(chatViewContainer);
-
-                // Корректная прокрутка в видимую область при фокусе на мобильных
-                input.addEventListener('focus', () => {
-                    setTimeout(() => {
-                        form.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    }, 200);
-                });
-                
-                setTimeout(adjustLayout, 50);
+                input.addEventListener('input', adjustTextareaHeight);
+                setTimeout(adjustTextareaHeight, 50); // Первичная настройка
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
@@ -986,7 +957,7 @@
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
-            modelSelect?.addEventListener('change', (e) => { const newModelName = e.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
+            modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
         }
         
         function setupNotepadViewEventListeners() {

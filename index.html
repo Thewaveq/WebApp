@@ -1656,11 +1656,10 @@
         
                     const editForm = document.createElement('div');
                     editForm.className = 'edit-form w-full mt-2';
-                    editForm.innerHTML = `
-                        <textarea class="w-full bg-input border border-border-color rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-accent" rows="3"></textarea>
+                    <textarea class="w-full bg-input border border-border-color rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-accent" rows="3"></textarea>
                         <div class="flex justify-start items-center mt-2 space-x-2">
-                             <button class="cancel-edit-btn px-3 py-1 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Отмена</button>
-                             <button class="save-edit-btn px-3 py-1 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors text-sm">Завершить</button>
+                             <button class="cancel-edit-btn">Отмена</button>
+                             <button class="save-edit-btn">Завершить</button>
                         </div>
                     `;
                     contentDiv.after(editForm);

@@ -126,9 +126,6 @@ input::placeholder, textarea::placeholder {
 details > summary {
     list-style: none;
     cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 details > summary::-webkit-details-marker {
     display: none;
@@ -137,7 +134,9 @@ details > summary::-webkit-details-marker {
 details {
     display: grid;
     grid-template-rows: auto 0fr;
-    transition: grid-template-rows 0.3s ease-out;
+    transition-property: grid-template-rows, box-shadow;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out;
 }
 
 details[open] {

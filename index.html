@@ -198,6 +198,7 @@
             isChatWidthCompact: true,
             isNotepadWidthCompact: true,
             isSettingsPanelExpanded: false,
+            isNotepadSettingsPanelExpanded: false,
         };
         
         let confirmModalCallback = null;
@@ -1004,6 +1005,37 @@
             const widthToggleBtn = document.getElementById('notepad-width-toggle');
             const scrollContainer = document.getElementById('notepad-scroll-container');
 
+            // --- НАЧАЛО НОВОЙ ЛОГИКИ ДЛЯ ПАНЕЛИ НАСТРОЕК ---
+            const settingsToggle = document.getElementById('notepad-settings-toggle');
+            const settingsPanel = document.getElementById('notepad-settings-panel');
+            const settingsIcon = document.getElementById('notepad-settings-icon');
+
+            settingsToggle?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.isNotepadSettingsPanelExpanded = !state.isNotepadSettingsPanelExpanded;
+                
+                const isVisible = state.isNotepadSettingsPanelExpanded;
+                settingsPanel.classList.toggle('opacity-100', isVisible);
+                settingsPanel.classList.toggle('translate-y-0', isVisible);
+                settingsPanel.classList.toggle('opacity-0', !isVisible);
+                settingsPanel.classList.toggle('-translate-y-4', !isVisible);
+                settingsPanel.classList.toggle('pointer-events-none', !isVisible);
+                settingsIcon.classList.toggle('rotate-90', isVisible);
+
+                // Закрытие панели при клике вне ее
+                const closeOnOutsideClick = (event) => {
+                    if (state.isNotepadSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
+                        settingsToggle.click(); // Повторный клик скроет панель
+                    }
+                };
+
+                if (isVisible) {
+                    document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
+                }
+            });
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ДЛЯ ПАНЕЛИ НАСТРОЕК ---
+
+
             if(widthToggleBtn && scrollContainer) {
                 const isExpanded = !state.isNotepadWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
@@ -1063,6 +1095,7 @@
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             }
 
+            // Обработчик для поля ввода названия теперь находится внутри панели
             titleInput?.addEventListener('change', () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);

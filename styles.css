@@ -123,15 +123,14 @@ input::placeholder, textarea::placeholder {
 }
 
 /* --- СТИЛИ ДЛЯ АККОРДЕОНА В НАСТРОЙКАХ --- */
-div > details {
+#main-content details {
     display: grid;
     grid-template-rows: auto 0fr;
-    transition-property: grid-template-rows, box-shadow;
-    transition-duration: 0.3s;
-    transition-timing-function: ease-out;
+    transition: grid-template-rows 0.3s ease-out;
 }
 
-div > details[open] {
+/* При открытии плавно меняем высоту контента */
+#main-content details[open] {
     grid-template-rows: auto 1fr;
 }
 
@@ -148,6 +147,7 @@ details .details-arrow {
 details[open] > summary .details-arrow {
     transform: rotate(180deg);
 }
+
 details > div {
     overflow: hidden;
 }

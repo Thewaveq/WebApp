@@ -123,9 +123,37 @@ input::placeholder, textarea::placeholder {
 }
 
 /* --- СТИЛИ ДЛЯ АККОРДЕОНА В НАСТРОЙКАХ --- */
-details > summary {list-style: none;}
-details > summary::-webkit-details-marker {display: none;}
-details[open] > summary .details-arrow {transform: rotate(180deg);}
+details > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+details > summary::-webkit-details-marker {
+    display: none;
+}
+
+details {
+    display: grid;
+    grid-template-rows: auto 0fr;
+    transition: grid-template-rows 0.3s ease-out;
+}
+
+details[open] {
+    grid-template-rows: auto 1fr;
+}
+
+details .details-arrow {
+    transition: transform 0.3s ease-out;
+}
+details[open] > summary .details-arrow {
+    transform: rotate(180deg);
+}
+
+details > div {
+    overflow: hidden;
+}
 
 /* --- Стили для Markdown-контента --- */
 .prose { 

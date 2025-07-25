@@ -991,7 +991,6 @@
                 }
             });
 
-
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1007,13 +1006,22 @@
                     const layoutContainer = form.parentElement;
                     if (!layoutContainer) return;
         
+                    const formStyle = window.getComputedStyle(form);
+                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
+                    const maxTextareaHeight = layoutContainer.offsetHeight - formVerticalPadding;
+        
                     input.style.height = 'auto';
         
-                    input.style.height = `${input.scrollHeight}px`;
+                    if (input.scrollHeight < maxTextareaHeight) {
+                        input.style.height = `${input.scrollHeight}px`;
+                        input.style.overflowY = 'hidden';
+                    } else {
+                        input.style.height = `${maxTextareaHeight}px`;
+                        input.style.overflowY = 'auto';
+                    }
         
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
-
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
                     }, 0);
                 };

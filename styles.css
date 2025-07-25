@@ -235,16 +235,15 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 
 /* --- СТИЛИ ДЛЯ АНИМАЦИИ ФОНА САЙДБАРА --- */
 #sidebar-backdrop {
-    /* Добавляем плавный переход для прозрачности */
+
     transition: opacity 0.3s ease-in-out;
 }
 
 #sidebar-backdrop:not(.active) {
     opacity: 0;
-    pointer-events: none; /* Чтобы нельзя было кликнуть на невидимый фон */
+    pointer-events: none;
 }
 
-/* Когда фон активен, он становится непрозрачным */
 #sidebar-backdrop.active {
     opacity: 1;
 }
@@ -383,14 +382,12 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 }
 
 /* --- Стили для In-App Уведомления с эффектом свечения --- */
-
-/* 1. Определяем анимацию "пульсации" */
 @keyframes pulse-glow {
     0% {
         box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
     }
     50% {
-        /* В пике анимации свечение становится шире и ярче */
+
         box-shadow: 0 0 10px 3px var(--accent), 0 0 7px 2px var(--accent);
     }
     100% {
@@ -398,28 +395,25 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     }
 }
 
-/* 2. Стилизуем основной контейнер уведомления */
+
 #in-app-notification > div {
-    /* Делаем его позиционным контекстом для псевдо-элемента */
+
     position: relative; 
     
     background-color: var(--bg-sidebar);
     
-    /* Убираем обычную рамку, так как свечение будет ее заменять */
+
     border: none;
     
-    /* Глубокая тень для эффекта "парения" над интерфейсом */
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
     
-    border-radius: 0.75rem; /* 12px */
+    border-radius: 0.75rem;
     margin: 1rem;
     padding: 1rem;
     
-    /* Применяем саму анимацию */
     animation: pulse-glow 2.5s infinite ease-in-out;
 }
 
-/* 3. Стили для текста и кнопки закрытия остаются прежними */
 #in-app-notification-title {
     color: var(--text-primary);
     font-weight: 600;
@@ -435,7 +429,6 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
     border-radius: 9999px;
     padding: 0.25rem;
     
-    /* Поднимаем кнопку выше слоя свечения, чтобы она была кликабельной */
     position: relative;
     z-index: 2;
 }
@@ -448,4 +441,34 @@ details[open] > summary .details-arrow {transform: rotate(180deg);}
 /* FIX: Ensure custom border color class applies correctly */
 .border-border-color {
     border-color: var(--border-color);
+}
+
+/* --- Стили для кнопок редактирования сообщения --- */
+.cancel-edit-btn,
+.save-edit-btn {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.cancel-edit-btn {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.cancel-edit-btn:hover {
+    background-color: var(--bg-element);
+}
+
+.save-edit-btn {
+    background-color: var(--accent);
+    color: white;
+}
+
+.save-edit-btn:hover {
+    background-color: var(--accent-hover);
 }

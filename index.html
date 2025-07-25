@@ -693,6 +693,53 @@
                 actionsContainer.appendChild(regenerateButton);
             }
 
+            const copyToNotesBtn = document.createElement('button');
+            copyToNotesBtn.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
+            copyToNotesBtn.title = 'Быстро скопировать в заметки';
+            copyToNotesBtn.innerHTML = `<i data-lucide="file-plus-2" class="w-4 h-4"></i>`;
+            copyToNotesBtn.addEventListener('click', async () => {
+                const contentToCopy = msg.content;
+                if (!contentToCopy) return;
+
+                const quickNotesTitle = 'Быстрые заметки';
+                let quickNotesSession = state.sessions.find(s => s.type === 'notepad' && s.title === quickNotesTitle);
+                let sessionId;
+
+                if (quickNotesSession) {
+                    sessionId = quickNotesSession.id;
+                } else {
+                    const newSessionData = { 
+                        type: 'notepad', 
+                        title: quickNotesTitle, 
+                        cards: [], 
+                        createdAt: serverTimestamp(), 
+                        updatedAt: serverTimestamp() 
+                    };
+                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                    sessionId = newSessionRef.id;
+                }
+
+                const newCard = {
+                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                    title: contentToCopy.substring(0, 40).replace(/\n/g, ' ') + '...',
+                    content: contentToCopy,
+                    createdAt: new Date().toISOString()
+                };
+
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
+                await updateDoc(sessionRef, {
+                    cards: arrayUnion(newCard),
+                    updatedAt: serverTimestamp()
+                });
+                
+                showInAppNotification(
+                    'Скопировано!',
+                    `Сообщение добавлено в папку "${quickNotesTitle}"`,
+                    sessionId
+                );
+            });
+            actionsContainer.appendChild(copyToNotesBtn);
+
             const copyButton = document.createElement('button');
             copyButton.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
             copyButton.title = 'Копировать текст';

@@ -75,24 +75,31 @@ input::placeholder, textarea::placeholder {
 }
 
 #chat-messages {
-    flex-grow: 1; /* Заставляет блок занимать всё доступное пространство */
-    min-height: 0; /* Важно для правильной работы overflow-y в flex-колонке */
-    padding-bottom: 1rem !important; /* Небольшой отступ снизу */
+    /* --- НАСТРОЙКИ (меняйте эти значения) --- */
+    --top-fade: 50px;       /* <-- Длина верхнего затухания */
+    --bottom-fade: 40px;    /* <-- Длина нижнего затухания */
+    --form-height: 70px;    /* <-- Высота формы внизу (пустое пространство) */
+
+    /* --- МАСКА (этот код можно не трогать) --- */
+    -webkit-mask-image: linear-gradient(to bottom,
+        /* 1. Верхнее затухание */
+        transparent,
+        black var(--top-fade),
+
+        /* 2. Сплошная область до начала нижнего затухания */
+        black calc(100% - var(--form-height) - var(--bottom-fade)),
+
+        /* 3. Нижнее затухание (заканчивается ровно над формой) */
+        transparent calc(100% - var(--form-height))
+    );
+    mask-image: linear-gradient(to bottom,
+        transparent,
+        black var(--top-fade),
+        black calc(100% - var(--form-height) - var(--bottom-fade)),
+        transparent calc(100% - var(--form-height))
+    );
 }
-#chat-form {
-    flex-shrink: 0; /* Запрещает форме сжиматься по высоте */
-    position: relative; /* Убираем 'absolute' позиционирование */
-    
-    /* Стили для визуального эффекта "поверх контента" */
-    background: rgba(30, 30, 30, 0.7); /* Полупрозрачный фон */
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(74, 74, 74, 0.5); /* Линия-разделитель сверху */
-}
-#chat-input {
-    /* Главное ограничение, чтобы поле ввода не занимало весь экран */
-    max-height: 40vh; /* Например, не более 40% от высоты экрана */
-}
+
 /* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {
     background-color: var(--bg-element);

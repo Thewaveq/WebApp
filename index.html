@@ -929,64 +929,30 @@
                 }
             });
 
-
+            // --- ИЗМЕНЕННАЯ И УПРОЩЕННАЯ ЛОГИКА ---
             if (input && form && messagesContainer && chatViewContainer) {
                 const adjustLayout = () => {
-                    if (!form || !messagesContainer || !input || !chatViewContainer) return;
+                    if (!form || !messagesContainer || !input) return;
 
-                    const MIN_MESSAGES_HEIGHT = 40;
-                    const maxFormHeight = chatViewContainer.offsetHeight - MIN_MESSAGES_HEIGHT;
-                    const formStyle = window.getComputedStyle(form);
-                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
-                    const maxTextareaHeight = maxFormHeight - formVerticalPadding;
-
+                    // 1. Автоматически изменяем высоту поля ввода
                     input.style.height = 'auto';
-                    if (input.scrollHeight <= maxTextareaHeight) {
-                        input.style.height = `${input.scrollHeight}px`;
-                        input.style.overflowY = 'hidden'; 
-                    } else {
-                        input.style.height = `${maxTextareaHeight}px`;
-                        input.style.overflowY = 'auto';
-                    }
-
-                    setTimeout(() => {
+                    input.style.height = `${input.scrollHeight}px`;
+                    
+                    // 2. Устанавливаем нижний отступ для контейнера с сообщениями,
+                    //    чтобы они не перекрывались формой.
+                    requestAnimationFrame(() => {
                         const formHeight = form.offsetHeight;
-
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
-                        
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-                    }, 0);
+                    });
                 };
-
+                
+                // Вызываем adjustLayout при вводе и при изменении размера окна
                 input.addEventListener('input', adjustLayout);
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 resizeObserver.observe(chatViewContainer);
+
+                // Устанавливаем начальное состояние
                 setTimeout(adjustLayout, 50);
-
-                if ('visualViewport' in window) {
-                    const main = document.querySelector('main');
-                    const initialHeight = window.innerHeight;
-
-                    const viewportResizeHandler = () => {
-                        const formHeight = form.offsetHeight;
-                        const viewportHeight = window.visualViewport.height;
-                        const offsetBottom = initialHeight - (viewportHeight + window.visualViewport.offsetTop);
-                        
-                        form.style.transform = `translateY(-${Math.max(0, offsetBottom)}px)`;
-                        messagesContainer.style.paddingBottom = `${formHeight}px`;
-                    };
-                    
-                    input.addEventListener('focus', () => {
-                       window.visualViewport.addEventListener('resize', viewportResizeHandler);
-                       viewportResizeHandler();
-                    });
-
-                    input.addEventListener('blur', () => {
-                       window.visualViewport.removeEventListener('resize', viewportResizeHandler);
-                       form.style.transform = 'translateY(0px)';
-                    });
-                }
             }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });

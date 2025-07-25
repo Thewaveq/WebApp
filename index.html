@@ -415,9 +415,10 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             if (!cardsGrid) return;
         
+
             function autoResizeTextarea(textarea) {
                 if (!textarea) return;
-        
+
                 setTimeout(() => {
                     textarea.style.height = 'auto';
                     textarea.style.height = (textarea.scrollHeight) + 'px';
@@ -426,7 +427,9 @@
         
             const newCards = session.cards || [];
             const newCardIds = new Set(newCards.map(c => c.id));
+            const addButton = document.getElementById('add-new-card-btn');
         
+
             const existingCardElements = cardsGrid.querySelectorAll('.note-card');
             existingCardElements.forEach(cardEl => {
                 const cardId = cardEl.dataset.cardId;
@@ -435,12 +438,12 @@
                 }
             });
         
-        
+
             newCards.forEach((cardData, index) => {
                 let cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardData.id}"]`);
         
                 if (cardEl) {
-        
+
                     const titleInput = cardEl.querySelector('.note-card-title');
                     const contentTextarea = cardEl.querySelector('.note-card-content');
                     
@@ -449,18 +452,17 @@
                     }
                     if (document.activeElement !== contentTextarea && contentTextarea.value !== cardData.content) {
                         contentTextarea.value = cardData.content || '';
-        
+
                         autoResizeTextarea(contentTextarea);
                     }
                 } else {
-        
+
                     const newCardHTML = getCardHTML(cardData);
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newCardHTML;
                     const newCardElement = tempDiv.firstElementChild;
                     
-                    cardsGrid.appendChild(newCardElement);
-        
+                    cardsGrid.insertBefore(newCardElement, addButton);
                     lucide.createIcons({ nodes: [newCardElement] });
                     
                     const newTextarea = newCardElement.querySelector('.note-card-content');
@@ -559,14 +561,11 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
             const isSettingsPanelVisible = state.isNotepadSettingsPanelExpanded || false;
-            const savedCols = localStorage.getItem('notepadColumnCount') || '1';
-            
-            const wrapperClasses = `w-full ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}`;
         
             return `
                 <div class="flex flex-col h-full relative overflow-hidden" id="notepad-view-container">
                     
-                    <!-- Плавающие кнопки управления -->
+                    <!-- Плавающие кнопки управления (по аналогии с чатом) -->
                     <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                         <button id="notepad-width-toggle" title="Переключить ширину контента" class="chat-action-btn hidden lg:flex">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -576,28 +575,20 @@
                         </button>
                     </div>
         
-                    <!-- Плавающая панель настроек -->
+                    <!-- Плавающая панель настроек (по аналогии с чатом) -->
                     <div id="notepad-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                         <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки папки</h3>
                         <div>
                             <label for="note-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название папки</label>
                             <input type="text" id="note-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                         </div>
-                        <div>
-                            <label for="notepad-columns-slider" class="text-sm font-medium text-text-secondary block mb-1">
-                                Количество колонок: <span id="notepad-columns-value" class="font-bold text-text-primary">${savedCols}</span>
-                            </label>
-                            <input type="range" id="notepad-columns-slider" min="1" max="4" value="${savedCols}" class="w-full h-2 bg-input rounded-lg appearance-none cursor-pointer accent-accent">
-                        </div>
                     </div>
                     
-                    <!-- Основная область с окончательно исправленной структурой -->
-                    <div id="notepad-scroll-container" class="flex-grow overflow-y-auto p-4">
-                        <div id="notepad-content-wrapper" class="${wrapperClasses}">
-                            <div id="note-cards-grid" class="grid gap-4 items-start">
-                                ${cardsHTML}
-                            </div>
-                            <button id="add-new-card-btn" class="add-card-placeholder w-full flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px] mt-4">
+                    <!-- Основная область с карточками -->
+                    <div id="notepad-scroll-container" class="flex-grow overflow-y-auto p-4 ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
+                        <div id="note-cards-grid" class="grid grid-cols-1 gap-4 items-start">
+                            ${cardsHTML}
+                            <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
                                 <i data-lucide="plus" class="w-10 h-10"></i>
                             </button>
                         </div>
@@ -1091,38 +1082,12 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             const widthToggleBtn = document.getElementById('notepad-width-toggle');
-            const contentWrapper = document.getElementById('notepad-content-wrapper');
-        
+            const scrollContainer = document.getElementById('notepad-scroll-container');
+
             const settingsToggle = document.getElementById('notepad-settings-toggle');
             const settingsPanel = document.getElementById('notepad-settings-panel');
             const settingsIcon = document.getElementById('notepad-settings-icon');
-        
-            const columnsSlider = document.getElementById('notepad-columns-slider');
-            const columnsValueSpan = document.getElementById('notepad-columns-value');
-        
-            const applyColumnCount = (count) => {
-                if (!cardsGrid) return;
-                const columnClasses = ['grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4'];
-                cardsGrid.classList.remove(...columnClasses);
-                cardsGrid.classList.add(`grid-cols-${count}`);
-                
-                if(columnsValueSpan) {
-                    columnsValueSpan.textContent = count;
-                }
-                if(columnsSlider && columnsSlider.value !== count) {
-                    columnsSlider.value = count;
-                }
-            };
-        
-            const savedColumnCount = localStorage.getItem('notepadColumnCount') || '1';
-            applyColumnCount(savedColumnCount);
-        
-            columnsSlider?.addEventListener('input', (e) => {
-                const newColumnCount = e.target.value;
-                localStorage.setItem('notepadColumnCount', newColumnCount);
-                applyColumnCount(newColumnCount);
-            });
-        
+
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isNotepadSettingsPanelExpanded = !state.isNotepadSettingsPanelExpanded;
@@ -1134,31 +1099,32 @@
                 settingsPanel.classList.toggle('-translate-y-4', !isVisible);
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
-        
+
                 const closeOnOutsideClick = (event) => {
                     if (state.isNotepadSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
                         settingsToggle.click();
                     }
                 };
-        
+
                 if (isVisible) {
                     document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
                 }
             });
-        
-            if(widthToggleBtn && contentWrapper) {
+
+            if(widthToggleBtn && scrollContainer) {
                 const isExpanded = !state.isNotepadWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
                 widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
         
                 widthToggleBtn.addEventListener('click', () => {
                     state.isNotepadWidthCompact = !state.isNotepadWidthCompact;
+                    const isNowExpanded = !state.isNotepadWidthCompact;
+        
                     localStorage.setItem('notepadViewCompact', String(state.isNotepadWidthCompact));
         
-                    contentWrapper.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
-                    
-                    const isNowExpanded = !state.isNotepadWidthCompact;
+                    scrollContainer.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
                     widthToggleBtn.classList.toggle('active', isNowExpanded);
+        
                     widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
                 });
             }
@@ -1176,7 +1142,7 @@
             const saveCardData = async (cardId) => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-        
+
                 const cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardId}"]`);
                 if (!cardEl) return;
         
@@ -1203,7 +1169,7 @@
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             }
-        
+
             titleInput?.addEventListener('change', () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1213,7 +1179,7 @@
             addNewCardBtn?.addEventListener('click', async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-        
+
                 const newCard = {
                     id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
                     title: '',
@@ -1244,7 +1210,7 @@
                 showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
                     if (!state.activeSessionId) return;
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-        
+
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const cards = activeSession.cards || [];
                     const cardToDelete = cards.find(c => c.id === cardId);
@@ -1270,12 +1236,12 @@
                     debouncedSave(cardEl.dataset.cardId);
                 }
             });
-        
+
             setTimeout(() => {
                 const allTextareas = cardsGrid?.querySelectorAll('.note-card-content');
                 allTextareas?.forEach(autoResizeTextarea);
             }, 0);
-        
+
             lucide.createIcons();
         }
     

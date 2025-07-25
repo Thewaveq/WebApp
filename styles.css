@@ -123,15 +123,7 @@ input::placeholder, textarea::placeholder {
 }
 
 /* --- СТИЛИ ДЛЯ АККОРДЕОНА В НАСТРОЙКАХ --- */
-details > summary {
-    list-style: none;
-    cursor: pointer;
-}
-details > summary::-webkit-details-marker {
-    display: none;
-}
-
-details {
+div > details {
     display: grid;
     grid-template-rows: auto 0fr;
     transition-property: grid-template-rows, box-shadow;
@@ -139,17 +131,23 @@ details {
     transition-timing-function: ease-out;
 }
 
-details[open] {
+div > details[open] {
     grid-template-rows: auto 1fr;
 }
 
+details > summary {
+    list-style: none;
+    cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+    display: none;
+}
 details .details-arrow {
     transition: transform 0.3s ease-out;
 }
 details[open] > summary .details-arrow {
     transform: rotate(180deg);
 }
-
 details > div {
     overflow: hidden;
 }

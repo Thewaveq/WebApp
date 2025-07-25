@@ -943,9 +943,7 @@
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
 
-            // Новый параметр: максимальная высота поля ввода в процентах от высоты экрана.
-            // 0.5 означает 50%. Вы можете легко изменить это значение (например, на 0.6 для 60%).
-            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9;
+            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
 
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
@@ -995,7 +993,6 @@
                 }
             });
 
-
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1010,13 +1007,17 @@
         
                     const layoutContainer = form.parentElement;
                     if (!layoutContainer) return;
-        
+
+                    const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
                     const formStyle = window.getComputedStyle(form);
                     const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
                     const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
-                    const viewportBasedMaxHeight = window.innerHeight * MAX_VIEWPORT_HEIGHT_RATIO;
-                    const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
 
+                    const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
+                    
+                    const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
+        
                     input.style.height = 'auto';
         
                     if (input.scrollHeight < finalMaxHeight) {
@@ -1034,12 +1035,37 @@
                 };
         
                 input.addEventListener('input', adjustLayout);
+                
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 if(chatViewContainer) {
                    resizeObserver.observe(chatViewContainer);
                 }
-                setTimeout(adjustLayout, 50);
+
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', adjustLayout);
+                } else {
+                    window.addEventListener('resize', adjustLayout);
+                }
+
+                setTimeout(adjustLayout, 100);
             }
+
+            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
+            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
+            providerSelect?.addEventListener('change', (e) => {
+                const newProviderId = e.target.value;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                const selectedProvider = state.providers.find(p => p.id === newProviderId);
+                let newModelName = null;
+                if (selectedProvider) {
+                    const models = selectedProvider.models || [];
+                    if (models.length > 0) { newModelName = models[0]; if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
+                    } else { if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } }
+                }
+                updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
+            });
+            modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
+        }
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
             roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });

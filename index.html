@@ -993,6 +993,7 @@
                 }
             });
 
+
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1059,29 +1060,21 @@
                 let newModelName = null;
                 if (selectedProvider) {
                     const models = selectedProvider.models || [];
-                    if (models.length > 0) { newModelName = models[0]; if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
-                    } else { if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } }
+                    if (models.length > 0) { 
+                        newModelName = models[0]; 
+                        if (modelSelect) { 
+                            modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); 
+                        }
+                    } else { 
+                        if (modelSelect) { 
+                            modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; 
+                        } 
+                    }
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
             modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
-        }
-
-            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
-            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
-            providerSelect?.addEventListener('change', (e) => {
-                const newProviderId = e.target.value;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                const selectedProvider = state.providers.find(p => p.id === newProviderId);
-                let newModelName = null;
-                if (selectedProvider) {
-                    const models = selectedProvider.models || [];
-                    if (models.length > 0) { newModelName = models[0]; if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
-                    } else { if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } }
-                }
-                updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
-            });
-            modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
+        
         }
         
         function setupNotepadViewEventListeners() {

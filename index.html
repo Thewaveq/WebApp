@@ -535,7 +535,6 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- ... (плавающие кнопки управления без изменений) ... -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -545,37 +544,54 @@
                     </button>
                 </div>
 
-                <!-- ... (плавающая панель настроек без изменений) ... -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
-                    <!-- ... (содержимое панели настроек) ... -->
+                    <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
+                    <div>
+                        <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
+                        <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
+                    </div>
+                    <div>
+                        <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label>
+                        <select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                            <option value="">Без роли</option>
+                            ${roleOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1">Провайдер</label>
+                        <select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                            ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="model-select" class="text-sm font-medium text-text-secondary block mb-1">Модель</label>
+                        <select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                            ${modelOptions}
+                        </select>
+                    </div>
                 </div>
                 
-                <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="relative w-full max-w-4xl mx-auto">
-                            <!-- НОВОЕ: Контейнер для плашки прикрепленной папки -->
                             <div id="attachment-container" class="mb-2"></div>
                             
-                            <div class="relative"> <!-- Обертка для textarea и кнопки -->
+                            <div class="relative">
                                 <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pl-12 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
                                 
-                                <!-- НОВОЕ: Кнопка для прикрепления заметок -->
                                 <div class="absolute left-3 bottom-3">
                                      <button type="button" id="attach-notepad-btn" title="Прикрепить заметки" class="p-2 rounded-full text-text-secondary hover:bg-bg-element transition-colors">
                                         <i data-lucide="paperclip" class="w-5 h-5"></i>
                                     </button>
-                                    <!-- НОВОЕ: Поповер для выбора папки -->
                                     <div id="notepad-selection-popover" class="hidden absolute bottom-full mb-2 w-64 bg-bg-sidebar border border-border-color rounded-lg shadow-xl z-50 overflow-hidden">
                                         <div class="p-2 border-b border-border-color text-sm font-semibold text-text-primary">Выберите папку</div>
                                         <div id="notepad-selection-list" class="max-h-48 overflow-y-auto">
-                                            <!-- Сюда будут рендериться папки -->
                                         </div>
                                     </div>
                                 </div>
 
-                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                <button type="submit" id="chat-submit-btn" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
                                     <i data-lucide="send" class="w-5 h-5 text-white"></i>
                                 </button>
                             </div>
@@ -985,10 +1001,6 @@
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
 
-            const attachBtn = document.getElementById('attach-notepad-btn');
-            const popover = document.getElementById('notepad-selection-popover');
-            const popoverList = document.getElementById('notepad-selection-list');
-
             const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
 
             const settingsToggle = document.getElementById('chat-settings-toggle');
@@ -1000,6 +1012,10 @@
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
+            
+            const attachBtn = document.getElementById('attach-notepad-btn');
+            const popover = document.getElementById('notepad-selection-popover');
+            const popoverList = document.getElementById('notepad-selection-list');
             
             if (widthToggleBtn) {
                 const isExpanded = !state.isChatWidthCompact;
@@ -1018,6 +1034,9 @@
 
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
+                
+                popover?.classList.add('hidden');
+                
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
                 
                 const isVisible = state.isSettingsPanelExpanded;
@@ -1053,6 +1072,11 @@
 
                 attachBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+
+                    if (state.isSettingsPanelExpanded) {
+                        settingsToggle?.click();
+                    }
+
                     const isHidden = popover.classList.contains('hidden');
                     
                     if (isHidden) {
@@ -1081,6 +1105,7 @@
                     }
                 });
             }
+            
             renderChatAttachmentUI();
 
             form?.addEventListener('submit', handleChatSubmit);
@@ -1527,7 +1552,8 @@
             const form = document.getElementById('chat-form');
             if (!form) return;
 
-            const button = form.querySelector('button[type="submit"], button[type="button"]');
+            // ИСПРАВЛЕНО: Используем ID для точного выбора кнопки
+            const button = form.querySelector('#chat-submit-btn'); 
             const textarea = form.querySelector('textarea');
             const isLoadingThisSession = state.loadingSessionId === state.activeSessionId;
 
@@ -1535,6 +1561,7 @@
                 textarea.disabled = isLoadingThisSession;
             }
 
+            // ВАЖНО: Проверяем, что кнопка найдена, прежде чем работать с ней
             if (button) {
                 const newButton = button.cloneNode(true);
                 button.parentNode.replaceChild(newButton, button);
@@ -1557,7 +1584,7 @@
                     newButton.setAttribute('type', 'submit');
                     newButton.title = 'Отправить';
                     newButton.innerHTML = '<i data-lucide="send" class="w-5 h-5 text-white"></i>';
-                    newButton.disabled = false;
+                    newButton.disabled = false; // Убедимся, что кнопка активна
                 }
                 lucide.createIcons({ nodes: [newButton] });
             }
@@ -1570,7 +1597,7 @@
             if (isLoadingThisSession) {
                 showTypingIndicatorInChat();
             }
-        }        
+        }    
         
         async function handleAddProvider() {
             if (state.isLoading) return;

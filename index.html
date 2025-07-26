@@ -1513,9 +1513,11 @@
                         ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
                         : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: modelName };
                 
-                const finalMessages = [...messagesToSubmit, messageToAdd];
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+                await updateDoc(sessionRef, { 
+                    messages: arrayUnion(messageToAdd),
+                    updatedAt: serverTimestamp() 
+                });
 
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const session = state.sessions.find(s => s.id === sessionId);

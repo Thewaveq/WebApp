@@ -209,7 +209,6 @@
             isNotepadWidthCompact: true,
             isSettingsPanelExpanded: false,
             isNotepadSettingsPanelExpanded: false,
-            attachedNotepadId: null,
         };
         
         let confirmModalCallback = null;
@@ -411,12 +410,12 @@
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
 
-        function renderChatAttachmentUI() {
+        function renderChatAttachmentUI(session) {
             const container = document.getElementById('attachment-container');
             if (!container) return;
 
-            if (state.attachedNotepadId) {
-                const notepad = state.sessions.find(s => s.id === state.attachedNotepadId);
+            if (session && session.pendingAttachmentId) {
+                const notepad = state.sessions.find(s => s.id === session.pendingAttachmentId);
                 if (notepad) {
                     container.innerHTML = `
                         <div class="inline-flex items-center bg-accent/20 text-accent-foreground border border-accent/50 rounded-full pl-3 pr-2 py-1 text-sm">
@@ -430,12 +429,14 @@
                     lucide.createIcons({ nodes: [container] });
 
                     document.getElementById('remove-attachment-btn').addEventListener('click', () => {
-                        state.attachedNotepadId = null;
-                        renderChatAttachmentUI();
+                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, session.id);
+                        updateDoc(sessionRef, {
+                            pendingAttachmentId: deleteField()
+                        });
                     });
                 } else {
-                    state.attachedNotepadId = null;
-                    container.innerHTML = '';
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, session.id);
+                    updateDoc(sessionRef, { pendingAttachmentId: deleteField() });
                 }
             } else {
                 container.innerHTML = '';
@@ -1099,14 +1100,18 @@
                     const target = e.target.closest('[data-id]');
                     if (target) {
                         state.attachedNotepadId = target.dataset.id;
+                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                        updateDoc(sessionRef, { pendingAttachmentId: notepadId });
                         togglePopover(false);
                         document.removeEventListener('click', handleClickOutside, true);
-                        renderChatAttachmentUI();
                     }
                 });
             }
             
-            renderChatAttachmentUI();
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            if(activeSession) {
+                renderChatAttachmentUI(activeSession);
+            }
 
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
@@ -1369,7 +1374,7 @@
             const input = document.getElementById('chat-input');
             const messageContent = input.value.trim();
 
-            if ((!messageContent && !state.attachedNotepadId) || state.loadingSessionId) {
+            if ((!messageContent && !activeSession?.pendingAttachmentId) || state.loadingSessionId) {
                 return;
             }
 
@@ -1393,15 +1398,12 @@
             }
             
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-            await updateDoc(sessionRef, { 
-                messages: arrayUnion(userMessage),
-                updatedAt: serverTimestamp() 
-            });
+            await updateDoc(sessionRef, updatePayload);
 
             let messagesForApi = [...(activeSession.messages || []), userMessage];
             
-            if (state.attachedNotepadId) {
-                const attachedNotepad = state.sessions.find(s => s.id === state.attachedNotepadId);
+            if (activeSession.pendingAttachmentId) {
+                const attachedNotepad = state.sessions.find(s => s.id === activeSession.pendingAttachmentId);
                 if (attachedNotepad && attachedNotepad.cards) {
                     const notepadContextStr = attachedNotepad.cards.map(card => 
                         `## ${card.title || 'Без заголовка'}\n${card.content || ''}`
@@ -1418,7 +1420,6 @@
             input.value = '';
             input.style.height = 'auto';
             state.attachedNotepadId = null;
-            renderChatAttachmentUI();
 
             await generateAssistantResponse(
                 state.activeSessionId,
@@ -2079,7 +2080,7 @@
                 chatObserver = null;
             }
             userId = null;
-            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false, attachedNotepadId: null };
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false,};
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');

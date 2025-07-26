@@ -614,20 +614,20 @@ details[open] > summary .details-arrow {
 
 .message-actions-dropdown {
     position: absolute;
-    bottom: 100%; /* Появляется над кнопкой */
+    bottom: 100%;
     right: 0;
-    margin-bottom: 8px; /* Небольшой отступ от кнопки */
+    margin-bottom: 8px;
     width: max-content;
     min-width: 230px;
     background-color: var(--bg-sidebar);
     border: 1px solid var(--border-color);
-    border-radius: 0.5rem; /* 8px */
+    border-radius: 0.5rem; 
     box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-    padding: 0.5rem; /* 8px */
+    padding: 0.5rem; 
     z-index: 20;
     display: flex;
     flex-direction: column;
-    gap: 2px; /* Расстояние между элементами */
+    gap: 2px;
 }
 
 /* Класс для скрытия меню */
@@ -639,11 +639,11 @@ details[open] > summary .details-arrow {
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 0.5rem 0.75rem; /* 8px 12px */
+    padding: 0.5rem 0.75rem;
     border: none;
     background: none;
     color: var(--text-primary);
-    border-radius: 0.375rem; /* 6px */
+    border-radius: 0.375rem; 
     cursor: pointer;
     font-size: 14px;
     text-align: left;
@@ -667,7 +667,7 @@ details[open] > summary .details-arrow {
     color: var(--danger);
 }
 .dropdown-menu-item.danger:hover {
-    background-color: rgba(229, 62, 62, 0.15); /* Прозрачный красный фон */
+    background-color: rgba(229, 62, 62, 0.15); 
     color: white;
 }
 .dropdown-menu-item.danger:hover > i {

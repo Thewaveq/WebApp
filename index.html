@@ -320,20 +320,20 @@
             const needsFullRender = mainContent.dataset.activeTabType !== state.activeTab ||
                                   mainContent.dataset.activeSessionId !== (state.activeSessionId || '');
 
-            // Этот блок выполняется при обновлении данных (например, после выбора файла)
+
             if (!needsFullRender && activeSession) {
                  if (state.activeTab === 'chat') {
+
                     renderChatMessages(activeSession);
                     updateLoadingIndicator();
-                    // ИСПРАВЛЕНИЕ: Добавлен обязательный вызов для перерисовки плашки
-                    renderChatAttachmentUI(activeSession); 
                  } else if (state.activeTab === 'notepad') {
+
                     renderNotepadCards(activeSession);
                  }
                  return;
             }
 
-            // Этот блок выполняется при переключении на чат
+            // --- ЕСЛИ ТРЕБУЕТСЯ ПОЛНАЯ ПЕРЕРИСОВКА ---
             mainContent.innerHTML = '';
             mainContent.dataset.activeTabType = state.activeTab;
             mainContent.dataset.activeSessionId = state.activeSessionId || '';
@@ -346,11 +346,32 @@
                         chatContainer.className = 'flex flex-col h-full';
                         chatContainer.innerHTML = getChatViewHTML(activeSession);
                         mainContent.appendChild(chatContainer);
-                        
-                        // ... (код проверки провайдера без изменений)
-                        
+
+                        const provider = state.providers.find(p => p.id === activeSession.providerId);
+                        let needsUpdate = false;
+                        const updatePayload = {};
+
+                        if (!provider && state.providers.length > 0) {
+                            const firstProvider = state.providers[0];
+                            const models = firstProvider.models || [];
+                            updatePayload.providerId = firstProvider.id;
+                            updatePayload.modelName = models.length > 0 ? models[0] : null;
+                            needsUpdate = true;
+                        } else if (provider && !activeSession.modelName) {
+                            const models = provider.models || [];
+                            if (models.length > 0) {
+                                updatePayload.modelName = models[0];
+                                needsUpdate = true;
+                            }
+                        }
+
+                        if (needsUpdate) {
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            updateDoc(sessionRef, updatePayload);
+                        }
+
                         renderChatMessages(activeSession);
-                        setupChatViewEventListeners(); // Эта функция вызовет renderChatAttachmentUI при первой загрузке
+                        setupChatViewEventListeners();
                         updateLoadingIndicator();
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
@@ -360,7 +381,15 @@
                      if (activeSession) {
                         mainContent.innerHTML = getNotepadViewHTML(activeSession);
                         setupNotepadViewEventListeners();
-                     } else {
+
+                        const scrollContainer = document.getElementById('notepad-scroll-container');
+                        if(scrollContainer) {
+
+                            setTimeout(() => {
+                               scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                            }, 0);
+                        }
+                    } else {
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
@@ -380,39 +409,6 @@
             });
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
-        }
-
-        function renderChatAttachmentUI(session) {
-            const container = document.getElementById('attachment-container');
-            if (!container) return;
-
-            if (session && session.pendingAttachmentId) {
-                const notepad = state.sessions.find(s => s.id === session.pendingAttachmentId);
-                if (notepad) {
-                    container.innerHTML = `
-                        <div class="inline-flex items-center bg-accent/20 text-accent-foreground border border-accent/50 rounded-full pl-3 pr-2 py-1 text-sm">
-                            <i data-lucide="notebook-tabs" class="w-4 h-4 mr-2"></i>
-                            <span class="font-medium">${notepad.title}</span>
-                            <button id="remove-attachment-btn" class="ml-2 text-accent-foreground/70 hover:text-accent-foreground">
-                                <i data-lucide="x" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    `;
-                    lucide.createIcons({ nodes: [container] });
-
-                    document.getElementById('remove-attachment-btn').addEventListener('click', () => {
-                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, session.id);
-                        updateDoc(sessionRef, {
-                            pendingAttachmentId: deleteField()
-                        });
-                    });
-                } else {
-                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, session.id);
-                    updateDoc(sessionRef, { pendingAttachmentId: deleteField() });
-                }
-            } else {
-                container.innerHTML = '';
-            }
         }
 
         function renderNotepadCards(session) {
@@ -508,6 +504,7 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
+                <!-- Плавающие кнопки управления (ИСПОЛЬЗУЮТ НОВЫЙ CSS-КЛАСС) -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -517,6 +514,7 @@
                     </button>
                 </div>
 
+                <!-- Плавающая панель настроек -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                     <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
                     <div>
@@ -544,30 +542,15 @@
                     </div>
                 </div>
                 
+                <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="relative w-full max-w-4xl mx-auto">
-                            <div id="attachment-container" class="mb-2"></div>
-                            
-                            <div class="relative">
-                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pl-12 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                                
-                                <div class="absolute left-3 bottom-3">
-                                     <button type="button" id="attach-notepad-btn" title="Прикрепить заметки" class="p-2 rounded-full text-text-secondary hover:bg-bg-element transition-colors">
-                                        <i data-lucide="paperclip" class="w-5 h-5"></i>
-                                    </button>
-                                    <div id="notepad-selection-popover" class="hidden absolute bottom-full mb-2 w-64 bg-bg-sidebar border border-border-color rounded-lg shadow-xl z-50 overflow-hidden">
-                                        <div class="p-2 border-b border-border-color text-sm font-semibold text-text-primary">Выберите папку</div>
-                                        <div id="notepad-selection-list" class="max-h-48 overflow-y-auto">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button type="submit" id="chat-submit-btn" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                                    <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                                </button>
-                            </div>
+                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -633,20 +616,6 @@
         
         function createMessageElement(msg, index) {
             const isUser = msg.role === 'user';
-
-            if (msg.role === 'context') {
-                const contextWrapper = document.createElement('div');
-                contextWrapper.className = 'flex justify-center items-center my-4';
-                const sanitizedHtml = DOMPurify.sanitize(marked.parse(msg.content, { breaks: true }));
-                contextWrapper.innerHTML = `
-                    <div class="context-message-bg text-sm text-text-secondary p-2 px-4 rounded-lg flex items-center gap-2">
-                        <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
-                        <span>${sanitizedHtml}</span>
-                    </div>
-                `;
-                lucide.createIcons({ nodes: [contextWrapper] });
-                return contextWrapper;
-            }
             
             const messageWrapper = document.createElement('div');
 
@@ -986,10 +955,6 @@
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
             
-            const attachBtn = document.getElementById('attach-notepad-btn');
-            const popover = document.getElementById('notepad-selection-popover');
-            const popoverList = document.getElementById('notepad-selection-list');
-            
             if (widthToggleBtn) {
                 const isExpanded = !state.isChatWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
@@ -1007,7 +972,6 @@
 
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
-                popover?.classList.add('hidden');
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
                 
                 const isVisible = state.isSettingsPanelExpanded;
@@ -1029,60 +993,6 @@
                 }
             });
 
-            if (attachBtn && popover && popoverList) {
-                const togglePopover = (show) => {
-                    popover.classList.toggle('hidden', !show);
-                };
-
-                const handleClickOutside = (event) => {
-                    if (!popover.contains(event.target) && !attachBtn.contains(event.target)) {
-                        togglePopover(false);
-                        document.removeEventListener('click', handleClickOutside, true);
-                    }
-                };
-
-                attachBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (state.isSettingsPanelExpanded) {
-                        settingsToggle?.click();
-                    }
-                    const isHidden = popover.classList.contains('hidden');
-                    
-                    if (isHidden) {
-                        const notepadSessions = state.sessions.filter(s => s.type === 'notepad');
-                        if (notepadSessions.length > 0) {
-                            popoverList.innerHTML = notepadSessions.map(s => `
-                                <div class="p-2 hover:bg-bg-element cursor-pointer text-sm text-text-primary" data-id="${s.id}">${s.title}</div>
-                            `).join('');
-                        } else {
-                            popoverList.innerHTML = '<div class="p-2 text-xs text-text-secondary text-center">Нет папок с заметками.</div>';
-                        }
-                        togglePopover(true);
-                        document.addEventListener('click', handleClickOutside, true);
-                    } else {
-                        togglePopover(false);
-                    }
-                });
-
-                popoverList.addEventListener('click', (e) => {
-                    const target = e.target.closest('[data-id]');
-                    if (target) {
-                        const notepadId = target.dataset.id;
-                        
-                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                        updateDoc(sessionRef, { pendingAttachmentId: notepadId });
-                        
-                        togglePopover(false);
-                        document.removeEventListener('click', handleClickOutside, true);
-                        
-                    }
-                });
-            }
-            
-            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            if(activeSession) {
-                renderChatAttachmentUI(activeSession);
-            }
 
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
@@ -1095,15 +1005,22 @@
             if (input && form && messagesContainer) {
                 const adjustLayout = () => {
                     if (!form || !messagesContainer || !input) return;
+        
                     const layoutContainer = form.parentElement;
                     if (!layoutContainer) return;
+
                     const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
                     const formStyle = window.getComputedStyle(form);
                     const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
                     const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
+
                     const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
+                    
                     const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
+        
                     input.style.height = 'auto';
+        
                     if (input.scrollHeight < finalMaxHeight) {
                         input.style.height = `${input.scrollHeight}px`;
                         input.style.overflowY = 'hidden';
@@ -1111,21 +1028,26 @@
                         input.style.height = `${finalMaxHeight}px`;
                         input.style.overflowY = 'auto';
                     }
+        
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
                     }, 0);
                 };
+        
                 input.addEventListener('input', adjustLayout);
+                
                 const resizeObserver = new ResizeObserver(adjustLayout);
                 if(chatViewContainer) {
                    resizeObserver.observe(chatViewContainer);
                 }
+
                 if (window.visualViewport) {
                     window.visualViewport.addEventListener('resize', adjustLayout);
                 } else {
                     window.addEventListener('resize', adjustLayout);
                 }
+
                 setTimeout(adjustLayout, 100);
             }
 
@@ -1332,59 +1254,24 @@
             e.preventDefault();
             const input = document.getElementById('chat-input');
             const messageContent = input.value.trim();
+            if (!messageContent || state.loadingSessionId) return;
+
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-
-            if ((!messageContent && !activeSession?.pendingAttachmentId) || state.loadingSessionId) {
-                return;
-            }
-
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
 
-            // --- Подготовка ---
-            const updatePayload = { updatedAt: serverTimestamp() };
-            if (messageContent) {
-                updatePayload.messages = arrayUnion({ role: 'user', content: messageContent });
-            }
-            if (activeSession.pendingAttachmentId) {
-                updatePayload.pendingAttachmentId = deleteField();
-            }
+            const userMessage = { role: 'user', content: messageContent };
+            const messagesToSubmit = [...(activeSession.messages || []), userMessage];
             
-            // --- Действия ---
-            await updateDoc(sessionRef, updatePayload);
-
-            let messagesForApi = [...(activeSession.messages || [])];
-            if (messageContent) {
-                messagesForApi.push({ role: 'user', content: messageContent });
-            }
-
-            if (activeSession.pendingAttachmentId) {
-                const attachedNotepad = state.sessions.find(s => s.id === activeSession.pendingAttachmentId);
-                if (attachedNotepad) {
-                    const messagesContainer = document.getElementById('chat-messages');
-                    const contextMessage = { role: 'context', content: `Прикреплены заметки из папки: **${attachedNotepad.title}**` };
-                    const contextElement = createMessageElement(contextMessage, -1);
-                    if (messagesContainer && contextElement) messagesContainer.appendChild(contextElement);
-                }
-                
-                if (attachedNotepad && attachedNotepad.cards) {
-                    const notepadContextStr = attachedNotepad.cards.map(card => `## ${card.title || 'Без заголовка'}\n${card.content || ''}`).join('\n\n---\n\n');
-                    const contextForApi = { role: 'system', content: `Вот контекст из заметок, который нужно использовать для ответа на следующий вопрос пользователя. Не упоминай этот контекст в своем ответе, просто используй его. Контекст:\n<context>\n${notepadContextStr}\n</context>`};
-                    
-                    if (!messageContent) {
-                        messagesForApi.push({ role: 'user', content: 'Проанализируй и обобщи предоставленный контекст.' });
-                    }
-                    messagesForApi.splice(messagesForApi.length - 1, 0, contextForApi);
-                }
-            }
-
             input.value = '';
             input.style.height = 'auto';
 
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            await updateDoc(sessionRef, { messages: messagesToSubmit, updatedAt: serverTimestamp() });
+
             await generateAssistantResponse(
                 state.activeSessionId,
-                messagesForApi,
+                messagesToSubmit,
                 provider,
                 selectedRole,
                 activeSession.modelName
@@ -1475,11 +1362,9 @@
                         ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
                         : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: modelName };
                 
+                const finalMessages = [...messagesToSubmit, messageToAdd];
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                await updateDoc(sessionRef, { 
-                    messages: arrayUnion(messageToAdd),
-                    updatedAt: serverTimestamp() 
-                });
+                await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
 
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const session = state.sessions.find(s => s.id === sessionId);
@@ -1520,8 +1405,7 @@
             const form = document.getElementById('chat-form');
             if (!form) return;
 
-            // ИСПРАВЛЕНО: Используем ID для точного выбора кнопки
-            const button = form.querySelector('#chat-submit-btn'); 
+            const button = form.querySelector('button[type="submit"], button[type="button"]');
             const textarea = form.querySelector('textarea');
             const isLoadingThisSession = state.loadingSessionId === state.activeSessionId;
 
@@ -1529,7 +1413,6 @@
                 textarea.disabled = isLoadingThisSession;
             }
 
-            // ВАЖНО: Проверяем, что кнопка найдена, прежде чем работать с ней
             if (button) {
                 const newButton = button.cloneNode(true);
                 button.parentNode.replaceChild(newButton, button);
@@ -1552,7 +1435,7 @@
                     newButton.setAttribute('type', 'submit');
                     newButton.title = 'Отправить';
                     newButton.innerHTML = '<i data-lucide="send" class="w-5 h-5 text-white"></i>';
-                    newButton.disabled = false; // Убедимся, что кнопка активна
+                    newButton.disabled = false;
                 }
                 lucide.createIcons({ nodes: [newButton] });
             }
@@ -1565,7 +1448,7 @@
             if (isLoadingThisSession) {
                 showTypingIndicatorInChat();
             }
-        }    
+        }        
         
         async function handleAddProvider() {
             if (state.isLoading) return;
@@ -2041,7 +1924,7 @@
                 chatObserver = null;
             }
             userId = null;
-            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false,};
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');

@@ -1376,52 +1376,50 @@
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
-            let messagesToSave = [...(activeSession.messages || [])];
-            if (messageContent) {
-                messagesToSave.push({ role: 'user', content: messageContent });
-            }
-
-            let messagesForApi = JSON.parse(JSON.stringify(messagesToSave));
+            
+            const userMessage = { role: 'user', content: messageContent };
 
             if (state.attachedNotepadId) {
                 const attachedNotepad = state.sessions.find(s => s.id === state.attachedNotepadId);
                 if (attachedNotepad) {
-                    const messagesContainer = document.getElementById('chat-messages');
-                    const contextMessage = { role: 'context', content: `Прикреплены заметки из папки: **${attachedNotepad.title}**` };
-                    const contextElement = createMessageElement(contextMessage, -1); // Индекс -1 т.к. это временный элемент
-                    if (messagesContainer && contextElement) {
-                        messagesContainer.appendChild(contextElement);
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    }
-                    
-                    const notepadContextStr = (attachedNotepad.cards || []).map(card => 
-                        `## ${card.title || 'Без заголовка'}\n${card.content || ''}`
-                    ).join('\n\n---\n\n');
-
-                    const apiPayloadContent = `Используй следующий контекст из заметок:\n<context>\n${notepadContextStr}\n</context>\n\nТеперь ответь на мой вопрос:\n${messageContent || '(вопрос отсутствует, дай ответ на основе контекста)'}`;
-                    
-                    if (messagesForApi.length > 0) {
-                        const lastMessage = messagesForApi[messagesForApi.length - 1];
-                        if (lastMessage.role === 'user') {
-                            lastMessage.content = apiPayloadContent;
-                        } else {
-                             messagesForApi.push({ role: 'user', content: apiPayloadContent });
-                        }
-                    } else {
-                        messagesForApi.push({ role: 'user', content: apiPayloadContent });
-                    }
+                     const messagesContainer = document.getElementById('chat-messages');
+                     const contextMessage = { role: 'context', content: `Прикреплены заметки из папки: **${attachedNotepad.title}**` };
+                     const contextElement = createMessageElement(contextMessage, -1);
+                     if (messagesContainer && contextElement) {
+                         messagesContainer.appendChild(contextElement);
+                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                     }
                 }
             }
             
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            await updateDoc(sessionRef, { 
+                messages: arrayUnion(userMessage),
+                updatedAt: serverTimestamp() 
+            });
+
+            let messagesForApi = [...(activeSession.messages || []), userMessage];
+            
+            if (state.attachedNotepadId) {
+                const attachedNotepad = state.sessions.find(s => s.id === state.attachedNotepadId);
+                if (attachedNotepad && attachedNotepad.cards) {
+                    const notepadContextStr = attachedNotepad.cards.map(card => 
+                        `## ${card.title || 'Без заголовка'}\n${card.content || ''}`
+                    ).join('\n\n---\n\n');
+                    
+                    const contextForApi = {
+                        role: 'system',
+                        content: `Вот контекст из заметок, который нужно использовать для ответа на следующий вопрос пользователя. Не упоминай этот контекст в своем ответе, просто используй его. Контекст:\n<context>\n${notepadContextStr}\n</context>`
+                    };
+                    messagesForApi.splice(messagesForApi.length - 1, 0, contextForApi);
+                }
+            }
+
             input.value = '';
             input.style.height = 'auto';
             state.attachedNotepadId = null;
             renderChatAttachmentUI();
 
-            await updateDoc(sessionRef, { messages: messagesToSave, updatedAt: serverTimestamp() });
-            
             await generateAssistantResponse(
                 state.activeSessionId,
                 messagesForApi,

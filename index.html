@@ -323,11 +323,12 @@
 
             if (!needsFullRender && activeSession) {
                  if (state.activeTab === 'chat') {
-
                     renderChatMessages(activeSession);
                     updateLoadingIndicator();
+                    
+                    renderChatAttachmentUI(activeSession); 
+                 
                  } else if (state.activeTab === 'notepad') {
-
                     renderNotepadCards(activeSession);
                  }
                  return;
@@ -368,9 +369,9 @@
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             updateDoc(sessionRef, updatePayload);
                         }
-
+                        
                         renderChatMessages(activeSession);
-                        setupChatViewEventListeners();
+                        setupChatViewEventListeners(); 
                         updateLoadingIndicator();
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');

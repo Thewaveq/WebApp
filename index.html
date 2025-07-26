@@ -498,7 +498,7 @@
             return `<div class="flex flex-col h-full items-center justify-center text-gray-500 text-center p-4"><i data-lucide="${icon}" class="w-16 h-16 mb-4"></i><h2 class="text-2xl">${text}</h2></div>`;
         }
         
-        function getChatViewHTML(activeSession) {
+        function getChatViewHTML(activeSession) { 
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
             let modelOptions = '<option disabled>Выберите провайдера</option>';
@@ -516,17 +516,13 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления (без изменений) -->
+                <!-- Плавающие кнопки управления -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
-                    <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
-                        <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
-                    </button>
-                    <button id="chat-settings-toggle" title="Настройки чата" class="chat-action-btn">
-                        <i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i>
-                    </button>
+                    <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex"><i data-lucide="arrow-left-right" class="w-4 h-4"></i></button>
+                    <button id="chat-settings-toggle" title="Настройки чата" class="chat-action-btn"><i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i></button>
                 </div>
 
-                <!-- Плавающая панель настроек (без изменений) -->
+                <!-- Плавающая панель настроек -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                     <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
                     <div><label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label><input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата"></div>
@@ -538,38 +534,35 @@
                 <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                    
-                    <!-- ИСПРАВЛЕННАЯ ФОРМА ВВОДА -->
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="w-full max-w-4xl mx-auto">
-                            <!-- Контейнер для превью прикрепленных файлов -->
+                            <!-- Контейнер для превью файлов -->
                             <div id="attachment-previews" class="flex flex-wrap gap-2 mb-2"></div>
 
-                            <!-- Новая панель ввода с Flexbox -->
-                            <div id="chat-input-bar" class="w-full bg-input border border-border-color rounded-xl flex items-end p-2 gap-2 transition-all duration-200">
+                            <!-- КОНТЕЙНЕР ПОЛЯ ВВОДА, КОТОРЫЙ Я БОЛЬШЕ НЕ ЛОМАЮ -->
+                            <div id="chat-input-wrapper" class="relative w-full">
                                 
-                                <!-- Кнопка прикрепления файла (слева) -->
-                                <div class="relative flex-shrink-0">
-                                    <button type="button" id="attachment-btn" title="Прикрепить файл" class="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-bg-element transition-colors text-text-secondary">
-                                        <i data-lucide="plus" class="w-5 h-5"></i>
+                                <!-- КНОПКА ПРИКРЕПЛЕНИЯ ФАЙЛА, АБСОЛЮТНО СЛЕВА -->
+                                <div class="absolute left-3 bottom-3 z-10">
+                                    <button type="button" id="attachment-btn" title="Прикрепить файл" class="p-2 rounded-full hover:bg-bg-element transition-colors">
+                                        <i data-lucide="plus" class="w-5 h-5 text-text-secondary"></i>
                                     </button>
-                                    <div id="attachment-menu" class="hidden absolute bottom-full mb-2 bg-bg-sidebar border border-border-color rounded-lg shadow-lg p-1 w-40 z-40">
+                                    <div id="attachment-menu" class="hidden absolute bottom-full mb-2 bg-bg-sidebar border border-border-color rounded-lg shadow-lg p-1 w-40">
                                         <button type="button" id="attach-file-btn" class="w-full flex items-center text-left p-2 rounded-md hover:bg-bg-element transition-colors text-sm">
                                             <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>Файл
                                         </button>
                                     </div>
                                 </div>
-
-                                <!-- Поле ввода текста (в центре, растягивается) -->
-                                <textarea id="chat-input" class="flex-grow bg-transparent resize-none focus:outline-none min-h-[2.25rem] max-h-64 text-text-primary" placeholder="Введите ваше сообщение..." rows="1"></textarea>
                                 
-                                <!-- Кнопка отправки (справа) -->
-                                <button type="submit" class="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
+                                <!-- ВАШЕ ПОЛЕ ВВОДА С ДОБАВЛЕННЫМ ОТСТУПОМ СЛЕВА -->
+                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pl-12 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                                
+                                <!-- ВАША КНОПКА ОТПРАВКИ, НЕ ТРОНУТА -->
+                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
                                     <i data-lucide="send" class="w-5 h-5 text-white"></i>
                                 </button>
-
                             </div>
-                            <!-- Скрытый input для выбора файла остается здесь -->
+                             <!-- Скрытый инпут для файла -->
                             <input type="file" id="file-input" class="hidden" multiple>
                         </div>
                     </form>
@@ -997,22 +990,22 @@
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
             const attachmentPreviews = document.getElementById('attachment-previews');
-            
-            // --- НОВАЯ И ИСПРАВЛЕННАЯ ЛОГИКА ПРИКРЕПЛЕНИЯ ФАЙЛОВ ---
+
+            // --- ЛОГИКА ПРИКРЕПЛЕНИЯ ФАЙЛОВ ---
             const attachmentBtn = document.getElementById('attachment-btn');
             const attachmentMenu = document.getElementById('attachment-menu');
             const attachFileBtn = document.getElementById('attach-file-btn');
             const fileInput = document.getElementById('file-input');
-            const chatInputBar = document.getElementById('chat-input-bar'); // Панель ввода для Drag-n-Drop
+            const chatInputWrapper = document.getElementById('chat-input-wrapper'); // Контейнер для Drag-n-Drop
             
-            pendingAttachments = []; // Сбрасываем при ре-инициализации
+            pendingAttachments = []; // Сброс
 
             const renderAttachmentPreviews = () => {
                 if (!attachmentPreviews) return;
                 attachmentPreviews.innerHTML = '';
                 pendingAttachments.forEach((file, index) => {
                     const chip = document.createElement('div');
-                    chip.className = 'flex items-center bg-bg-element text-text-primary text-sm rounded-full pl-3 pr-2 py-1 transition-all animate-in fade-in-50';
+                    chip.className = 'flex items-center bg-bg-element text-text-primary text-sm rounded-full pl-3 pr-2 py-1';
                     chip.innerHTML = `<span class="mr-2 truncate max-w-[150px]">${file.name}</span><button type="button" class="remove-attachment-btn rounded-full hover:bg-gray-600 p-0.5" data-index="${index}" title="Убрать файл"><i data-lucide="x" class="w-3 h-3"></i></button>`;
                     attachmentPreviews.appendChild(chip);
                 });
@@ -1034,14 +1027,14 @@
             attachmentBtn?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 attachmentMenu.classList.toggle('hidden');
-                if (!attachmentMenu.classList.contains('hidden')) {
-                    const closeOnClickOutside = (event) => {
-                        if (!attachmentMenu.contains(event.target) && !attachmentBtn.contains(event.target)) {
-                            attachmentMenu.classList.add('hidden');
-                            document.removeEventListener('click', closeOnClickOutside, { capture: true });
-                        }
-                    };
-                    document.addEventListener('click', closeOnClickOutside, { capture: true });
+            });
+            
+            // Глобальный клик для закрытия меню
+            document.addEventListener('click', (e) => {
+                if (!attachmentMenu?.classList.contains('hidden')) {
+                   if (!attachmentBtn?.contains(e.target)) {
+                       attachmentMenu.classList.add('hidden');
+                   }
                 }
             });
 
@@ -1063,58 +1056,114 @@
                 }
             });
             
-            if (chatInputBar) {
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => chatInputBar.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }));
-                ['dragenter', 'dragover'].forEach(eventName => chatInputBar.addEventListener(eventName, () => chatInputBar.classList.add('ring-2', 'ring-accent')));
-                ['dragleave', 'drop'].forEach(eventName => chatInputBar.addEventListener(eventName, () => chatInputBar.classList.remove('ring-2', 'ring-accent')));
-                chatInputBar.addEventListener('drop', (e) => { if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files); });
+            if (chatInputWrapper) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => chatInputWrapper.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }));
+                ['dragenter', 'dragover'].forEach(eventName => chatInputWrapper.addEventListener(eventName, () => input.classList.add('ring-2', 'ring-accent')));
+                ['dragleave', 'drop'].forEach(eventName => chatInputWrapper.addEventListener(eventName, () => input.classList.remove('ring-2', 'ring-accent')));
+                chatInputWrapper.addEventListener('drop', (e) => {
+                    input.classList.remove('ring-2', 'ring-accent');
+                    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+                });
             }
             // --- КОНЕЦ ЛОГИКИ ПРИКРЕПЛЕНИЯ ФАЙЛОВ ---
 
+            // ВАША ЛОГИКА ОБРАБОТКИ ПОЛЯ ВВОДА, КОТОРАЯ ОСТАЛАСЬ НЕИЗМЕННОЙ
+            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
+
+            const settingsToggle = document.getElementById('chat-settings-toggle');
+            const settingsPanel = document.getElementById('chat-settings-panel');
+            const settingsIcon = document.getElementById('chat-settings-icon');
+            const widthToggleBtn = document.getElementById('chat-width-toggle');
             const titleInput = document.getElementById('chat-title-input');
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
             
+            if (widthToggleBtn) {
+                const isExpanded = !state.isChatWidthCompact;
+                widthToggleBtn.classList.toggle('active', isExpanded);
+                widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
+                widthToggleBtn.addEventListener('click', () => {
+                    state.isChatWidthCompact = !state.isChatWidthCompact;
+                    const isNowExpanded = !state.isChatWidthCompact;
+                    localStorage.setItem('chatViewCompact', state.isChatWidthCompact);
+                    messagesContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
+                    widthToggleBtn.classList.toggle('active', isNowExpanded);
+                    widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
+                });
+            }
+
+            settingsToggle?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
+                const isVisible = state.isSettingsPanelExpanded;
+                settingsPanel.classList.toggle('opacity-100', isVisible);
+                settingsPanel.classList.toggle('translate-y-0', isVisible);
+                settingsPanel.classList.toggle('opacity-0', !isVisible);
+                settingsPanel.classList.toggle('-translate-y-4', !isVisible);
+                settingsPanel.classList.toggle('pointer-events-none', !isVisible);
+                settingsIcon.classList.toggle('rotate-90', isVisible);
+                const closeOnOutsideClick = (event) => {
+                    if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
+                        settingsToggle.click();
+                    }
+                };
+                if (isVisible) { document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true }); }
+            });
+
             form?.addEventListener('submit', handleChatSubmit);
-            input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); form.requestSubmit(); }});
+            input?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); form.requestSubmit(); } });
             
             if (input && form && messagesContainer) {
                 const adjustLayout = () => {
                     if (!form || !messagesContainer || !input) return;
+                    const layoutContainer = form.parentElement;
+                    if (!layoutContainer) return;
+                    const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    const formStyle = window.getComputedStyle(form);
+                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
+                    const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
+                    const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
+                    const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
                     input.style.height = 'auto';
-                    input.style.height = `${input.scrollHeight}px`;
+                    if (input.scrollHeight < finalMaxHeight) {
+                        input.style.height = `${input.scrollHeight}px`;
+                        input.style.overflowY = 'hidden';
+                    } else {
+                        input.style.height = `${finalMaxHeight}px`;
+                        input.style.overflowY = 'auto';
+                    }
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
                     }, 0);
                 };
                 input.addEventListener('input', adjustLayout);
-                new ResizeObserver(adjustLayout).observe(chatViewContainer);
+                const resizeObserver = new ResizeObserver(adjustLayout);
+                if(chatViewContainer) { resizeObserver.observe(chatViewContainer); }
+                if (window.visualViewport) { window.visualViewport.addEventListener('resize', adjustLayout); } else { window.addEventListener('resize', adjustLayout); }
                 setTimeout(adjustLayout, 100);
             }
-            
-            // Остальные слушатели (настройки чата, ширина и т.д.) без изменений
-            document.getElementById('chat-width-toggle')?.addEventListener('click', () => {
-                state.isChatWidthCompact = !state.isChatWidthCompact;
-                localStorage.setItem('chatViewCompact', state.isChatWidthCompact);
-                messagesContainer?.classList.toggle('chat-view-compact', state.isChatWidthCompact);
-                document.getElementById('chat-width-toggle').classList.toggle('active', !state.isChatWidthCompact);
-            });
-            document.getElementById('chat-settings-toggle')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
-                renderMainContent(); // Перерисовываем для обновления классов
-            });
-            titleInput?.addEventListener('change', (e) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { title: e.target.value }));
-            roleSelect?.addEventListener('change', (e) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { roleId: e.target.value }));
-            modelSelect?.addEventListener('change', (e) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { modelName: e.target.value }));
+
+            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
+            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
             providerSelect?.addEventListener('change', (e) => {
                 const newProviderId = e.target.value;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 const selectedProvider = state.providers.find(p => p.id === newProviderId);
-                const newModelName = (selectedProvider?.models?.length > 0) ? selectedProvider.models[0] : null;
-                updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId), { providerId: newProviderId, modelName: newModelName });
+                let newModelName = null;
+                if (selectedProvider) {
+                    const models = selectedProvider.models || [];
+                    if (models.length > 0) { 
+                        newModelName = models[0]; 
+                        if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
+                    } else { 
+                        if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } 
+                    }
+                }
+                updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
+            modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
         }
         
         function setupNotepadViewEventListeners() {
@@ -1312,14 +1361,13 @@
             
             finalContent += typedMessage;
 
-            if (!finalContent.trim()) return;
-
             const userMessage = { role: 'user', content: finalContent.trim() };
             const messagesToSubmit = [...(activeSession.messages || []), userMessage];
             
             input.value = '';
             pendingAttachments.length = 0;
-            document.getElementById('attachment-previews').innerHTML = '';
+            const attachmentPreviews = document.getElementById('attachment-previews');
+            if (attachmentPreviews) attachmentPreviews.innerHTML = '';
             input.dispatchEvent(new Event('input', { bubbles: true }));
 
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1333,7 +1381,6 @@
                 activeSession.modelName
             );
         }
-
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
 

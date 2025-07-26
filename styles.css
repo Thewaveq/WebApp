@@ -346,27 +346,6 @@ details[open] > summary .details-arrow {
     border-color: var(--accent-hover);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-
-.note-card.dragging {
-  opacity: 0.6;
-  border-style: dashed;
-  border-color: var(--accent);
-  background: var(--bg-element);
-}
-.drag-handle-wrapper {
-    padding: 8px;
-    margin: -8px; 
-    margin-right: 0;
-    cursor: grab;
-    touch-action: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.drag-handle-wrapper:active {
-    cursor: grabbing;
-}
-
 .note-card-header {
     display: flex;
     justify-content: space-between;

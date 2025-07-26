@@ -523,9 +523,9 @@ details[open] > summary .details-arrow {
 
 /* --- СТИЛИ ДЛЯ ПОЛНОЭКРАННОГО ОКНА ПРОСМОТРА СООБЩЕНИЯ --- */
 #fullscreen-modal {
-    background-color: rgba(30, 30, 30, 0.6);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    background-color: rgba(30, 30, 30, 0.7);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
 }
 
 #fullscreen-modal-content {
@@ -535,7 +535,18 @@ details[open] > summary .details-arrow {
     border: none;
     border-radius: 0;
     box-shadow: none;
-    padding: 6vh 8vw;
+    padding: 0; 
+}
+
+#fullscreen-modal-body {
+    padding: 2rem 4rem;
+    height: 100%;
+}
+
+@media (max-width: 768px) {
+    #fullscreen-modal-body {
+        padding: 1.5rem 1rem;
+    }
 }
 
 #fullscreen-modal-close {
@@ -545,14 +556,12 @@ details[open] > summary .details-arrow {
     z-index: 60;
     background-color: rgba(0, 0, 0, 0.25);
     color: var(--text-primary);
-    
     border-radius: 50%;
     width: 44px;
     height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    
     transition: all 0.2s ease-in-out;
 }
 
@@ -564,8 +573,4 @@ details[open] > summary .details-arrow {
 #fullscreen-modal-close > i {
     width: 28px;
     height: 28px;
-}
-
-#fullscreen-modal-body {
-    padding: 0;
 }

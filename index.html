@@ -671,7 +671,9 @@
             return `
                 <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}" draggable="true">
                     <div class="note-card-header flex items-center justify-between">
-                        <i data-lucide="grip-vertical" class="drag-handle cursor-grab text-text-secondary mr-2 flex-shrink-0" title="Перетащить для сортировки"></i>
+                        <span class="drag-handle-wrapper" title="Перетащить для сортировки">
+                           <i data-lucide="grip-vertical" class="drag-handle text-text-secondary"></i>
+                        </span>
                         <input type="text" class="note-card-title bg-transparent font-bold w-full focus:outline-none" placeholder="Заголовок" value="${title}">
                         <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-2" title="Удалить карточку">
                             <i data-lucide="x" class="w-4 h-4"></i>
@@ -1367,7 +1369,7 @@
 
             if (cardsGrid) {
                 let draggingElement = null;
-        
+
                 function getDragAfterElement(container, y) {
                     const draggableElements = [...container.querySelectorAll('.note-card:not(.dragging)')];
                     return draggableElements.reduce((closest, child) => {
@@ -1397,22 +1399,39 @@
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                     await updateDoc(sessionRef, { cards: reorderedCards, updatedAt: serverTimestamp() });
                 };
-        
-                cardsGrid.addEventListener('dragstart', e => {
-                    if (!e.target.classList.contains('drag-handle')) {
-                        e.preventDefault();
-                        return;
+                
+                const handleDragStart = (e) => {
+                    const handle = e.target.closest('.drag-handle-wrapper');
+                    if (!handle) {
+                        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                            e.preventDefault();
+                        }
+                        return false;
                     }
-                    draggingElement = e.target.closest('.note-card');
+
+                    if (e.type === 'touchstart') {
+                        e.preventDefault();
+                    }
+
+                    draggingElement = handle.closest('.note-card');
                     if(draggingElement) {
                         setTimeout(() => draggingElement.classList.add('dragging'), 0);
+                        
+                        if(e.dataTransfer) {
+                           e.dataTransfer.effectAllowed = 'move';
+                           e.dataTransfer.setData('text/plain', '');
+                        }
                     }
-                });
-        
+                    return true;
+                };
+
+                cardsGrid.addEventListener('dragstart', handleDragStart);
+
                 cardsGrid.addEventListener('dragend', () => {
                     if(draggingElement) {
                         draggingElement.classList.remove('dragging');
                         draggingElement = null;
+                        persistNewOrder();
                     }
                 });
 
@@ -1423,17 +1442,7 @@
                     cardsGrid.insertBefore(draggingElement, afterElement || addNewCardBtn);
                 });
         
-                cardsGrid.addEventListener('drop', e => {
-                    e.preventDefault();
-                    persistNewOrder();
-                });
-        
-                cardsGrid.addEventListener('touchstart', e => {
-                    if (!e.target.classList.contains('drag-handle')) return;
-                    e.preventDefault();
-                    draggingElement = e.target.closest('.note-card');
-                    if(draggingElement) draggingElement.classList.add('dragging');
-                }, { passive: false });
+                cardsGrid.addEventListener('touchstart', handleDragStart, { passive: false });
         
                 cardsGrid.addEventListener('touchmove', e => {
                     if (!draggingElement) return;

@@ -669,8 +669,9 @@
             const content = card.content || '';
 
             return `
-                <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}">
+                <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}" draggable="true">
                     <div class="note-card-header flex items-center justify-between">
+                        <i data-lucide="grip-vertical" class="drag-handle cursor-grab text-text-secondary mr-2 flex-shrink-0" title="Перетащить для сортировки"></i>
                         <input type="text" class="note-card-title bg-transparent font-bold w-full focus:outline-none" placeholder="Заголовок" value="${title}">
                         <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-2" title="Удалить карточку">
                             <i data-lucide="x" class="w-4 h-4"></i>
@@ -1210,11 +1211,11 @@
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             const widthToggleBtn = document.getElementById('notepad-width-toggle');
             const scrollContainer = document.getElementById('notepad-scroll-container');
-
+        
             const settingsToggle = document.getElementById('notepad-settings-toggle');
             const settingsPanel = document.getElementById('notepad-settings-panel');
             const settingsIcon = document.getElementById('notepad-settings-icon');
-
+        
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isNotepadSettingsPanelExpanded = !state.isNotepadSettingsPanelExpanded;
@@ -1226,18 +1227,18 @@
                 settingsPanel.classList.toggle('-translate-y-4', !isVisible);
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
-
+        
                 const closeOnOutsideClick = (event) => {
                     if (state.isNotepadSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
                         settingsToggle.click();
                     }
                 };
-
+        
                 if (isVisible) {
                     document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
                 }
             });
-
+        
             if(widthToggleBtn && scrollContainer) {
                 const isExpanded = !state.isNotepadWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
@@ -1269,7 +1270,7 @@
             const saveCardData = async (cardId) => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
+        
                 const cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardId}"]`);
                 if (!cardEl) return;
         
@@ -1296,7 +1297,7 @@
                 textarea.style.height = 'auto';
                 textarea.style.height = (textarea.scrollHeight) + 'px';
             }
-
+        
             titleInput?.addEventListener('change', () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1306,7 +1307,7 @@
             addNewCardBtn?.addEventListener('click', async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
+        
                 const newCard = {
                     id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
                     title: '',
@@ -1337,7 +1338,7 @@
                 showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
                     if (!state.activeSessionId) return;
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
+        
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const cards = activeSession.cards || [];
                     const cardToDelete = cards.find(c => c.id === cardId);
@@ -1364,11 +1365,97 @@
                 }
             });
 
+            if (cardsGrid) {
+                let draggingElement = null;
+        
+                function getDragAfterElement(container, y) {
+                    const draggableElements = [...container.querySelectorAll('.note-card:not(.dragging)')];
+                    return draggableElements.reduce((closest, child) => {
+                        const box = child.getBoundingClientRect();
+                        const offset = y - box.top - box.height / 2;
+                        if (offset < 0 && offset > closest.offset) {
+                            return { offset: offset, element: child };
+                        } else {
+                            return closest;
+                        }
+                    }, { offset: Number.NEGATIVE_INFINITY }).element;
+                }
+
+                const persistNewOrder = async () => {
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    if (!activeSession) return;
+            
+                    const newOrderIds = [...cardsGrid.querySelectorAll('.note-card')].map(card => card.dataset.cardId);
+                    const originalCardsMap = new Map(activeSession.cards.map(card => [card.id, card]));
+                    const reorderedCards = newOrderIds.map(id => originalCardsMap.get(id)).filter(Boolean);
+            
+                    if (reorderedCards.length !== activeSession.cards.length) {
+                        console.error("Ошибка при сортировке: несовпадение количества карточек.");
+                        return;
+                    }
+            
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                    await updateDoc(sessionRef, { cards: reorderedCards, updatedAt: serverTimestamp() });
+                };
+        
+                cardsGrid.addEventListener('dragstart', e => {
+                    if (!e.target.classList.contains('drag-handle')) {
+                        e.preventDefault();
+                        return;
+                    }
+                    draggingElement = e.target.closest('.note-card');
+                    if(draggingElement) {
+                        setTimeout(() => draggingElement.classList.add('dragging'), 0);
+                    }
+                });
+        
+                cardsGrid.addEventListener('dragend', () => {
+                    if(draggingElement) {
+                        draggingElement.classList.remove('dragging');
+                        draggingElement = null;
+                    }
+                });
+
+                cardsGrid.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    if (!draggingElement) return;
+                    const afterElement = getDragAfterElement(cardsGrid, e.clientY);
+                    cardsGrid.insertBefore(draggingElement, afterElement || addNewCardBtn);
+                });
+        
+                cardsGrid.addEventListener('drop', e => {
+                    e.preventDefault();
+                    persistNewOrder();
+                });
+        
+                cardsGrid.addEventListener('touchstart', e => {
+                    if (!e.target.classList.contains('drag-handle')) return;
+                    e.preventDefault();
+                    draggingElement = e.target.closest('.note-card');
+                    if(draggingElement) draggingElement.classList.add('dragging');
+                }, { passive: false });
+        
+                cardsGrid.addEventListener('touchmove', e => {
+                    if (!draggingElement) return;
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const afterElement = getDragAfterElement(cardsGrid, touch.clientY);
+                    cardsGrid.insertBefore(draggingElement, afterElement || addNewCardBtn);
+                }, { passive: false });
+        
+                cardsGrid.addEventListener('touchend', () => {
+                    if (!draggingElement) return;
+                    draggingElement.classList.remove('dragging');
+                    draggingElement = null;
+                    persistNewOrder();
+                });
+            }
+        
             setTimeout(() => {
                 const allTextareas = cardsGrid?.querySelectorAll('.note-card-content');
                 allTextareas?.forEach(autoResizeTextarea);
             }, 0);
-
+        
             lucide.createIcons();
         }
     

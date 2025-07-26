@@ -869,8 +869,10 @@
             fullscreenButton.innerHTML = `<i data-lucide="maximize" class="w-4 h-4"></i>`;
             fullscreenButton.addEventListener('click', () => { showFullscreenMessage(msg.content); });
             leftActionsContainer.appendChild(fullscreenButton);
-            messageWrapper.appendChild(headerDiv);
-            messageWrapper.appendChild(contentDiv);
+            
+            const innerContentWrapper = document.createElement('div');
+            innerContentWrapper.appendChild(headerDiv);
+            messageWrapper.appendChild(innerContentWrapper);
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
 

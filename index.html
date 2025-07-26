@@ -1149,39 +1149,68 @@
                 }
             });
 
-            // --- БЛОК УПРАВЛЕНИЯ ПОЛЕМ ВВОДА (ИЗМЕНЕН) ---
-            if (input && chatViewContainer) {
+            // --- НАЧАЛО ВОССТАНОВЛЕННОГО БЛОКА ВАШЕГО КОДА ---
+            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
+
+            if (input && form && messagesContainer) {
                 const adjustLayout = () => {
-                    if (!input || !chatViewContainer) return;
+                    if (!form || !messagesContainer || !input) return;
         
-                    // Максимальная высота поля ввода - 40% от высоты всего контейнера чата
-                    const MAX_HEIGHT_RATIO = 0.4; 
-                    const maxHeight = chatViewContainer.offsetHeight * MAX_HEIGHT_RATIO;
+                    const layoutContainer = form.parentElement; // Используем родителя формы
+                    if (!layoutContainer) return;
+
+                    // Учитываем визуальный вьюпорт для мобильных устройств
+                    const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+                    // Получаем вертикальные отступы самой формы
+                    const formStyle = window.getComputedStyle(form);
+                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
+                    
+                    // Максимальная высота на основе родительского контейнера
+                    const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
+
+                    // Максимальная высота на основе видимой области экрана
+                    const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
+                    
+                    // Выбираем наименьшее из двух ограничений
+                    const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
         
-                    // Сбрасываем высоту, чтобы получить реальную высоту содержимого
+                    // Сбрасываем высоту для корректного измерения scrollHeight
                     input.style.height = 'auto';
         
-                    // Сравниваем высоту содержимого с максимальной
-                    if (input.scrollHeight < maxHeight) {
-                        // Если меньше - растягиваем по содержимому, прокрутка не нужна
+                    if (input.scrollHeight < finalMaxHeight) {
+                        // Если текст помещается, высота по контенту, скрыть скроллбар
                         input.style.height = `${input.scrollHeight}px`;
                         input.style.overflowY = 'hidden';
                     } else {
-                        // Если больше - устанавливаем максимальную высоту и включаем прокрутку
-                        input.style.height = `${maxHeight}px`;
+                        // Если не помещается, ставим максимальную высоту и показываем скроллбар
+                        input.style.height = `${finalMaxHeight}px`;
                         input.style.overflowY = 'auto';
                     }
+        
+                    // ВАЖНАЯ ЧАСТЬ: устанавливаем отступ снизу для сообщений, равный высоте всей формы
+                    setTimeout(() => {
+                        const formHeight = form.offsetHeight;
+                        messagesContainer.style.paddingBottom = `${formHeight}px`;
+                    }, 0);
                 };
         
                 input.addEventListener('input', adjustLayout);
                 
-                // Наблюдаем за изменением размера всего контейнера чата
                 const resizeObserver = new ResizeObserver(adjustLayout);
-                resizeObserver.observe(chatViewContainer);
+                if(chatViewContainer) {
+                   resizeObserver.observe(chatViewContainer);
+                }
 
-                // Первоначальный вызов для корректной установки высоты при загрузке
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', adjustLayout);
+                } else {
+                    window.addEventListener('resize', adjustLayout);
+                }
+
                 setTimeout(adjustLayout, 100);
             }
+            // --- КОНЕЦ ВОССТАНОВЛЕННОГО БЛОКА ВАШЕГО КОДА ---
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
             roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });

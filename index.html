@@ -824,13 +824,30 @@
                 e.stopPropagation();
                 dropdownMenu.classList.toggle('hidden');
                 if (!dropdownMenu.classList.contains('hidden')) {
+                    dropdownMenu.style.top = '';
+                    dropdownMenu.style.bottom = '100%';
+                    dropdownMenu.style.marginTop = '';
+                    dropdownMenu.style.marginBottom = '8px';
+
+                    const menuRect = dropdownMenu.getBoundingClientRect();
+                    
+                    const topMargin = 10; 
+
+                    if (menuRect.top < topMargin) {
+                        dropdownMenu.style.top = '100%';
+                        dropdownMenu.style.bottom = 'auto';
+                        dropdownMenu.style.marginTop = '8px';
+                        dropdownMenu.style.marginBottom = '0';
+                    }
                     const closeOnClickOutside = (event) => {
                         if (!dropdownMenu.contains(event.target) && !moreOptionsBtn.contains(event.target)) {
                             dropdownMenu.classList.add('hidden');
                             document.removeEventListener('click', closeOnClickOutside, { capture: true });
                         }
                     };
-                    document.addEventListener('click', closeOnClickOutside, { capture: true });
+                    setTimeout(() => {
+                        document.addEventListener('click', closeOnClickOutside, { capture: true });
+                    }, 0);
                 }
             });
 

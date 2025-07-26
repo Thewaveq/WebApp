@@ -690,51 +690,39 @@
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
             const fileMatch = msg.content && msg.content.match(fileRegex);
 
+            // --- БЛОК ОБРАБОТКИ СООБЩЕНИЯ-ФАЙЛА (ИЗМЕНЕН) ---
             if (isUser && fileMatch) {
                 const fileName = fileMatch[1];
-                const fileContent = fileMatch[2];
 
-                messageWrapper.className = 'message-container group relative flex flex-col mb-6 p-0 items-end';
+                messageWrapper.className = 'message-container group relative flex flex-col mb-6 items-end';
 
                 const plaque = document.createElement('div');
-                plaque.className = 'user-message-bg rounded-xl max-w-md relative';
+                // Добавлен flex и items-center для корректного выравнивания
+                plaque.className = 'user-message-bg rounded-xl max-w-md p-3 flex items-center justify-between gap-2';
                 
-                const detailsElement = document.createElement('details');
-                detailsElement.className = 'p-3';
-
-                const summaryElement = document.createElement('summary');
-                summaryElement.className = 'flex items-center cursor-pointer font-medium';
-                summaryElement.innerHTML = `
+                // Контейнер для иконки и имени файла
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'flex items-center min-w-0'; // min-w-0 для корректного text-truncate
+                fileInfo.innerHTML = `
                     <i data-lucide="paperclip" class="w-4 h-4 mr-2 flex-shrink-0 text-accent"></i>
-                    <span>Прикрепленный файл: ${DOMPurify.sanitize(fileName)}</span>`;
-                detailsElement.appendChild(summaryElement);
+                    <span class="font-medium truncate">${DOMPurify.sanitize(fileName)}</span>
+                `;
+                plaque.appendChild(fileInfo);
 
-                const preElement = document.createElement('pre');
-                preElement.className = 'mt-2 p-2 bg-bg-main rounded-md text-xs max-h-48 overflow-auto';
-                
-                const codeElement = document.createElement('code');
-                codeElement.textContent = fileContent;
-                
-                preElement.appendChild(codeElement);
-                detailsElement.appendChild(preElement);
-                plaque.appendChild(detailsElement);
-                
-                const actionsOuterContainer = document.createElement('div');
-                actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
-                
+                // Кнопка удаления теперь отдельный flex-элемент
                 const deleteButton = document.createElement('button');
-                deleteButton.className = 'p-1 text-text-secondary hover:text-red-400 delete-message-btn';
+                deleteButton.className = 'p-1 text-text-secondary hover:text-red-400 delete-message-btn flex-shrink-0';
                 deleteButton.title = 'Удалить';
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
-                actionsOuterContainer.appendChild(deleteButton);
                 
-                plaque.appendChild(actionsOuterContainer);
+                plaque.appendChild(deleteButton);
                 messageWrapper.appendChild(plaque);
                 lucide.createIcons({ nodes: [messageWrapper] });
 
                 return messageWrapper;
 
+            // --- ОСТАЛЬНАЯ ЧАСТЬ ФУНКЦИИ БЕЗ ИЗМЕНЕНИЙ ---
             } else {
                 const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
                 const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
@@ -1104,8 +1092,6 @@
                 });
             }
 
-            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
-
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
@@ -1154,6 +1140,7 @@
                 }
             });
 
+
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1162,22 +1149,37 @@
                 }
             });
 
-            if (input && form && messagesContainer) {
+            // --- БЛОК УПРАВЛЕНИЯ ПОЛЕМ ВВОДА (ИЗМЕНЕН) ---
+            if (input && chatViewContainer) {
                 const adjustLayout = () => {
-                    if (!form || !messagesContainer || !input) return;
+                    if (!input || !chatViewContainer) return;
         
-                    const layoutContainer = form.closest('#chat-input-area');
-                    if (!layoutContainer) return;
-
+                    // Максимальная высота поля ввода - 40% от высоты всего контейнера чата
+                    const MAX_HEIGHT_RATIO = 0.4; 
+                    const maxHeight = chatViewContainer.offsetHeight * MAX_HEIGHT_RATIO;
+        
+                    // Сбрасываем высоту, чтобы получить реальную высоту содержимого
                     input.style.height = 'auto';
-                    input.style.height = `${input.scrollHeight}px`;
+        
+                    // Сравниваем высоту содержимого с максимальной
+                    if (input.scrollHeight < maxHeight) {
+                        // Если меньше - растягиваем по содержимому, прокрутка не нужна
+                        input.style.height = `${input.scrollHeight}px`;
+                        input.style.overflowY = 'hidden';
+                    } else {
+                        // Если больше - устанавливаем максимальную высоту и включаем прокрутку
+                        input.style.height = `${maxHeight}px`;
+                        input.style.overflowY = 'auto';
+                    }
                 };
         
                 input.addEventListener('input', adjustLayout);
+                
+                // Наблюдаем за изменением размера всего контейнера чата
                 const resizeObserver = new ResizeObserver(adjustLayout);
-                if(chatViewContainer) {
-                   resizeObserver.observe(chatViewContainer);
-                }
+                resizeObserver.observe(chatViewContainer);
+
+                // Первоначальный вызов для корректной установки высоты при загрузке
                 setTimeout(adjustLayout, 100);
             }
 
@@ -1204,6 +1206,7 @@
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
             modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
+        
         }
         
         function setupNotepadViewEventListeners() {

@@ -206,6 +206,7 @@
         let chatObserver = null;
         let generationAbortController = null;
         let notificationTimeout = null;
+        let pendingAttachments = [];
     
         let state = {
             activeTab: 'chat',
@@ -515,7 +516,7 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления (ИСПОЛЬЗУЮТ НОВЫЙ CSS-КЛАСС) -->
+                <!-- Плавающие кнопки управления -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -557,11 +558,34 @@
                 <div class="flex-grow relative min-h-0">
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
-                        <div class="relative w-full max-w-4xl mx-auto">
-                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                            </button>
+                        <div class="w-full max-w-4xl mx-auto">
+                            <!-- Контейнер для превью прикрепленных файлов -->
+                            <div id="attachment-previews" class="flex flex-wrap gap-2 mb-2"></div>
+
+                            <!-- Контейнер поля ввода -->
+                            <div class="relative w-full">
+                                <!-- Кнопка для прикрепления файлов -->
+                                <button type="button" id="attachment-btn" title="Прикрепить файл" class="absolute left-3 bottom-3 p-2 rounded-full hover:bg-bg-element transition-colors z-10">
+                                    <i data-lucide="plus" class="w-5 h-5 text-text-secondary"></i>
+                                </button>
+                                
+                                <!-- Контекстное меню для кнопки (скрыто) -->
+                                <div id="attachment-menu" class="hidden absolute bottom-16 left-2 bg-bg-sidebar border border-border-color rounded-lg shadow-lg p-1 w-40 z-40">
+                                    <button type="button" id="attach-file-btn" class="w-full flex items-center text-left p-2 rounded-md hover:bg-bg-element transition-colors text-sm">
+                                        <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                                        Файл
+                                    </button>
+                                </div>
+
+                                <!-- Скрытый input для выбора файла -->
+                                <input type="file" id="file-input" class="hidden" multiple>
+
+                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pl-12 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                                
+                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                    <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -987,6 +1011,96 @@
             const input = document.getElementById('chat-input');
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
+            const attachmentPreviews = document.getElementById('attachment-previews');
+
+            // --- Логика прикрепления файлов ---
+            const attachmentBtn = document.getElementById('attachment-btn');
+            const attachmentMenu = document.getElementById('attachment-menu');
+            const attachFileBtn = document.getElementById('attach-file-btn');
+            const fileInput = document.getElementById('file-input');
+            const chatInputWrapper = input.parentElement;
+            
+            pendingAttachments = []; // Сбрасываем при ре-инициализации
+
+            const renderAttachmentPreviews = () => {
+                if (!attachmentPreviews) return;
+                attachmentPreviews.innerHTML = '';
+                pendingAttachments.forEach((file, index) => {
+                    const chip = document.createElement('div');
+                    chip.className = 'flex items-center bg-bg-element text-text-primary text-sm rounded-full pl-3 pr-2 py-1 transition-all animate-in fade-in-50';
+                    chip.innerHTML = `
+                        <span class="mr-2 truncate max-w-[150px]">${file.name}</span>
+                        <button type="button" class="remove-attachment-btn rounded-full hover:bg-gray-600 p-0.5" data-index="${index}" title="Убрать файл">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    `;
+                    attachmentPreviews.appendChild(chip);
+                });
+                lucide.createIcons({ nodes: [attachmentPreviews] });
+            };
+
+            const handleFiles = (files) => {
+                for (const file of files) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        pendingAttachments.push({ name: file.name, content: e.target.result });
+                        renderAttachmentPreviews();
+                    };
+                    reader.onerror = () => showModalAlert(`Не удалось прочитать файл: ${file.name}`);
+                    reader.readAsText(file);
+                }
+            };
+
+            attachmentBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                attachmentMenu.classList.toggle('hidden');
+                if (!attachmentMenu.classList.contains('hidden')) {
+                    const closeOnClickOutside = (event) => {
+                        if (!attachmentMenu.contains(event.target) && !attachmentBtn.contains(event.target)) {
+                            attachmentMenu.classList.add('hidden');
+                            document.removeEventListener('click', closeOnClickOutside, { capture: true });
+                        }
+                    };
+                    document.addEventListener('click', closeOnClickOutside, { capture: true });
+                }
+            });
+
+            attachFileBtn?.addEventListener('click', () => {
+                attachmentMenu.classList.add('hidden');
+                fileInput?.click();
+            });
+
+            fileInput?.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleFiles(e.target.files);
+                e.target.value = ''; // Сброс для повторного выбора того же файла
+            });
+
+            attachmentPreviews?.addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.remove-attachment-btn');
+                if (removeBtn) {
+                    pendingAttachments.splice(parseInt(removeBtn.dataset.index, 10), 1);
+                    renderAttachmentPreviews();
+                }
+            });
+            
+            if (chatInputWrapper) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    chatInputWrapper.addEventListener(eventName, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    chatInputWrapper.addEventListener(eventName, () => chatInput.classList.add('drag-over'));
+                });
+                ['dragleave', 'drop'].forEach(eventName => {
+                    chatInputWrapper.addEventListener(eventName, () => chatInput.classList.remove('drag-over'));
+                });
+                chatInputWrapper.addEventListener('drop', (e) => {
+                    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+                });
+            }
+            // --- Конец логики прикрепления файлов ---
 
             const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
 
@@ -994,7 +1108,6 @@
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
             const widthToggleBtn = document.getElementById('chat-width-toggle');
-
             const titleInput = document.getElementById('chat-title-input');
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
@@ -1004,7 +1117,6 @@
                 const isExpanded = !state.isChatWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
                 widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
-
                 widthToggleBtn.addEventListener('click', () => {
                     state.isChatWidthCompact = !state.isChatWidthCompact;
                     const isNowExpanded = !state.isChatWidthCompact;
@@ -1018,7 +1130,6 @@
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
-                
                 const isVisible = state.isSettingsPanelExpanded;
                 settingsPanel.classList.toggle('opacity-100', isVisible);
                 settingsPanel.classList.toggle('translate-y-0', isVisible);
@@ -1026,18 +1137,15 @@
                 settingsPanel.classList.toggle('-translate-y-4', !isVisible);
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
-
                 const closeOnOutsideClick = (event) => {
                     if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
                         settingsToggle.click();
                     }
                 };
-
                 if (isVisible) {
                     document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
                 }
             });
-
 
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
@@ -1050,22 +1158,15 @@
             if (input && form && messagesContainer) {
                 const adjustLayout = () => {
                     if (!form || !messagesContainer || !input) return;
-        
                     const layoutContainer = form.parentElement;
                     if (!layoutContainer) return;
-
                     const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
                     const formStyle = window.getComputedStyle(form);
                     const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
                     const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
-
                     const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
-                    
                     const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
-        
                     input.style.height = 'auto';
-        
                     if (input.scrollHeight < finalMaxHeight) {
                         input.style.height = `${input.scrollHeight}px`;
                         input.style.overflowY = 'hidden';
@@ -1073,26 +1174,16 @@
                         input.style.height = `${finalMaxHeight}px`;
                         input.style.overflowY = 'auto';
                     }
-        
                     setTimeout(() => {
                         const formHeight = form.offsetHeight;
                         messagesContainer.style.paddingBottom = `${formHeight}px`;
                     }, 0);
                 };
-        
                 input.addEventListener('input', adjustLayout);
-                
                 const resizeObserver = new ResizeObserver(adjustLayout);
-                if(chatViewContainer) {
-                   resizeObserver.observe(chatViewContainer);
-                }
-
-                if (window.visualViewport) {
-                    window.visualViewport.addEventListener('resize', adjustLayout);
-                } else {
-                    window.addEventListener('resize', adjustLayout);
-                }
-
+                if(chatViewContainer) { resizeObserver.observe(chatViewContainer); }
+                if (window.visualViewport) { window.visualViewport.addEventListener('resize', adjustLayout); } 
+                else { window.addEventListener('resize', adjustLayout); }
                 setTimeout(adjustLayout, 100);
             }
 
@@ -1107,19 +1198,14 @@
                     const models = selectedProvider.models || [];
                     if (models.length > 0) { 
                         newModelName = models[0]; 
-                        if (modelSelect) { 
-                            modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); 
-                        }
+                        if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
                     } else { 
-                        if (modelSelect) { 
-                            modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; 
-                        } 
+                        if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } 
                     }
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
             modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
-        
         }
         
         function setupNotepadViewEventListeners() {
@@ -1298,18 +1384,38 @@
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            const messageContent = input.value.trim();
-            if (!messageContent || state.loadingSessionId) return;
+            const typedMessage = input.value.trim();
+
+            if (pendingAttachments.length === 0 && !typedMessage) return;
+            if (state.loadingSessionId) return;
 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
 
-            const userMessage = { role: 'user', content: messageContent };
+            let finalContent = '';
+
+            // Сначала добавляем файлы, затем сообщение пользователя
+            pendingAttachments.forEach(file => {
+                const safeFileName = file.name.replace(/</g, "<").replace(/>/g, ">");
+                // Оборачиваем содержимое файла в markdown-блок кода для корректного отображения
+                const codeBlock = "```\n" + file.content + "\n```";
+                // Создаем <details> блок, который будет служить "плашкой"
+                finalContent += `<details class="file-attachment">\n<summary>Прикреплён файл: ${safeFileName}</summary>\n\n${codeBlock}\n\n</details>\n\n`;
+            });
+            
+            finalContent += typedMessage;
+
+            const userMessage = { role: 'user', content: finalContent.trim() };
             const messagesToSubmit = [...(activeSession.messages || []), userMessage];
             
             input.value = '';
             input.style.height = 'auto';
+            pendingAttachments.length = 0;
+            const attachmentPreviews = document.getElementById('attachment-previews');
+            if (attachmentPreviews) attachmentPreviews.innerHTML = '';
+            
+            input.dispatchEvent(new Event('input', { bubbles: true }));
 
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: messagesToSubmit, updatedAt: serverTimestamp() });

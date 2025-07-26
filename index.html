@@ -534,15 +534,15 @@
 
                 <!-- Плавающая панель настроек -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
-                    <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
+                    <div class="flex justify-between items-center border-b border-border-color pb-3 mb-4">
+                        <h3 class="font-bold text-lg">Настройки чата</h3>
+                        <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors -mr-2">
+                            <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                     <div>
                         <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="text" id="chat-title-input" class="flex-grow w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
-                            <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors">
-                                <i data-lucide="rotate-cw" class="w-4 h-4"></i>
-                            </button>
-                        </div>
+                        <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
                     </div>
                     <div>
                         <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label>

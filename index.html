@@ -527,7 +527,7 @@
                 </div>
 
                 <!-- Оверлей для перетаскивания, покрывает всю область -->
-                <div id="drop-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm border-4 border-dashed border-accent rounded-lg flex-col items-center justify-center text-white font-bold text-2xl hidden z-40">
+                <div id="drop-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm border-4 border-dashed border-accent rounded-lg flex flex-col items-center justify-center text-white font-bold text-2xl hidden z-40">
                     <i data-lucide="file-down" class="w-16 h-16 mb-4"></i>
                     <span>Перетащите файл для прикрепления</span>
                 </div>
@@ -581,7 +581,7 @@
                 </div>
             </div>`; 
         }
-
+        
         function showFullscreenMessage(content) {
             const modal = document.getElementById('fullscreen-modal');
             const modalBody = document.getElementById('fullscreen-modal-body');

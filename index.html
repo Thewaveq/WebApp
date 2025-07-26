@@ -537,7 +537,12 @@
                     <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
                     <div>
                         <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
-                        <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="chat-title-input" class="flex-grow w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
+                            <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors">
+                                <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label>
@@ -1869,6 +1874,17 @@
                     });
                 }
                 
+                const clearHistoryBtn = e.target.closest('#clear-chat-history-btn');
+                if (clearHistoryBtn) {
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    if (activeSession) {
+                        showConfirmModal('Вы уверены, что хотите очистить историю этого чата? Это действие необратимо.', async () => {
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: [], updatedAt: serverTimestamp() });
+                        });
+                    }
+                }
+
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
                     const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);

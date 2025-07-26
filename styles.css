@@ -200,12 +200,6 @@ details[open] > summary .details-arrow {
     background-color: var(--bg-sidebar);
 }
 
-/* --- СТИЛЬ ДЛЯ ПРИКРЕПЛЕННОГО КОНТЕКСТА В ЧАТЕ --- */
-.context-message-bg {
-    background-color: rgba(128, 128, 128, 0.1);
-    border: 1px solid var(--border-color);
-}
-
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
 
@@ -491,20 +485,26 @@ details[open] > summary .details-arrow {
     background-color: var(--accent-hover);
 }
 
-/* --- СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
+/* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
 #chat-input {
-    padding-left: 3rem; 
-
+    /* 1. Устанавливаем более темный и полупрозрачный фон */
+    /* Используем почти черный цвет (20, 20, 20) с 60% непрозрачности */
     background-color: rgba(20, 20, 20, 0.6);
 
-    -webkit-backdrop-filter: blur(12px);
+    /* 2. Добавляем эффект размытия фона (блюр) */
+    /* Это создаст эффект "матового стекла" на элементах позади поля ввода */
+    -webkit-backdrop-filter: blur(12px); /* Префикс для поддержки Safari */
     backdrop-filter: blur(12px);
 
+    /* 3. Настраиваем рамку, чтобы она лучше сочеталась с новым стилем */
+    /* Тонкая, полупрозрачная белая рамка для выделения краев */
     border: 1px solid rgba(255, 255, 255, 0.1);
 
+    /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
     box-shadow: none;
     outline: none;
     
+    /* 5. Добавляем плавный переход для рамки при фокусе */
     transition: border-color 0.2s ease-in-out;
 }
 

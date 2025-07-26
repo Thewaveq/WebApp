@@ -209,7 +209,7 @@
             isNotepadWidthCompact: true,
             isSettingsPanelExpanded: false,
             isNotepadSettingsPanelExpanded: false,
-            notepadColumnCount: 1,
+            attachedNotepadId: null,
         };
         
         let confirmModalCallback = null;
@@ -243,13 +243,6 @@
             if (savedNotepadCompactMode !== null) {
                 state.isNotepadWidthCompact = (savedNotepadCompactMode === 'true');
             }
-
-            const savedColumnCount = localStorage.getItem('notepadColumnCount');
-                if (savedColumnCount && !isNaN(parseInt(savedColumnCount, 10))) {
-                    const count = parseInt(savedColumnCount, 10);
-                    // Ограничиваем значение от 1 до 4 для безопасности
-                    state.notepadColumnCount = Math.max(1, Math.min(4, count));
-                }
         }
     
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
@@ -341,7 +334,6 @@
                  return;
             }
 
-            // --- ЕСЛИ ТРЕБУЕТСЯ ПОЛНАЯ ПЕРЕРИСОВКА ---
             mainContent.innerHTML = '';
             mainContent.dataset.activeTabType = state.activeTab;
             mainContent.dataset.activeSessionId = state.activeSessionId || '';
@@ -419,10 +411,42 @@
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
         }
 
+        function renderChatAttachmentUI() {
+            const container = document.getElementById('attachment-container');
+            if (!container) return;
+
+            if (state.attachedNotepadId) {
+                const notepad = state.sessions.find(s => s.id === state.attachedNotepadId);
+                if (notepad) {
+                    container.innerHTML = `
+                        <div class="inline-flex items-center bg-accent/20 text-accent-foreground border border-accent/50 rounded-full pl-3 pr-2 py-1 text-sm">
+                            <i data-lucide="notebook-tabs" class="w-4 h-4 mr-2"></i>
+                            <span class="font-medium">${notepad.title}</span>
+                            <button id="remove-attachment-btn" class="ml-2 text-accent-foreground/70 hover:text-accent-foreground">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                    lucide.createIcons({ nodes: [container] });
+
+                    document.getElementById('remove-attachment-btn').addEventListener('click', () => {
+                        state.attachedNotepadId = null;
+                        renderChatAttachmentUI();
+                    });
+                } else {
+                    state.attachedNotepadId = null;
+                    container.innerHTML = '';
+                }
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
         function renderNotepadCards(session) {
             const cardsGrid = document.getElementById('note-cards-grid');
             if (!cardsGrid) return;
         
+
             function autoResizeTextarea(textarea) {
                 if (!textarea) return;
 
@@ -434,6 +458,8 @@
         
             const newCards = session.cards || [];
             const newCardIds = new Set(newCards.map(c => c.id));
+            const addButton = document.getElementById('add-new-card-btn');
+        
 
             const existingCardElements = cardsGrid.querySelectorAll('.note-card');
             existingCardElements.forEach(cardEl => {
@@ -467,7 +493,7 @@
                     tempDiv.innerHTML = newCardHTML;
                     const newCardElement = tempDiv.firstElementChild;
                     
-                    cardsGrid.appendChild(newCardElement);
+                    cardsGrid.insertBefore(newCardElement, addButton);
                     lucide.createIcons({ nodes: [newCardElement] });
                     
                     const newTextarea = newCardElement.querySelector('.note-card-content');
@@ -509,7 +535,7 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления (ИСПОЛЬЗУЮТ НОВЫЙ CSS-КЛАСС) -->
+                <!-- ... (плавающие кнопки управления без изменений) ... -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -519,32 +545,9 @@
                     </button>
                 </div>
 
-                <!-- Плавающая панель настроек -->
+                <!-- ... (плавающая панель настроек без изменений) ... -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
-                    <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
-                    <div>
-                        <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
-                        <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
-                    </div>
-                    <div>
-                        <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label>
-                        <select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-                            <option value="">Без роли</option>
-                            ${roleOptions}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1">Провайдер</label>
-                        <select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-                            ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="model-select" class="text-sm font-medium text-text-secondary block mb-1">Модель</label>
-                        <select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-                            ${modelOptions}
-                        </select>
-                    </div>
+                    <!-- ... (содержимое панели настроек) ... -->
                 </div>
                 
                 <!-- Область чата -->
@@ -552,10 +555,30 @@
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="relative w-full max-w-4xl mx-auto">
-                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                            </button>
+                            <!-- НОВОЕ: Контейнер для плашки прикрепленной папки -->
+                            <div id="attachment-container" class="mb-2"></div>
+                            
+                            <div class="relative"> <!-- Обертка для textarea и кнопки -->
+                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pl-12 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                                
+                                <!-- НОВОЕ: Кнопка для прикрепления заметок -->
+                                <div class="absolute left-3 bottom-3">
+                                     <button type="button" id="attach-notepad-btn" title="Прикрепить заметки" class="p-2 rounded-full text-text-secondary hover:bg-bg-element transition-colors">
+                                        <i data-lucide="paperclip" class="w-5 h-5"></i>
+                                    </button>
+                                    <!-- НОВОЕ: Поповер для выбора папки -->
+                                    <div id="notepad-selection-popover" class="hidden absolute bottom-full mb-2 w-64 bg-bg-sidebar border border-border-color rounded-lg shadow-xl z-50 overflow-hidden">
+                                        <div class="p-2 border-b border-border-color text-sm font-semibold text-text-primary">Выберите папку</div>
+                                        <div id="notepad-selection-list" class="max-h-48 overflow-y-auto">
+                                            <!-- Сюда будут рендериться папки -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                    <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -566,11 +589,11 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
             const isSettingsPanelVisible = state.isNotepadSettingsPanelExpanded || false;
-
+        
             return `
                 <div class="flex flex-col h-full relative overflow-hidden" id="notepad-view-container">
                     
-                    <!-- Плавающие кнопки управления (без изменений) -->
+                    <!-- Плавающие кнопки управления (по аналогии с чатом) -->
                     <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                         <button id="notepad-width-toggle" title="Переключить ширину контента" class="chat-action-btn hidden lg:flex">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -580,31 +603,26 @@
                         </button>
                     </div>
         
-                    <!-- Плавающая панель настроек (ИЗМЕНЕНО) -->
+                    <!-- Плавающая панель настроек (по аналогии с чатом) -->
                     <div id="notepad-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                         <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки папки</h3>
                         <div>
                             <label for="note-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название папки</label>
                             <input type="text" id="note-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                         </div>
-                        <div>
-                            <label for="notepad-columns-slider" class="text-sm font-medium text-text-secondary block mb-1">Количество колонок: <span id="notepad-columns-value">${state.notepadColumnCount}</span></label>
-                            <input type="range" id="notepad-columns-slider" min="1" max="4" value="${state.notepadColumnCount}" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-accent">
-                        </div>
                     </div>
                     
-                    <!-- Основная область с карточками (ИЗМЕНЕНО) -->
+                    <!-- Основная область с карточками -->
                     <div id="notepad-scroll-container" class="flex-grow overflow-y-auto p-4 ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
-                        <div id="note-cards-grid" class="grid grid-cols-${state.notepadColumnCount} gap-4 items-start">
+                        <div id="note-cards-grid" class="grid grid-cols-1 gap-4 items-start">
                             ${cardsHTML}
+                            <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
+                                <i data-lucide="plus" class="w-10 h-10"></i>
+                            </button>
                         </div>
-                        <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px] w-full mt-4">
-                            <i data-lucide="plus" class="w-10 h-10"></i>
-                        </button>
                     </div>
                 </div>
             `;
-
         }
         
         function getCardHTML(card) {
@@ -626,6 +644,20 @@
         
         function createMessageElement(msg, index) {
             const isUser = msg.role === 'user';
+
+            if (msg.role === 'context') {
+                const contextWrapper = document.createElement('div');
+                contextWrapper.className = 'flex justify-center items-center my-4';
+                const sanitizedHtml = DOMPurify.sanitize(marked.parse(msg.content, { breaks: true }));
+                contextWrapper.innerHTML = `
+                    <div class="context-message-bg text-sm text-text-secondary p-2 px-4 rounded-lg flex items-center gap-2">
+                        <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
+                        <span>${sanitizedHtml}</span>
+                    </div>
+                `;
+                lucide.createIcons({ nodes: [contextWrapper] });
+                return contextWrapper;
+            }
             
             const messageWrapper = document.createElement('div');
 
@@ -953,6 +985,10 @@
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
 
+            const attachBtn = document.getElementById('attach-notepad-btn');
+            const popover = document.getElementById('notepad-selection-popover');
+            const popoverList = document.getElementById('notepad-selection-list');
+
             const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
 
             const settingsToggle = document.getElementById('chat-settings-toggle');
@@ -1003,6 +1039,49 @@
                 }
             });
 
+            if (attachBtn && popover && popoverList) {
+                const togglePopover = (show) => {
+                    popover.classList.toggle('hidden', !show);
+                };
+
+                const handleClickOutside = (event) => {
+                    if (!popover.contains(event.target) && !attachBtn.contains(event.target)) {
+                        togglePopover(false);
+                        document.removeEventListener('click', handleClickOutside, true);
+                    }
+                };
+
+                attachBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isHidden = popover.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        const notepadSessions = state.sessions.filter(s => s.type === 'notepad');
+                        if (notepadSessions.length > 0) {
+                            popoverList.innerHTML = notepadSessions.map(s => `
+                                <div class="p-2 hover:bg-bg-element cursor-pointer text-sm text-text-primary" data-id="${s.id}">${s.title}</div>
+                            `).join('');
+                        } else {
+                            popoverList.innerHTML = '<div class="p-2 text-xs text-text-secondary text-center">Нет папок с заметками.</div>';
+                        }
+                        togglePopover(true);
+                        document.addEventListener('click', handleClickOutside, true);
+                    } else {
+                        togglePopover(false);
+                    }
+                });
+
+                popoverList.addEventListener('click', (e) => {
+                    const target = e.target.closest('[data-id]');
+                    if (target) {
+                        state.attachedNotepadId = target.dataset.id;
+                        togglePopover(false);
+                        document.removeEventListener('click', handleClickOutside, true);
+                        renderChatAttachmentUI();
+                    }
+                });
+            }
+            renderChatAttachmentUI();
 
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
@@ -1098,25 +1177,6 @@
             const settingsPanel = document.getElementById('notepad-settings-panel');
             const settingsIcon = document.getElementById('notepad-settings-icon');
 
-            const columnsSlider = document.getElementById('notepad-columns-slider');
-            const columnsValueSpan = document.getElementById('notepad-columns-value');
-
-            if (!cardsGrid) cardsGrid = document.getElementById('note-cards-grid');
-
-            if (columnsSlider && columnsValueSpan && cardsGrid) {
-                columnsSlider.addEventListener('input', (e) => {
-                    const newColumnCount = e.target.value;
-                    
-                    columnsValueSpan.textContent = newColumnCount;
-                    
-                    cardsGrid.classList.remove('grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4');
-                    cardsGrid.classList.add(`grid-cols-${newColumnCount}`);
-        
-                    localStorage.setItem('notepadColumnCount', newColumnCount);
-                    state.notepadColumnCount = parseInt(newColumnCount, 10);
-                });
-            }
-            
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isNotepadSettingsPanelExpanded = !state.isNotepadSettingsPanelExpanded;
@@ -1283,24 +1343,57 @@
             e.preventDefault();
             const input = document.getElementById('chat-input');
             const messageContent = input.value.trim();
-            if (!messageContent || state.loadingSessionId) return;
+            
+            // Не отправляем, если пусто и нет прикрепленного файла
+            if (!messageContent && !state.attachedNotepadId) return;
+            if (state.loadingSessionId) return;
 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
             const provider = state.providers.find(p => p.id === activeSession.providerId);
             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
 
-            const userMessage = { role: 'user', content: messageContent };
-            const messagesToSubmit = [...(activeSession.messages || []), userMessage];
+            let messagesToSubmit = [...(activeSession.messages || [])];
+            let apiPayloadContent = messageContent;
+
+            if (state.attachedNotepadId) {
+                const attachedNotepad = state.sessions.find(s => s.id === state.attachedNotepadId);
+                if (attachedNotepad && attachedNotepad.cards) {
+
+                    const contextMessage = {
+                        role: 'context',
+                        content: `Прикреплены заметки из папки: **${attachedNotepad.title}**`
+                    };
+                    messagesToSubmit.push(contextMessage);
+
+                    const notepadContextStr = attachedNotepad.cards.map(card => 
+                        `## ${card.title || 'Без заголовка'}\n${card.content || ''}`
+                    ).join('\n\n---\n\n');
+                    
+                    apiPayloadContent = `Используй следующий контекст из заметок:\n<context>\n${notepadContextStr}\n</context>\n\nТеперь ответь на мой вопрос:\n${messageContent}`;
+                }
+            }
+
+            if (messageContent) {
+                 const userMessage = { role: 'user', content: messageContent };
+                 messagesToSubmit.push(userMessage);
+            }
             
             input.value = '';
             input.style.height = 'auto';
+            state.attachedNotepadId = null;
+            renderChatAttachmentUI();
 
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             await updateDoc(sessionRef, { messages: messagesToSubmit, updatedAt: serverTimestamp() });
 
+            const finalMessagesForApi = messagesToSubmit.filter(m => m.role !== 'context'); // Убираем наш UI-блок
+            if (finalMessagesForApi.length > 0) {
+                 finalMessagesForApi[finalMessagesForApi.length - 1].content = apiPayloadContent;
+            }
+
             await generateAssistantResponse(
                 state.activeSessionId,
-                messagesToSubmit,
+                finalMessagesForApi,
                 provider,
                 selectedRole,
                 activeSession.modelName
@@ -1953,7 +2046,7 @@
                 chatObserver = null;
             }
             userId = null;
-            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
+            state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false, attachedNotepadId: null };
             sidebar.classList.remove('collapsed', 'open');
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');

@@ -209,6 +209,7 @@
             isNotepadWidthCompact: true,
             isSettingsPanelExpanded: false,
             isNotepadSettingsPanelExpanded: false,
+            notepadColumnCount: 1,
         };
         
         let confirmModalCallback = null;
@@ -242,6 +243,13 @@
             if (savedNotepadCompactMode !== null) {
                 state.isNotepadWidthCompact = (savedNotepadCompactMode === 'true');
             }
+
+            const savedColumnCount = localStorage.getItem('notepadColumnCount');
+                if (savedColumnCount && !isNaN(parseInt(savedColumnCount, 10))) {
+                    const count = parseInt(savedColumnCount, 10);
+                    // Ограничиваем значение от 1 до 4 для безопасности
+                    state.notepadColumnCount = Math.max(1, Math.min(4, count));
+                }
         }
     
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
@@ -415,7 +423,6 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             if (!cardsGrid) return;
         
-
             function autoResizeTextarea(textarea) {
                 if (!textarea) return;
 
@@ -427,8 +434,6 @@
         
             const newCards = session.cards || [];
             const newCardIds = new Set(newCards.map(c => c.id));
-            const addButton = document.getElementById('add-new-card-btn');
-        
 
             const existingCardElements = cardsGrid.querySelectorAll('.note-card');
             existingCardElements.forEach(cardEl => {
@@ -462,7 +467,7 @@
                     tempDiv.innerHTML = newCardHTML;
                     const newCardElement = tempDiv.firstElementChild;
                     
-                    cardsGrid.insertBefore(newCardElement, addButton);
+                    cardsGrid.appendChild(newCardElement);
                     lucide.createIcons({ nodes: [newCardElement] });
                     
                     const newTextarea = newCardElement.querySelector('.note-card-content');
@@ -561,11 +566,11 @@
             const cards = activeSession.cards || [];
             const cardsHTML = cards.map(getCardHTML).join('');
             const isSettingsPanelVisible = state.isNotepadSettingsPanelExpanded || false;
-        
+
             return `
                 <div class="flex flex-col h-full relative overflow-hidden" id="notepad-view-container">
                     
-                    <!-- Плавающие кнопки управления (по аналогии с чатом) -->
+                    <!-- Плавающие кнопки управления (без изменений) -->
                     <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                         <button id="notepad-width-toggle" title="Переключить ширину контента" class="chat-action-btn hidden lg:flex">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -575,26 +580,31 @@
                         </button>
                     </div>
         
-                    <!-- Плавающая панель настроек (по аналогии с чатом) -->
+                    <!-- Плавающая панель настроек (ИЗМЕНЕНО) -->
                     <div id="notepad-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                         <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки папки</h3>
                         <div>
                             <label for="note-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название папки</label>
                             <input type="text" id="note-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название папки с заметками">
                         </div>
+                        <div>
+                            <label for="notepad-columns-slider" class="text-sm font-medium text-text-secondary block mb-1">Количество колонок: <span id="notepad-columns-value">${state.notepadColumnCount}</span></label>
+                            <input type="range" id="notepad-columns-slider" min="1" max="4" value="${state.notepadColumnCount}" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-accent">
+                        </div>
                     </div>
                     
-                    <!-- Основная область с карточками -->
+                    <!-- Основная область с карточками (ИЗМЕНЕНО) -->
                     <div id="notepad-scroll-container" class="flex-grow overflow-y-auto p-4 ${state.isNotepadWidthCompact ? 'notepad-view-compact' : ''}">
-                        <div id="note-cards-grid" class="grid grid-cols-1 gap-4 items-start">
+                        <div id="note-cards-grid" class="grid grid-cols-${state.notepadColumnCount} gap-4 items-start">
                             ${cardsHTML}
-                            <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px]">
-                                <i data-lucide="plus" class="w-10 h-10"></i>
-                            </button>
                         </div>
+                        <button id="add-new-card-btn" class="add-card-placeholder flex items-center justify-center rounded-lg border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary p-4 min-h-[120px] w-full mt-4">
+                            <i data-lucide="plus" class="w-10 h-10"></i>
+                        </button>
                     </div>
                 </div>
             `;
+
         }
         
         function getCardHTML(card) {
@@ -1088,6 +1098,25 @@
             const settingsPanel = document.getElementById('notepad-settings-panel');
             const settingsIcon = document.getElementById('notepad-settings-icon');
 
+            const columnsSlider = document.getElementById('notepad-columns-slider');
+            const columnsValueSpan = document.getElementById('notepad-columns-value');
+
+            if (!cardsGrid) cardsGrid = document.getElementById('note-cards-grid');
+
+            if (columnsSlider && columnsValueSpan && cardsGrid) {
+                columnsSlider.addEventListener('input', (e) => {
+                    const newColumnCount = e.target.value;
+                    
+                    columnsValueSpan.textContent = newColumnCount;
+                    
+                    cardsGrid.classList.remove('grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4');
+                    cardsGrid.classList.add(`grid-cols-${newColumnCount}`);
+        
+                    localStorage.setItem('notepadColumnCount', newColumnCount);
+                    state.notepadColumnCount = parseInt(newColumnCount, 10);
+                });
+            }
+            
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isNotepadSettingsPanelExpanded = !state.isNotepadSettingsPanelExpanded;

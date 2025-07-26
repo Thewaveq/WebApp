@@ -521,51 +521,51 @@ details[open] > summary .details-arrow {
     opacity: 0.9;
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛНОЭКРАННОГО ОКНА ПРОСМОТРА СООБЩЕНИЯ --- */
+/* --- СТИЛИ ДЛЯ ПОЛНОЭКРАННОГО ОКНА ПРОСМОТРА СООБЩЕНИЯ --- */
+#fullscreen-modal {
+    background-color: rgba(30, 30, 30, 0.6);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
 #fullscreen-modal-content {
-    /* Используем фон боковой панели для контраста с основным фоном, но с прозрачностью */
-    background-color: rgba(37, 37, 38, 0.85); /* --bg-sidebar с прозрачностью */
-    
-    /* Эффект "матового стекла", который размывает фон за окном */
-    -webkit-backdrop-filter: blur(15px);
-    backdrop-filter: blur(15px);
-
-    /* Четкая рамка для выделения границ окна */
-    border: 1px solid var(--border-color);
-    
-    /* Плавное появление окна при открытии */
-    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-    
-    /* Стили уже заданы через Tailwind, но здесь мы их закрепляем и улучшаем */
-    width: 95vw;
-    height: 90vh;
-    border-radius: 0.75rem; /* Соответствует rounded-lg */
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); /* Более выраженная тень */
-    display: flex;
-    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 6vh 8vw;
 }
 
-/* Стили для области с контентом внутри модального окна */
-#fullscreen-modal-body {
-    /* Небольшой отступ справа, чтобы скроллбар не прилипал к краю */
-    padding-right: 12px; 
-}
-
-/* Улучшаем стили для кнопки закрытия */
 #fullscreen-modal-close {
-    color: var(--text-secondary);
-    border-radius: 9999px; /* Делаем ее идеально круглой */
-    padding: 0.5rem; 
-    transition: background-color 0.2s, color 0.2s, transform 0.2s;
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    z-index: 60;
+    background-color: rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+    
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    transition: all 0.2s ease-in-out;
 }
 
 #fullscreen-modal-close:hover {
-    background-color: var(--bg-element);
-    color: var(--text-primary);
-    transform: scale(1.1); /* Слегка увеличиваем при наведении */
+    background-color: rgba(0, 0, 0, 0.4);
+    transform: scale(1.1) rotate(90deg);
 }
 
-#fullscreen-modal-close:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--accent);
+#fullscreen-modal-close > i {
+    width: 28px;
+    height: 28px;
+}
+
+#fullscreen-modal-body {
+    padding: 0;
 }

@@ -199,6 +199,7 @@ details[open] > summary .details-arrow {
 
 /* --- СТИЛИ ДЛЯ БЛОКА <think> --- */
 .prose details {
+    display: flow-root;
     background-color: var(--bg-element);
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;

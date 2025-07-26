@@ -873,6 +873,8 @@
             const innerContentWrapper = document.createElement('div');
             innerContentWrapper.className = 'w-full';
             innerContentWrapper.appendChild(headerDiv);
+            innerContentWrapper.appendChild(contentDiv);
+            
             messageWrapper.appendChild(innerContentWrapper);
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);

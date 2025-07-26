@@ -676,7 +676,6 @@
             const isUser = msg.role === 'user';
             
             const messageWrapper = document.createElement('div');
-
             messageWrapper.dataset.content = msg.content; 
             
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
@@ -691,21 +690,17 @@
 
             if (isUser) {
                 const user = auth.currentUser;
-
                 const userNameSpan = document.createElement('span');
                 userNameSpan.className = 'text-sm text-text-secondary'; 
                 userNameSpan.textContent = user?.displayName || 'Вы';
                 headerDiv.appendChild(userNameSpan);
-
                 const avatarSrc = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=4285F4&color=fff`;
                 iconDiv.innerHTML = `<img src="${avatarSrc}" alt="Аватар пользователя" class="w-full h-full object-cover">`;
                 headerDiv.appendChild(iconDiv);
-                
             } else {
                 iconDiv.classList.add('bg-accent');
                 iconDiv.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-white"></i>`;
                 headerDiv.appendChild(iconDiv);
-                
                 if (msg.modelName) {
                     const modelNameSpan = document.createElement('span');
                     modelNameSpan.className = 'text-sm text-text-secondary';
@@ -716,51 +711,44 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
-            
             let processedContent = (msg.content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
-            
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
-            const actionsContainer = document.createElement('div');
-            actionsContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            const actionsOuterContainer = document.createElement('div');
+            actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
             
-            const dropdownMenu = document.createElement('div');
-            dropdownMenu.className = 'absolute bottom-full right-0 mb-2 w-max min-w-[220px] bg-bg-sidebar border border-border-color rounded-lg shadow-2xl p-2 hidden z-20 space-y-1';
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = 'message-actions-container';
 
-            const createMenuItem = (icon, text, className, onClick) => {
+            const dropdownMenu = document.createElement('div');
+            dropdownMenu.className = 'message-actions-dropdown hidden';
+
+            const createMenuItem = (icon, text, customClass = '', dataset = {}) => {
                 const button = document.createElement('button');
-                button.className = `w-full flex items-center px-3 py-1.5 text-sm rounded-md text-text-primary hover:bg-bg-element transition-colors ${className}`;
-                button.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 mr-3 flex-shrink-0"></i><span class="text-left flex-grow">${text}</span>`;
-                button.addEventListener('click', onClick);
+                button.className = `dropdown-menu-item ${customClass}`;
+                button.innerHTML = `<i></i><span class="text-left flex-grow">${text}</span>`;
+                button.querySelector('i').setAttribute('data-lucide', icon);
+                Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
                 return button;
             };
-            
+
             if (isUser) {
-                const regenerateUserBtn = createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', () => {});
-                regenerateUserBtn.dataset.messageIndex = index;
-                dropdownMenu.appendChild(regenerateUserBtn);
-
-                const editButton = createMenuItem('pencil', 'Редактировать и отправить', 'edit-message-btn', () => {});
-                editButton.dataset.messageIndex = index;
-                dropdownMenu.appendChild(editButton);
+                dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', { messageIndex: index }));
+                dropdownMenu.appendChild(createMenuItem('pencil', 'Редактировать и отправить', 'edit-message-btn', { messageIndex: index }));
             } else {
-                const regenerateButton = createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-message-btn', () => {});
-                regenerateButton.dataset.messageIndex = index;
-                dropdownMenu.appendChild(regenerateButton);
+                dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-message-btn', { messageIndex: index }));
             }
-
-            const copyToNotesBtn = createMenuItem('file-plus-2', 'Скопировать в заметки', '', async () => {
-                 const contentToCopy = msg.content;
+            
+            dropdownMenu.appendChild(createMenuItem('file-plus-2', 'Скопировать в заметки')).addEventListener('click', async () => {
+                const contentToCopy = msg.content;
                 if (!contentToCopy) return;
-
                 const quickNotesTitle = 'Быстрые заметки';
                 let quickNotesSession = state.sessions.find(s => s.type === 'notepad' && s.title === quickNotesTitle);
                 let sessionId;
-
                 if (quickNotesSession) {
                     sessionId = quickNotesSession.id;
                 } else {
@@ -768,46 +756,34 @@
                     const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                     sessionId = newSessionRef.id;
                 }
-
-                const newCard = {
-                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
-                    title: contentToCopy.substring(0, 40).replace(/\n/g, ' ') + '...',
-                    content: contentToCopy,
-                    createdAt: new Date().toISOString()
-                };
-
+                const newCard = { id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), title: contentToCopy.substring(0, 40).replace(/\n/g, ' ') + '...', content: contentToCopy, createdAt: new Date().toISOString() };
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
                 await updateDoc(sessionRef, { cards: arrayUnion(newCard), updatedAt: serverTimestamp() });
-                
                 showInAppNotification('Скопировано!', `Сообщение добавлено в папку "${quickNotesTitle}"`, sessionId);
             });
-            dropdownMenu.appendChild(copyToNotesBtn);
-
-            const copyButton = createMenuItem('clipboard', 'Копировать текст', '', (e) => {
+            
+            dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст')).addEventListener('click', (e) => {
                 navigator.clipboard.writeText(msg.content).then(() => {
                     const btn = e.currentTarget;
-                    const icon = btn.querySelector('i');
-                    const text = btn.querySelector('span');
-                    const originalText = text.textContent;
-                    icon.setAttribute('data-lucide', 'check');
-                    icon.classList.add('text-green-400');
-                    text.textContent = 'Скопировано!';
+                    const iconEl = btn.querySelector('i');
+                    const textEl = btn.querySelector('span');
+                    const originalText = textEl.textContent;
+                    iconEl.setAttribute('data-lucide', 'check');
+                    textEl.textContent = 'Скопировано!';
                     lucide.createIcons({ nodes: [btn] });
                     setTimeout(() => {
-                        icon.setAttribute('data-lucide', 'clipboard');
-                        icon.classList.remove('text-green-400');
-                        text.textContent = originalText;
+                        iconEl.setAttribute('data-lucide', 'clipboard');
+                        textEl.textContent = originalText;
                         lucide.createIcons({ nodes: [btn] });
                     }, 2000);
                 }).catch(err => console.error('Не удалось скопировать текст:', err));
             });
-            dropdownMenu.appendChild(copyButton);
             
-            dropdownMenu.appendChild(document.createElement('hr'));
-
-            const deleteButton = createMenuItem('trash-2', 'Удалить сообщение', 'text-red-400 hover:!bg-red-500/20 delete-message-btn', () => {});
-            deleteButton.dataset.messageIndex = index;
-            dropdownMenu.appendChild(deleteButton);
+            const separator = document.createElement('hr');
+            separator.className = 'dropdown-menu-separator';
+            dropdownMenu.appendChild(separator);
+            
+            dropdownMenu.appendChild(createMenuItem('trash-2', 'Удалить сообщение', 'danger delete-message-btn', { messageIndex: index }));
 
             const moreOptionsBtn = document.createElement('button');
             moreOptionsBtn.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
@@ -817,7 +793,6 @@
             moreOptionsBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 dropdownMenu.classList.toggle('hidden');
-                
                 if (!dropdownMenu.classList.contains('hidden')) {
                     const closeOnClickOutside = (event) => {
                         if (!dropdownMenu.contains(event.target) && !moreOptionsBtn.contains(event.target)) {
@@ -831,6 +806,7 @@
 
             actionsContainer.appendChild(moreOptionsBtn);
             actionsContainer.appendChild(dropdownMenu);
+            actionsOuterContainer.appendChild(actionsContainer);
 
             const leftActionsContainer = document.createElement('div');
             leftActionsContainer.className = 'absolute bottom-1 left-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
@@ -844,35 +820,26 @@
             
             messageWrapper.appendChild(headerDiv);
             messageWrapper.appendChild(contentDiv);
-            messageWrapper.appendChild(actionsContainer);
+            messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
 
             messageWrapper.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
-                
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-code-btn';
                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
                 copyBtn.addEventListener('click', () => {
                     navigator.clipboard.writeText(block.innerText);
                     copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                    setTimeout(() => {
-                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                        lucide.createIcons();
-                    }, 2000);
+                    setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
                     lucide.createIcons();
                 });
                 preElement.appendChild(copyBtn);
                 hljs.highlightElement(block);
             });
 
-            lucide.createIcons({
-                attrs: {
-                    'stroke-width': 1.5
-                },
-                nodes: [messageWrapper]
-            });
+            lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
 
             return messageWrapper;
         }

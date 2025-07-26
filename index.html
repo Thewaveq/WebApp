@@ -516,7 +516,7 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления (ИСПОЛЬЗУЮТ НОВЫЙ CSS-КЛАСС) -->
+                <!-- Плавающие кнопки управления -->
                 <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex">
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -524,6 +524,12 @@
                     <button id="chat-settings-toggle" title="Настройки чата" class="chat-action-btn">
                         <i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i>
                     </button>
+                </div>
+
+                <!-- Оверлей для перетаскивания, покрывает всю область -->
+                <div id="drop-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm border-4 border-dashed border-accent rounded-lg flex-col items-center justify-center text-white font-bold text-2xl hidden z-40">
+                    <i data-lucide="file-down" class="w-16 h-16 mb-4"></i>
+                    <span>Перетащите файл для прикрепления</span>
                 </div>
 
                 <!-- Плавающая панель настроек -->
@@ -554,25 +560,19 @@
                     </div>
                 </div>
                 
-                <!-- Область чата (изменена структура) -->
-                <div class="flex-grow relative min-h-0 flex flex-col">
-                    <div id="chat-messages" class="flex-grow p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
-                    
-                    <div id="chat-input-area" class="flex-shrink-0 relative mt-auto bg-bg-main">
-                         <div id="drop-overlay" class="absolute inset-0 bg-accent/20 border-2 border-dashed border-accent rounded-xl flex-col items-center justify-center text-accent font-bold text-lg hidden z-10 m-4 mb-0">
-                            <i data-lucide="file-down" class="w-12 h-12 mb-2"></i>
-                            <span>Перетащите файл сюда</span>
+                <!-- Область чата (ОРИГИНАЛЬНАЯ СТРУКТУРА) -->
+                <div class="flex-grow relative min-h-0">
+                    <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
+                    <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
+                        <div class="relative w-full max-w-4xl mx-auto">
+                             <!-- Контейнер для предпросмотра файла, вставлен сюда -->
+                            <div id="attachment-preview-container" class="pb-2"></div>
+                            <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите сообщение или перетащите файл..." rows="1"></textarea>
+                            <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                            </button>
                         </div>
-                        <div id="attachment-preview-container" class="px-4 pb-2"></div>
-                        <form id="chat-form" class="px-4 pb-4 bg-transparent">
-                            <div class="relative w-full max-w-4xl mx-auto">
-                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите сообщение или перетащите файл..." rows="1"></textarea>
-                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                                    <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    </form>
                 </div>
             </div>`; 
         }
@@ -690,205 +690,184 @@
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
             const fileMatch = msg.content && msg.content.match(fileRegex);
 
-            // --- БЛОК ОБРАБОТКИ СООБЩЕНИЯ-ФАЙЛА (ИЗМЕНЕН) ---
             if (isUser && fileMatch) {
                 const fileName = fileMatch[1];
-
                 messageWrapper.className = 'message-container group relative flex flex-col mb-6 items-end';
-
                 const plaque = document.createElement('div');
-                // Добавлен flex и items-center для корректного выравнивания
                 plaque.className = 'user-message-bg rounded-xl max-w-md p-3 flex items-center justify-between gap-2';
-                
-                // Контейнер для иконки и имени файла
                 const fileInfo = document.createElement('div');
-                fileInfo.className = 'flex items-center min-w-0'; // min-w-0 для корректного text-truncate
+                fileInfo.className = 'flex items-center min-w-0';
                 fileInfo.innerHTML = `
                     <i data-lucide="paperclip" class="w-4 h-4 mr-2 flex-shrink-0 text-accent"></i>
                     <span class="font-medium truncate">${DOMPurify.sanitize(fileName)}</span>
                 `;
                 plaque.appendChild(fileInfo);
-
-                // Кнопка удаления теперь отдельный flex-элемент
                 const deleteButton = document.createElement('button');
                 deleteButton.className = 'p-1 text-text-secondary hover:text-red-400 delete-message-btn flex-shrink-0';
                 deleteButton.title = 'Удалить';
                 deleteButton.dataset.messageIndex = index;
                 deleteButton.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
-                
                 plaque.appendChild(deleteButton);
                 messageWrapper.appendChild(plaque);
                 lucide.createIcons({ nodes: [messageWrapper] });
-
-                return messageWrapper;
-
-            // --- ОСТАЛЬНАЯ ЧАСТЬ ФУНКЦИИ БЕЗ ИЗМЕНЕНИЙ ---
-            } else {
-                const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
-                const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
-                messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
-                
-                const headerDiv = document.createElement('div');
-                headerDiv.className = `flex items-center space-x-3`;
-
-                const iconDiv = document.createElement('div');
-                iconDiv.className = `w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden`;
-
-                if (isUser) {
-                    const user = auth.currentUser;
-                    const userNameSpan = document.createElement('span');
-                    userNameSpan.className = 'text-sm text-text-secondary'; 
-                    userNameSpan.textContent = user?.displayName || 'Вы';
-                    headerDiv.appendChild(userNameSpan);
-                    const avatarSrc = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=4285F4&color=fff`;
-                    iconDiv.innerHTML = `<img src="${avatarSrc}" alt="Аватар пользователя" class="w-full h-full object-cover">`;
-                    headerDiv.appendChild(iconDiv);
-                } else {
-                    iconDiv.classList.add('bg-accent');
-                    iconDiv.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-white"></i>`;
-                    headerDiv.appendChild(iconDiv);
-                    if (msg.modelName) {
-                        const modelNameSpan = document.createElement('span');
-                        modelNameSpan.className = 'text-sm text-text-secondary';
-                        modelNameSpan.textContent = msg.modelName;
-                        headerDiv.appendChild(modelNameSpan);
-                    }
-                }
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
-                let processedContent = (msg.content || '').replace(
-                    /<think>([\s\S]*?)<\/think>/g,
-                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                );
-                const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-
-                const actionsOuterContainer = document.createElement('div');
-                actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
-                
-                const actionsContainer = document.createElement('div');
-                actionsContainer.className = 'message-actions-container';
-
-                const dropdownMenu = document.createElement('div');
-                dropdownMenu.className = 'message-actions-dropdown hidden';
-
-                const createMenuItem = (icon, text, customClass = '', dataset = {}) => {
-                    const button = document.createElement('button');
-                    button.className = `dropdown-menu-item ${customClass}`;
-                    button.innerHTML = `<i></i><span class="text-left flex-grow">${text}</span>`;
-                    button.querySelector('i').setAttribute('data-lucide', icon);
-                    Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
-                    return button;
-                };
-
-                if (isUser) {
-                    dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', { messageIndex: index }));
-                    dropdownMenu.appendChild(createMenuItem('pencil', 'Редактировать и отправить', 'edit-message-btn', { messageIndex: index }));
-                } else {
-                    dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-message-btn', { messageIndex: index }));
-                }
-                
-                dropdownMenu.appendChild(createMenuItem('file-plus-2', 'Скопировать в заметки')).addEventListener('click', async () => {
-                    const contentToCopy = msg.content;
-                    if (!contentToCopy) return;
-                    const quickNotesTitle = 'Быстрые заметки';
-                    let quickNotesSession = state.sessions.find(s => s.type === 'notepad' && s.title === quickNotesTitle);
-                    let sessionId;
-                    if (quickNotesSession) {
-                        sessionId = quickNotesSession.id;
-                    } else {
-                        const newSessionData = { type: 'notepad', title: quickNotesTitle, cards: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                        const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
-                        sessionId = newSessionRef.id;
-                    }
-                    const newCard = { id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), title: contentToCopy.substring(0, 40).replace(/\n/g, ' ') + '...', content: contentToCopy, createdAt: new Date().toISOString() };
-                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                    await updateDoc(sessionRef, { cards: arrayUnion(newCard), updatedAt: serverTimestamp() });
-                    showInAppNotification('Скопировано!', `Сообщение добавлено в папку "${quickNotesTitle}"`, sessionId);
-                });
-                
-                dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст')).addEventListener('click', (e) => {
-                    navigator.clipboard.writeText(msg.content).then(() => {
-                        const btn = e.currentTarget;
-                        const iconEl = btn.querySelector('i');
-                        const textEl = btn.querySelector('span');
-                        const originalText = textEl.textContent;
-                        iconEl.setAttribute('data-lucide', 'check');
-                        textEl.textContent = 'Скопировано!';
-                        lucide.createIcons({ nodes: [btn] });
-                        setTimeout(() => {
-                            iconEl.setAttribute('data-lucide', 'clipboard');
-                            textEl.textContent = originalText;
-                            lucide.createIcons({ nodes: [btn] });
-                        }, 2000);
-                    }).catch(err => console.error('Не удалось скопировать текст:', err));
-                });
-                
-                const separator = document.createElement('hr');
-                separator.className = 'dropdown-menu-separator';
-                dropdownMenu.appendChild(separator);
-                
-                dropdownMenu.appendChild(createMenuItem('trash-2', 'Удалить сообщение', 'danger delete-message-btn', { messageIndex: index }));
-
-                const moreOptionsBtn = document.createElement('button');
-                moreOptionsBtn.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
-                moreOptionsBtn.title = 'Дополнительно';
-                moreOptionsBtn.innerHTML = `<i data-lucide="more-vertical" class="w-4 h-4"></i>`;
-                
-                moreOptionsBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    dropdownMenu.classList.toggle('hidden');
-                    if (!dropdownMenu.classList.contains('hidden')) {
-                        const closeOnClickOutside = (event) => {
-                            if (!dropdownMenu.contains(event.target) && !moreOptionsBtn.contains(event.target)) {
-                                dropdownMenu.classList.add('hidden');
-                                document.removeEventListener('click', closeOnClickOutside, { capture: true });
-                            }
-                        };
-                        document.addEventListener('click', closeOnClickOutside, { capture: true });
-                    }
-                });
-
-                actionsContainer.appendChild(moreOptionsBtn);
-                actionsContainer.appendChild(dropdownMenu);
-                actionsOuterContainer.appendChild(actionsContainer);
-
-                const leftActionsContainer = document.createElement('div');
-                leftActionsContainer.className = 'absolute bottom-1 left-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
-
-                const fullscreenButton = document.createElement('button');
-                fullscreenButton.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
-                fullscreenButton.title = 'Открыть в полном окне';
-                fullscreenButton.innerHTML = `<i data-lucide="maximize" class="w-4 h-4"></i>`;
-                fullscreenButton.addEventListener('click', () => { showFullscreenMessage(msg.content); });
-                leftActionsContainer.appendChild(fullscreenButton);
-                
-                messageWrapper.appendChild(headerDiv);
-                messageWrapper.appendChild(contentDiv);
-                messageWrapper.appendChild(actionsOuterContainer);
-                messageWrapper.appendChild(leftActionsContainer);
-
-                messageWrapper.querySelectorAll('pre code').forEach((block) => {
-                    const preElement = block.parentElement;
-                    if (preElement.querySelector('.copy-code-btn')) return;
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'copy-code-btn';
-                    copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                    copyBtn.addEventListener('click', () => {
-                        navigator.clipboard.writeText(block.innerText);
-                        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                        setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
-                        lucide.createIcons();
-                    });
-                    preElement.appendChild(copyBtn);
-                    hljs.highlightElement(block);
-                });
-
-                lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
-
                 return messageWrapper;
             }
+
+            // ВАШ ОСТАЛЬНОЙ КОД ДЛЯ ОБЫЧНЫХ СООБЩЕНИЙ ОСТАЛСЯ БЕЗ ИЗМЕНЕНИЙ
+            const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
+            const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
+            messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
+            const headerDiv = document.createElement('div');
+            headerDiv.className = `flex items-center space-x-3`;
+            const iconDiv = document.createElement('div');
+            iconDiv.className = `w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden`;
+
+            if (isUser) {
+                const user = auth.currentUser;
+                const userNameSpan = document.createElement('span');
+                userNameSpan.className = 'text-sm text-text-secondary'; 
+                userNameSpan.textContent = user?.displayName || 'Вы';
+                headerDiv.appendChild(userNameSpan);
+                const avatarSrc = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=4285F4&color=fff`;
+                iconDiv.innerHTML = `<img src="${avatarSrc}" alt="Аватар пользователя" class="w-full h-full object-cover">`;
+                headerDiv.appendChild(iconDiv);
+            } else {
+                iconDiv.classList.add('bg-accent');
+                iconDiv.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-white"></i>`;
+                headerDiv.appendChild(iconDiv);
+                if (msg.modelName) {
+                    const modelNameSpan = document.createElement('span');
+                    modelNameSpan.className = 'text-sm text-text-secondary';
+                    modelNameSpan.textContent = msg.modelName;
+                    headerDiv.appendChild(modelNameSpan);
+                }
+            }
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
+            let processedContent = (msg.content || '').replace(
+                /<think>([\s\S]*?)<\/think>/g,
+                `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+            );
+            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+
+            const actionsOuterContainer = document.createElement('div');
+            actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = 'message-actions-container';
+            const dropdownMenu = document.createElement('div');
+            dropdownMenu.className = 'message-actions-dropdown hidden';
+
+            const createMenuItem = (icon, text, customClass = '', dataset = {}) => {
+                const button = document.createElement('button');
+                button.className = `dropdown-menu-item ${customClass}`;
+                button.innerHTML = `<i></i><span class="text-left flex-grow">${text}</span>`;
+                button.querySelector('i').setAttribute('data-lucide', icon);
+                Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
+                return button;
+            };
+
+            if (isUser) {
+                dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', { messageIndex: index }));
+                dropdownMenu.appendChild(createMenuItem('pencil', 'Редактировать и отправить', 'edit-message-btn', { messageIndex: index }));
+            } else {
+                dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-message-btn', { messageIndex: index }));
+            }
+            
+            dropdownMenu.appendChild(createMenuItem('file-plus-2', 'Скопировать в заметки')).addEventListener('click', async () => {
+                const contentToCopy = msg.content;
+                if (!contentToCopy) return;
+                const quickNotesTitle = 'Быстрые заметки';
+                let quickNotesSession = state.sessions.find(s => s.type === 'notepad' && s.title === quickNotesTitle);
+                let sessionId;
+                if (quickNotesSession) {
+                    sessionId = quickNotesSession.id;
+                } else {
+                    const newSessionData = { type: 'notepad', title: quickNotesTitle, cards: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                    const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
+                    sessionId = newSessionRef.id;
+                }
+                const newCard = { id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), title: contentToCopy.substring(0, 40).replace(/\n/g, ' ') + '...', content: contentToCopy, createdAt: new Date().toISOString() };
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
+                await updateDoc(sessionRef, { cards: arrayUnion(newCard), updatedAt: serverTimestamp() });
+                showInAppNotification('Скопировано!', `Сообщение добавлено в папку "${quickNotesTitle}"`, sessionId);
+            });
+            
+            dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст')).addEventListener('click', (e) => {
+                navigator.clipboard.writeText(msg.content).then(() => {
+                    const btn = e.currentTarget;
+                    const iconEl = btn.querySelector('i');
+                    const textEl = btn.querySelector('span');
+                    const originalText = textEl.textContent;
+                    iconEl.setAttribute('data-lucide', 'check');
+                    textEl.textContent = 'Скопировано!';
+                    lucide.createIcons({ nodes: [btn] });
+                    setTimeout(() => {
+                        iconEl.setAttribute('data-lucide', 'clipboard');
+                        textEl.textContent = originalText;
+                        lucide.createIcons({ nodes: [btn] });
+                    }, 2000);
+                }).catch(err => console.error('Не удалось скопировать текст:', err));
+            });
+            
+            const separator = document.createElement('hr');
+            separator.className = 'dropdown-menu-separator';
+            dropdownMenu.appendChild(separator);
+            dropdownMenu.appendChild(createMenuItem('trash-2', 'Удалить сообщение', 'danger delete-message-btn', { messageIndex: index }));
+            const moreOptionsBtn = document.createElement('button');
+            moreOptionsBtn.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
+            moreOptionsBtn.title = 'Дополнительно';
+            moreOptionsBtn.innerHTML = `<i data-lucide="more-vertical" class="w-4 h-4"></i>`;
+            
+            moreOptionsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('hidden');
+                if (!dropdownMenu.classList.contains('hidden')) {
+                    const closeOnClickOutside = (event) => {
+                        if (!dropdownMenu.contains(event.target) && !moreOptionsBtn.contains(event.target)) {
+                            dropdownMenu.classList.add('hidden');
+                            document.removeEventListener('click', closeOnClickOutside, { capture: true });
+                        }
+                    };
+                    document.addEventListener('click', closeOnClickOutside, { capture: true });
+                }
+            });
+
+            actionsContainer.appendChild(moreOptionsBtn);
+            actionsContainer.appendChild(dropdownMenu);
+            actionsOuterContainer.appendChild(actionsContainer);
+            const leftActionsContainer = document.createElement('div');
+            leftActionsContainer.className = 'absolute bottom-1 left-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            const fullscreenButton = document.createElement('button');
+            fullscreenButton.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
+            fullscreenButton.title = 'Открыть в полном окне';
+            fullscreenButton.innerHTML = `<i data-lucide="maximize" class="w-4 h-4"></i>`;
+            fullscreenButton.addEventListener('click', () => { showFullscreenMessage(msg.content); });
+            leftActionsContainer.appendChild(fullscreenButton);
+            messageWrapper.appendChild(headerDiv);
+            messageWrapper.appendChild(contentDiv);
+            messageWrapper.appendChild(actionsOuterContainer);
+            messageWrapper.appendChild(leftActionsContainer);
+
+            messageWrapper.querySelectorAll('pre code').forEach((block) => {
+                const preElement = block.parentElement;
+                if (preElement.querySelector('.copy-code-btn')) return;
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-code-btn';
+                copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(block.innerText);
+                    copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                    setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
+                    lucide.createIcons();
+                });
+                preElement.appendChild(copyBtn);
+                hljs.highlightElement(block);
+            });
+
+            lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
+            return messageWrapper;
         }
         
         function renderChatMessages(session) {
@@ -1034,15 +1013,50 @@
             const input = document.getElementById('chat-input');
             const messagesContainer = document.getElementById('chat-messages');
             const chatViewContainer = document.getElementById('chat-view-container');
-            const inputArea = document.getElementById('chat-input-area'); 
             const dropOverlay = document.getElementById('drop-overlay');
             const attachmentPreviewContainer = document.getElementById('attachment-preview-container');
 
+            // --- ВАШ ОРИГИНАЛЬНЫЙ КОД ДЛЯ ПОЛЯ ВВОДА ---
+            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9;
+            const adjustLayout = () => {
+                if (!form || !messagesContainer || !input) return;
+    
+                const layoutContainer = form.parentElement;
+                if (!layoutContainer) return;
+
+                const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+                const formStyle = window.getComputedStyle(form);
+                const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
+                const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
+
+                const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
+                
+                const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
+    
+                input.style.height = 'auto';
+    
+                if (input.scrollHeight < finalMaxHeight) {
+                    input.style.height = `${input.scrollHeight}px`;
+                    input.style.overflowY = 'hidden';
+                } else {
+                    input.style.height = `${finalMaxHeight}px`;
+                    input.style.overflowY = 'auto';
+                }
+    
+                setTimeout(() => {
+                    // ВАЖНО: высота предпросмотра файла теперь автоматически учитывается в form.offsetHeight
+                    const formHeight = form.offsetHeight;
+                    messagesContainer.style.paddingBottom = `${formHeight}px`;
+                }, 0);
+            };
+
+            // --- НОВЫЙ КОД ДЛЯ ФАЙЛОВ ---
             const renderAttachmentPreview = () => {
                 if (!attachmentPreviewContainer) return;
                 if (attachedFile) {
                     attachmentPreviewContainer.innerHTML = `
-                        <div class="attachment-preview max-w-4xl mx-auto bg-bg-element p-2 rounded-lg flex items-center justify-between text-sm">
+                        <div class="attachment-preview bg-bg-element p-2 rounded-lg flex items-center justify-between text-sm">
                             <div class="flex items-center overflow-hidden">
                                 <i data-lucide="paperclip" class="w-4 h-4 mr-2 flex-shrink-0"></i>
                                 <span class="truncate font-medium">${DOMPurify.sanitize(attachedFile.name)}</span>
@@ -1056,35 +1070,35 @@
                     document.getElementById('remove-attachment-btn').addEventListener('click', () => {
                         attachedFile = null;
                         renderAttachmentPreview();
+                        adjustLayout(); // Вызываем пересчет макета после удаления
                     });
                 } else {
                     attachmentPreviewContainer.innerHTML = '';
                 }
             };
             
-            if (inputArea) {
+            if (chatViewContainer && dropOverlay) {
                 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    inputArea.addEventListener(eventName, e => {
+                    chatViewContainer.addEventListener(eventName, e => {
                         e.preventDefault();
                         e.stopPropagation();
                     });
                 });
             
-                inputArea.addEventListener('dragenter', () => dropOverlay?.classList.remove('hidden'));
-                inputArea.addEventListener('dragleave', (e) => {
-                    if (!inputArea.contains(e.relatedTarget)) {
-                        dropOverlay?.classList.add('hidden');
-                    }
-                });
-                inputArea.addEventListener('drop', (e) => {
-                    dropOverlay?.classList.add('hidden');
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        const file = files[0];
+                chatViewContainer.addEventListener('dragenter', () => dropOverlay.classList.remove('hidden'));
+                
+                // Используем dropOverlay для события dragleave, чтобы избежать мерцания
+                dropOverlay.addEventListener('dragleave', () => dropOverlay.classList.add('hidden'));
+
+                chatViewContainer.addEventListener('drop', (e) => {
+                    dropOverlay.classList.add('hidden');
+                    if (e.dataTransfer.files.length > 0) {
+                        const file = e.dataTransfer.files[0];
                         const reader = new FileReader();
                         reader.onload = (readEvent) => {
                             attachedFile = { name: file.name, content: readEvent.target.result };
                             renderAttachmentPreview();
+                            adjustLayout(); // Вызываем пересчет макета после добавления
                         };
                         reader.onerror = () => showModalAlert('Не удалось прочитать файл.');
                         reader.readAsText(file);
@@ -1092,11 +1106,11 @@
                 });
             }
 
+            // --- ОСТАЛЬНОЙ ВАШ КОД ИЗ ЭТОЙ ФУНКЦИИ (без adjustLayout, т.к. он уже выше) ---
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
             const widthToggleBtn = document.getElementById('chat-width-toggle');
-
             const titleInput = document.getElementById('chat-title-input');
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
@@ -1120,7 +1134,6 @@
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isSettingsPanelExpanded = !state.isSettingsPanelExpanded;
-                
                 const isVisible = state.isSettingsPanelExpanded;
                 settingsPanel.classList.toggle('opacity-100', isVisible);
                 settingsPanel.classList.toggle('translate-y-0', isVisible);
@@ -1128,18 +1141,13 @@
                 settingsPanel.classList.toggle('-translate-y-4', !isVisible);
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
-
                 const closeOnOutsideClick = (event) => {
                     if (state.isSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
                         settingsToggle.click();
                     }
                 };
-
-                if (isVisible) {
-                    document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
-                }
+                if (isVisible) { document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true }); }
             });
-
 
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
@@ -1149,68 +1157,14 @@
                 }
             });
 
-            // --- НАЧАЛО ВОССТАНОВЛЕННОГО БЛОКА ВАШЕГО КОДА ---
-            const MAX_VIEWPORT_HEIGHT_RATIO = 0.9; 
-
             if (input && form && messagesContainer) {
-                const adjustLayout = () => {
-                    if (!form || !messagesContainer || !input) return;
-        
-                    const layoutContainer = form.parentElement; // Используем родителя формы
-                    if (!layoutContainer) return;
-
-                    // Учитываем визуальный вьюпорт для мобильных устройств
-                    const visualViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
-                    // Получаем вертикальные отступы самой формы
-                    const formStyle = window.getComputedStyle(form);
-                    const formVerticalPadding = parseFloat(formStyle.paddingTop) + parseFloat(formStyle.paddingBottom);
-                    
-                    // Максимальная высота на основе родительского контейнера
-                    const containerBasedMaxHeight = layoutContainer.offsetHeight - formVerticalPadding;
-
-                    // Максимальная высота на основе видимой области экрана
-                    const viewportBasedMaxHeight = visualViewportHeight * MAX_VIEWPORT_HEIGHT_RATIO;
-                    
-                    // Выбираем наименьшее из двух ограничений
-                    const finalMaxHeight = Math.min(containerBasedMaxHeight, viewportBasedMaxHeight);
-        
-                    // Сбрасываем высоту для корректного измерения scrollHeight
-                    input.style.height = 'auto';
-        
-                    if (input.scrollHeight < finalMaxHeight) {
-                        // Если текст помещается, высота по контенту, скрыть скроллбар
-                        input.style.height = `${input.scrollHeight}px`;
-                        input.style.overflowY = 'hidden';
-                    } else {
-                        // Если не помещается, ставим максимальную высоту и показываем скроллбар
-                        input.style.height = `${finalMaxHeight}px`;
-                        input.style.overflowY = 'auto';
-                    }
-        
-                    // ВАЖНАЯ ЧАСТЬ: устанавливаем отступ снизу для сообщений, равный высоте всей формы
-                    setTimeout(() => {
-                        const formHeight = form.offsetHeight;
-                        messagesContainer.style.paddingBottom = `${formHeight}px`;
-                    }, 0);
-                };
-        
                 input.addEventListener('input', adjustLayout);
-                
                 const resizeObserver = new ResizeObserver(adjustLayout);
-                if(chatViewContainer) {
-                   resizeObserver.observe(chatViewContainer);
-                }
-
-                if (window.visualViewport) {
-                    window.visualViewport.addEventListener('resize', adjustLayout);
-                } else {
-                    window.addEventListener('resize', adjustLayout);
-                }
-
+                if(chatViewContainer) { resizeObserver.observe(chatViewContainer); }
+                if (window.visualViewport) { window.visualViewport.addEventListener('resize', adjustLayout); } 
+                else { window.addEventListener('resize', adjustLayout); }
                 setTimeout(adjustLayout, 100);
             }
-            // --- КОНЕЦ ВОССТАНОВЛЕННОГО БЛОКА ВАШЕГО КОДА ---
 
             titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
             roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
@@ -1223,19 +1177,14 @@
                     const models = selectedProvider.models || [];
                     if (models.length > 0) { 
                         newModelName = models[0]; 
-                        if (modelSelect) { 
-                            modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); 
-                        }
+                        if (modelSelect) { modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join(''); }
                     } else { 
-                        if (modelSelect) { 
-                            modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; 
-                        } 
+                        if (modelSelect) { modelSelect.innerHTML = '<option disabled>Нет моделей</option>'; } 
                     }
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
             modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
-        
         }
         
         function setupNotepadViewEventListeners() {
@@ -1436,11 +1385,14 @@
             }
             
             input.value = '';
-            input.dispatchEvent(new Event('input')); // для сброса высоты textarea
+            // Триггерим событие input, чтобы ваша функция adjustLayout сбросила высоту поля
+            input.dispatchEvent(new Event('input', { bubbles: true }));
             
             if (attachedFile) {
-                attachedFile = null; 
+                attachedFile = null;
+                // Удаляем предпросмотр и снова вызываем adjustLayout
                 document.getElementById('attachment-preview-container').innerHTML = '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1454,6 +1406,7 @@
                 activeSession.modelName
             );
         }
+        
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
 

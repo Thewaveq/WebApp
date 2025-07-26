@@ -516,53 +516,43 @@
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
                 
-                <!-- Плавающие кнопки управления -->
-                <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
-                    <button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex"><i data-lucide="arrow-left-right" class="w-4 h-4"></i></button>
-                    <button id="chat-settings-toggle" title="Настройки чата" class="chat-action-btn"><i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i></button>
-                </div>
-
-                <!-- Плавающая панель настроек -->
-                <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
-                    <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3>
-                    <div><label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label><input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата"></div>
-                    <div><label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label><select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"><option value="">Без роли</option>${roleOptions}</select></div>
-                    <div><label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1">Провайдер</label><select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}</select></div>
-                    <div><label for="model-select" class="text-sm font-medium text-text-secondary block mb-1">Модель</label><select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">${modelOptions}</select></div>
-                </div>
+                <!-- Верхняя часть без изменений -->
+                <div class="absolute top-3 right-3 z-30 flex items-center gap-2"><button id="chat-width-toggle" title="Переключить ширину чата" class="chat-action-btn hidden lg:flex"><i data-lucide="arrow-left-right" class="w-4 h-4"></i></button><button id="chat-settings-toggle" title="Настройки чата" class="chat-action-btn"><i data-lucide="settings-2" id="chat-settings-icon" class="w-5 h-5 transition-transform duration-300 ${isSettingsPanelVisible ? 'rotate-90' : ''}"></i></button></div>
+                <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}"><h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки чата</h3><div><label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label><input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата"></div><div><label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label><select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"><option value="">Без роли</option>${roleOptions}</select></div><div><label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1">Провайдер</label><select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}</select></div><div><label for="model-select" class="text-sm font-medium text-text-secondary block mb-1">Модель</label><select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">${modelOptions}</select></div></div>
                 
-                <!-- Область чата -->
                 <div class="flex-grow relative min-h-0">
                     <div id="chat-messages" class="absolute inset-0 p-4 overflow-y-auto ${state.isChatWidthCompact ? 'chat-view-compact' : ''}"></div>
+                    
                     <form id="chat-form" class="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
                         <div class="w-full max-w-4xl mx-auto">
-                            <!-- Контейнер для превью файлов -->
+                            <!-- Превью файлов -->
                             <div id="attachment-previews" class="flex flex-wrap gap-2 mb-2"></div>
 
-                            <!-- КОНТЕЙНЕР ПОЛЯ ВВОДА, КОТОРЫЙ Я БОЛЬШЕ НЕ ЛОМАЮ -->
-                            <div id="chat-input-wrapper" class="relative w-full">
+                            <!-- ГЛАВНЫЙ FLEX-КОНТЕЙНЕР ДЛЯ ПАНЕЛИ ВВОДА -->
+                            <div id="chat-input-bar" class="flex items-end gap-2">
                                 
-                                <!-- КНОПКА ПРИКРЕПЛЕНИЯ ФАЙЛА, АБСОЛЮТНО СЛЕВА -->
-                                <div class="absolute left-3 bottom-3 z-10">
-                                    <button type="button" id="attachment-btn" title="Прикрепить файл" class="p-2 rounded-full hover:bg-bg-element transition-colors">
+                                <!-- ЭЛЕМЕНТ 1: Кнопка (отдельный блок) -->
+                                <div class="relative flex-shrink-0">
+                                    <button type="button" id="attachment-btn" title="Прикрепить файл" class="flex items-center justify-center w-10 h-10 rounded-lg bg-input border border-border-color hover:bg-bg-element transition-colors">
                                         <i data-lucide="plus" class="w-5 h-5 text-text-secondary"></i>
                                     </button>
-                                    <div id="attachment-menu" class="hidden absolute bottom-full mb-2 bg-bg-sidebar border border-border-color rounded-lg shadow-lg p-1 w-40">
+                                    <div id="attachment-menu" class="hidden absolute bottom-full mb-2 bg-bg-sidebar border border-border-color rounded-lg shadow-lg p-1 w-40 z-40">
                                         <button type="button" id="attach-file-btn" class="w-full flex items-center text-left p-2 rounded-md hover:bg-bg-element transition-colors text-sm">
                                             <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>Файл
                                         </button>
                                     </div>
                                 </div>
-                                
-                                <!-- ВАШЕ ПОЛЕ ВВОДА С ДОБАВЛЕННЫМ ОТСТУПОМ СЛЕВА -->
-                                <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pl-12 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
-                                
-                                <!-- ВАША КНОПКА ОТПРАВКИ, НЕ ТРОНУТА -->
-                                <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
-                                    <i data-lucide="send" class="w-5 h-5 text-white"></i>
-                                </button>
+
+                                <!-- ЭЛЕМЕНТ 2: ВАША ОРИГИНАЛЬНАЯ ОБЕРТКА ПОЛЯ ВВОДА (растягивается) -->
+                                <div class="relative w-full flex-grow">
+                                    <textarea id="chat-input" class="w-full bg-input border border-border-color rounded-xl p-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-accent min-h-[50px]" placeholder="Введите ваше сообщение..." rows="1"></textarea>
+                                    <button type="submit" class="absolute right-3 bottom-3 p-2 rounded-full bg-accent hover:bg-accent-hover transition-colors disabled:bg-gray-500">
+                                        <i data-lucide="send" class="w-5 h-5 text-white"></i>
+                                    </button>
+                                </div>
                             </div>
-                             <!-- Скрытый инпут для файла -->
+                            
+                            <!-- Скрытый инпут для файла -->
                             <input type="file" id="file-input" class="hidden" multiple>
                         </div>
                     </form>

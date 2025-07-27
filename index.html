@@ -379,6 +379,13 @@
                         renderChatMessages(activeSession);
                         setupChatViewEventListeners();
                         updateLoadingIndicator();
+                        
+                        const messagesContainer = document.getElementById('chat-messages');
+                        if (messagesContainer) {
+                            setTimeout(() => {
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }, 0);
+                        }
                     } else {
                          mainContent.innerHTML = getEmptyStateHTML('chat');
                     }

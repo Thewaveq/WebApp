@@ -1218,6 +1218,7 @@
             const addNewCardBtn = document.getElementById('add-new-card-btn');
             const widthToggleBtn = document.getElementById('notepad-width-toggle');
             const scrollContainer = document.getElementById('notepad-scroll-container');
+
             const settingsToggle = document.getElementById('notepad-settings-toggle');
             const settingsPanel = document.getElementById('notepad-settings-panel');
             const settingsIcon = document.getElementById('notepad-settings-icon');
@@ -1225,6 +1226,7 @@
             settingsToggle?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.isNotepadSettingsPanelExpanded = !state.isNotepadSettingsPanelExpanded;
+                
                 const isVisible = state.isNotepadSettingsPanelExpanded;
                 settingsPanel.classList.toggle('opacity-100', isVisible);
                 settingsPanel.classList.toggle('translate-y-0', isVisible);
@@ -1232,11 +1234,13 @@
                 settingsPanel.classList.toggle('-translate-y-4', !isVisible);
                 settingsPanel.classList.toggle('pointer-events-none', !isVisible);
                 settingsIcon.classList.toggle('rotate-90', isVisible);
+
                 const closeOnOutsideClick = (event) => {
                     if (state.isNotepadSettingsPanelExpanded && settingsPanel && !settingsPanel.contains(event.target) && !settingsToggle.contains(event.target.closest('button'))) {
                         settingsToggle.click();
                     }
                 };
+
                 if (isVisible) {
                     document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true });
                 }
@@ -1246,12 +1250,16 @@
                 const isExpanded = !state.isNotepadWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
                 widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
+        
                 widthToggleBtn.addEventListener('click', () => {
                     state.isNotepadWidthCompact = !state.isNotepadWidthCompact;
                     const isNowExpanded = !state.isNotepadWidthCompact;
+        
                     localStorage.setItem('notepadViewCompact', String(state.isNotepadWidthCompact));
+        
                     scrollContainer.classList.toggle('notepad-view-compact', state.isNotepadWidthCompact);
                     widthToggleBtn.classList.toggle('active', isNowExpanded);
+        
                     widthToggleBtn.title = isNowExpanded ? "Вернуть компактный вид" : "Расширить на всю ширину";
                 });
             }
@@ -1269,13 +1277,18 @@
             const saveCardData = async (cardId) => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
                 const cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardId}"]`);
                 if (!cardEl) return;
+        
                 const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                 if (!activeSession || !activeSession.cards) return;
+        
                 const newTitle = cardEl.querySelector('.note-card-title').value;
                 const newContent = cardEl.querySelector('.note-card-content').value;
+        
                 const originalCard = activeSession.cards.find(c => c.id === cardId);
+                
                 if (originalCard && (originalCard.title !== newTitle || originalCard.content !== newContent)) {
                     const updatedCards = activeSession.cards.map(card => 
                         card.id === cardId ? { ...card, title: newTitle, content: newContent } : card
@@ -1301,8 +1314,18 @@
             addNewCardBtn?.addEventListener('click', async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                const newCard = { id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9), title: '', content: '', createdAt: new Date().toISOString() };
-                await updateDoc(sessionRef, { cards: arrayUnion(newCard), updatedAt: serverTimestamp() });
+
+                const newCard = {
+                    id: 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                    title: '',
+                    content: '',
+                    createdAt: new Date().toISOString()
+                };
+                
+                await updateDoc(sessionRef, {
+                    cards: arrayUnion(newCard),
+                    updatedAt: serverTimestamp()
+                });
             });
             
             cardsGrid?.addEventListener('focusout', (e) => {
@@ -1313,24 +1336,25 @@
             });
         
             cardsGrid?.addEventListener('click', (e) => {
-                // Предотвращаем двойное срабатывание
-                if (e.target.closest('.inline-confirmation-wrapper')) return;
-
                 const deleteBtn = e.target.closest('.note-card-delete-btn');
                 if (!deleteBtn) return;
         
-                e.stopPropagation();
                 const cardEl = deleteBtn.closest('.note-card');
                 const cardId = cardEl.dataset.cardId;
         
-                createInlineConfirmation(deleteBtn, () => {
+                showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
                     if (!state.activeSessionId) return;
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const cards = activeSession.cards || [];
                     const cardToDelete = cards.find(c => c.id === cardId);
+        
                     if (cardToDelete) {
-                        updateDoc(sessionRef, { cards: arrayRemove(cardToDelete), updatedAt: serverTimestamp() });
+                        await updateDoc(sessionRef, {
+                            cards: arrayRemove(cardToDelete),
+                            updatedAt: serverTimestamp()
+                        });
                     }
                 });
             });
@@ -1338,16 +1362,19 @@
             cardsGrid?.addEventListener('input', (e) => {
                 if (!e.target) return;
                 const cardEl = e.target.closest('.note-card');
+                
                 if (e.target.matches('.note-card-content')) {
                     autoResizeTextarea(e.target);
                 }
+                
                 if (cardEl && e.target.matches('.note-card-title, .note-card-content')) {
                     debouncedSave(cardEl.dataset.cardId);
                 }
             });
 
             setTimeout(() => {
-                cardsGrid?.querySelectorAll('.note-card-content').forEach(autoResizeTextarea);
+                const allTextareas = cardsGrid?.querySelectorAll('.note-card-content');
+                allTextareas?.forEach(autoResizeTextarea);
             }, 0);
 
             lucide.createIcons();
@@ -1772,62 +1799,7 @@
                 newNotification.classList.remove('-translate-y-[150%]', 'opacity-0');
             }, 0); 
         }
-
-        // Вспомогательная функция.
-        function createInlineConfirmation(clickedButton, onConfirm) {
-            // Если подтверждение уже активно для этой кнопки, ничего не делаем
-            if (clickedButton.dataset.isConfirming === 'true') return;
-            clickedButton.dataset.isConfirming = 'true';
-
-            // Скрываем оригинальную кнопку
-            clickedButton.style.display = 'none';
-
-            // Создаем контейнер для новых кнопок
-            const confirmationWrapper = document.createElement('div');
-            confirmationWrapper.className = 'inline-confirmation-wrapper flex items-center';
-            confirmationWrapper.innerHTML = `
-                <button title="Подтвердить" class="confirm-inline-action p-1.5 text-green-400 hover:text-green-500 transition-colors"><i data-lucide="check" class="w-4 h-4"></i></button>
-                <button title="Отменить" class="cancel-inline-action p-1.5 text-red-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
-            `;
-
-            // Вставляем контейнер сразу после скрытой кнопки
-            clickedButton.after(confirmationWrapper);
-            lucide.createIcons({ nodes: [confirmationWrapper] });
-            
-            const cleanup = () => {
-                // Удаляем контейнер с кнопками подтверждения
-                confirmationWrapper.remove();
-                // Показываем оригинальную кнопку снова
-                clickedButton.style.display = '';
-                delete clickedButton.dataset.isConfirming;
-                // Удаляем глобальный слушатель, чтобы избежать утечек памяти
-                document.removeEventListener('click', handleOutsideClick, true);
-            };
-            
-            confirmationWrapper.addEventListener('click', (e) => {
-                e.stopPropagation(); // Останавливаем всплытие, чтобы не сработал handleOutsideClick
-                const target = e.target.closest('button');
-                if (!target) return;
-                
-                if (target.classList.contains('confirm-inline-action')) {
-                    onConfirm();
-                }
-                
-                // В любом случае (подтверждение или отмена) убираем кнопки
-                cleanup();
-            });
-
-            // Обработчик для отмены при клике в любом другом месте
-            const handleOutsideClick = (e) => {
-                if (!confirmationWrapper.contains(e.target)) {
-                    cleanup();
-                }
-            };
-            
-            // Добавляем глобальный слушатель, чтобы закрыть подтверждение при клике мимо
-            setTimeout(() => document.addEventListener('click', handleOutsideClick, true), 0);
-        }
-        
+    
         function setupGlobalEventListeners() {
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
@@ -1897,81 +1869,136 @@
             window.addEventListener('resize', updateSidebarView);
         
             document.body.addEventListener('click', async (e) => {
-                // Предотвращаем двойное срабатывание, если клик был внутри уже активного подтверждения
-                if (e.target.closest('.inline-confirmation-wrapper')) return;
-
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
-                    e.stopPropagation();
                     const idToDelete = deleteSessionBtn.dataset.id;
-                    createInlineConfirmation(deleteSessionBtn, () => {
-                        deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
+                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                     });
                 }
                 
                 const clearHistoryBtn = e.target.closest('#clear-chat-history-btn');
                 if (clearHistoryBtn) {
-                    // Для этого ОЧЕНЬ деструктивного действия оставим модальное окно. Это лучшая практика.
-                    showConfirmModal('Вы уверены, что хотите очистить историю этого чата? Это действие необратимо.', async () => {
-                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                        await updateDoc(sessionRef, { messages: [], updatedAt: serverTimestamp() });
-                    });
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    if (activeSession) {
+                        showConfirmModal('Вы уверены, что хотите очистить историю этого чата? Это действие необратимо.', async () => {
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: [], updatedAt: serverTimestamp() });
+                        });
+                    }
                 }
+
+                // --- НОВАЯ ЛОГИКА ПОДТВЕРЖДЕНИЯ ДЕЙСТВИЙ С СООБЩЕНИЯМИ ---
+
+                const handleInlineConfirm = (targetButton, onConfirm) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const dropdown = targetButton.closest('.message-actions-dropdown');
+                    if (dropdown.querySelector('.inline-confirm-wrapper')) return;
+
+                    const originalMenuItem = targetButton.closest('.dropdown-menu-item');
+                    const originalContent = originalMenuItem.innerHTML;
+                    
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'dropdown-menu-item inline-confirm-wrapper';
+                    wrapper.innerHTML = `
+                        <div class="flex items-center justify-between w-full gap-3">
+                            <button class="inline-confirm-yes flex-grow flex items-center justify-center gap-2 text-green-400 hover:text-green-300 focus:outline-none p-1 rounded-md hover:bg-green-500/10">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>
+                            <div class="w-px h-4 bg-border-color"></div>
+                            <button class="inline-confirm-no flex-grow flex items-center justify-center gap-2 text-red-400 hover:text-red-300 focus:outline-none p-1 rounded-md hover:bg-red-500/10">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    originalMenuItem.innerHTML = '';
+                    originalMenuItem.appendChild(wrapper);
+                    lucide.createIcons({ nodes: [wrapper] });
+
+                    const cleanup = () => {
+                        originalMenuItem.innerHTML = originalContent;
+                        // Иконки пересоздадутся, когда меню откроется в следующий раз, или можно добавить lucide.createIcons тут
+                    };
+
+                    wrapper.querySelector('.inline-confirm-yes').addEventListener('click', (evt) => {
+                        evt.stopPropagation();
+                        onConfirm();
+                        // Меню закроется само после клика
+                    });
+
+                    wrapper.querySelector('.inline-confirm-no').addEventListener('click', (evt) => {
+                        evt.stopPropagation();
+                        cleanup();
+                    });
+                };
 
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
-                    e.stopPropagation();
-                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
-                    createInlineConfirmation(deleteMessageBtn.parentElement, () => { // Передаем родительский dropdown-menu-item
-                         const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                         if (activeSession && !isNaN(messageIndex)) {
+                    handleInlineConfirm(deleteMessageBtn, async () => {
+                        const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                        if (activeSession && !isNaN(messageIndex)) {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                            updateDoc(sessionRef, { messages: newMessages });
-                         }
+                            await updateDoc(sessionRef, { messages: newMessages });
+                        }
                     });
+                    return;
                 }
     
-                const executeRegeneration = async (sliceEnd) => {
+                const handleRegenerationAction = async (messageIndex, sliceEnd) => {
+                    if (state.loadingSessionId) return;
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession) return;
+                    if (!activeSession || isNaN(messageIndex)) return;
+    
                     const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                     const provider = state.providers.find(p => p.id === activeSession.providerId);
                     const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                     await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
-                    generateAssistantResponse(state.activeSessionId, messagesForRegen, provider, selectedRole, activeSession.modelName);
-                };
-
-                const handleRegenerationRequest = (btn, sliceEndFn) => {
-                     if (state.loadingSessionId) return;
-                     e.stopPropagation();
-                     const messageIndex = parseInt(btn.dataset.messageIndex, 10);
-                     createInlineConfirmation(btn.parentElement, () => { // Передаем родительский dropdown-menu-item
-                         executeRegeneration(sliceEndFn(messageIndex));
-                     });
+                    
+                    await generateAssistantResponse(
+                        state.activeSessionId,
+                        messagesForRegen,
+                        provider,
+                        selectedRole,
+                        activeSession.modelName
+                    );
                 };
                 
                 const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
-                    handleRegenerationRequest(regenerateUserBtn, index => index + 1);
+                    const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
+                    handleInlineConfirm(regenerateUserBtn, () => handleRegenerationAction(messageIndex, messageIndex + 1));
+                    return;
                 }
     
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
-                    handleRegenerationRequest(regenerateBtn, index => index);
+                    const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
+                    handleInlineConfirm(regenerateBtn, () => handleRegenerationAction(messageIndex, messageIndex));
+                    return;
                 }
         
+                // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+
                 const editBtn = e.target.closest('.edit-message-btn');
                 if (editBtn) {
                     if (state.loadingSessionId) return;
                     const messageContainer = editBtn.closest('.message-container');
                     const contentDiv = messageContainer.querySelector('.prose');
                     if (messageContainer.querySelector('.edit-form')) return; 
+        
                     const messageIndex = parseInt(editBtn.dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     const originalContent = activeSession.messages[messageIndex].content;
+        
                     contentDiv.classList.add('hidden');
+        
                     const editForm = document.createElement('div');
                     editForm.className = 'edit-form w-full mt-2';
                     editForm.innerHTML = `
@@ -1981,7 +2008,9 @@
                              <button type="button" class="save-edit-btn px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Завершить</button>
                         </div>
                     `;
+                    
                     contentDiv.after(editForm);
+                    
                     const textarea = editForm.querySelector('textarea');
                     textarea.value = originalContent;
                     textarea.focus();
@@ -1991,20 +2020,32 @@
                        textarea.style.height = 'auto';
                        textarea.style.height = (textarea.scrollHeight) + 'px';
                     });
+        
                     editForm.querySelector('.save-edit-btn').addEventListener('click', async () => {
                         const newContent = textarea.value.trim();
                         if (newContent) {
                             editForm.remove();
                             contentDiv.classList.remove('hidden');
+                            
                             const messagesForSubmit = activeSession.messages.slice(0, messageIndex);
                             messagesForSubmit.push({ role: 'user', content: newContent });
+                            
                             const provider = state.providers.find(p => p.id === activeSession.providerId);
                             const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+    
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
-                            await generateAssistantResponse(state.activeSessionId, messagesForSubmit, provider, selectedRole, activeSession.modelName);
+                            
+                            await generateAssistantResponse(
+                                state.activeSessionId,
+                                messagesForSubmit,
+                                provider,
+                                selectedRole,
+                                activeSession.modelName
+                            );
                         }
                     });
+        
                     editForm.querySelector('.cancel-edit-btn').addEventListener('click', () => {
                         editForm.remove();
                         contentDiv.classList.remove('hidden');
@@ -2013,10 +2054,9 @@
                 
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
-                    e.stopPropagation();
                     const idToDelete = deleteProviderBtn.dataset.id;
-                    createInlineConfirmation(deleteProviderBtn, () => {
-                        deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
+                    showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
                     });
                 }
                 const editProviderBtn = e.target.closest('.edit-provider-btn');
@@ -2027,10 +2067,9 @@
                 
                 const deleteRoleBtn = e.target.closest('.delete-role-btn');
                 if (deleteRoleBtn) {
-                    e.stopPropagation();
                     const idToDelete = deleteRoleBtn.dataset.id;
-                    createInlineConfirmation(deleteRoleBtn, () => {
-                        deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
+                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
                     });
                 }
                 const editRoleBtn = e.target.closest('.edit-role-btn');
@@ -2042,18 +2081,23 @@
             
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });
+
             const fullscreenModal = document.getElementById('fullscreen-modal');
             const fullscreenCloseBtn = document.getElementById('fullscreen-modal-close');
+            
             fullscreenCloseBtn?.addEventListener('click', hideFullscreenMessage);
             fullscreenModal?.addEventListener('click', (e) => {
                 if (e.target === fullscreenModal) {
                     hideFullscreenMessage();
                 }
             });
+            
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);
             editProviderCancelBtn?.addEventListener('click', () => { editProviderModal.classList.add('hidden'); });
+        
             editRoleForm?.addEventListener('submit', handleEditRoleSubmit);
             editRoleCancelBtn?.addEventListener('click', () => { editRoleModal.classList.add('hidden'); });
+        
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }

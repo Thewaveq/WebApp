@@ -1733,9 +1733,46 @@
             const originalItems = Array.from(dropdownMenu.children);
             originalItems.forEach(item => item.style.display = 'none');
             
-            createInlineConfirmation(clickedElement, () => {
+            const confirmContainer = document.createElement('div');
+            confirmContainer.className = 'inline-confirm-container flex items-center justify-center space-x-2 p-2 w-full';
+            confirmContainer.innerHTML = `
+                <span class="text-sm font-semibold text-text-secondary">Уверены?</span>
+                <button class="confirm-btn p-1.5 rounded-full text-green-400 hover:bg-green-400/20 transition-colors" title="Подтвердить">
+                    <i data-lucide="check" class="w-5 h-5"></i>
+                </button>
+                <button class="cancel-btn p-1.5 rounded-full text-red-400 hover:bg-red-400/20 transition-colors" title="Отменить">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            `;
+            dropdownMenu.appendChild(confirmContainer);
+            lucide.createIcons({ nodes: [confirmContainer] });
+
+            const cleanupAndRestore = () => {
+                confirmContainer.remove();
+                originalItems.forEach(item => item.style.display = ''); 
+                document.removeEventListener('click', clickOutsideHandler, { capture: true });
+            };
+
+            confirmContainer.querySelector('.confirm-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
                 onConfirm();
+                cleanupAndRestore();
             });
+
+            confirmContainer.querySelector('.cancel-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                cleanupAndRestore();
+            });
+
+            const clickOutsideHandler = (event) => {
+                if (!clickedElement.closest('.message-actions-container').contains(event.target)) {
+                    cleanupAndRestore();
+                }
+            };
+            
+            setTimeout(() => {
+                document.addEventListener('click', clickOutsideHandler, { capture: true });
+            }, 0);
         }
 
         function createInlineConfirmation(clickedButton, onConfirm) {

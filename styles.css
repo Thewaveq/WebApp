@@ -58,6 +58,51 @@ input::placeholder, textarea::placeholder {
 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
 @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
+/* --- СТИЛЬ ДЛЯ ВИНЬЕТКИ НА ФОНЕ (УТРИРОВАННАЯ ВЕРСИЯ) --- */
+#main-content {
+    /* Это нужно, чтобы правильно спозиционировать псевдоэлемент виньетки */
+    position: relative;
+    /* Это нужно, чтобы виньетка не выходила за пределы блока */
+    overflow: hidden; 
+}
+
+#main-content::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    
+    /* 
+      Создаем радиальный градиент с резким переходом.
+      - Центр (до 20% от размера) будет полностью прозрачным.
+      - Переход к черному цвету произойдет между 20% и 65%.
+      - Все, что дальше 65%, будет сплошным черным цветом.
+    */
+    background: radial-gradient(
+        ellipse at center, 
+        transparent 20%, 
+        black 65%
+    );
+    
+    /* 
+      Важно: мы НЕ используем filter: blur(), чтобы виньетка была резкой.
+    */
+    
+    /* 
+      Делаем псевдоэлемент "невидимым" для курсора, чтобы он не мешал
+      взаимодействовать с контентом чата.
+    */
+    pointer-events: none;
+    
+    /* 
+      Опционально: z-index, чтобы убедиться, что виньетка находится
+      между фоном и контентом. Обычно это не требуется.
+    */
+    z-index: 0;
+}
+
 /* --- СТИЛЬ ДЛЯ ЭФФЕКТА ЗАТУХАНИЯ ПРИ ПРОКРУТКЕ (УВЕЛИЧЕННЫЙ) --- */
 #notepad-scroll-container {
     -webkit-mask-image: linear-gradient(to bottom, 

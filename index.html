@@ -770,7 +770,7 @@
             const createMenuItem = (icon, text, customClass = '', dataset = {}) => {
                 const button = document.createElement('button');
                 button.className = `dropdown-menu-item ${customClass}`;
-                button.innerHTML = `<i></i><span class="text-left flex-grow">${text}</span>`;
+                button.innerHTML = `<i class="mr-2"></i><span class="text-left flex-grow">${text}</span>`;
                 button.querySelector('i').setAttribute('data-lucide', icon);
                 Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
                 return button;

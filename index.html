@@ -1953,7 +1953,7 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
         
                     if (activeSession && !isNaN(messageIndex)) {
-                        //-- showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
+                        // Используем новую функцию для подтверждения
                         requestInlineConfirmation(deleteMessageBtn, async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1967,7 +1967,8 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || isNaN(messageIndex)) return;
     
-                    requestInlineConfirmation(clickedBtn, async () => { // Используем новую функцию
+                    // Используем новую функцию для подтверждения
+                    requestInlineConfirmation(clickedBtn, async () => {
                         const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
@@ -1985,16 +1986,15 @@
                     });
                 };
                 
-                const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
                     const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                    handleRegeneration(messageIndex, messageIndex + 1);
+                    handleRegeneration(regenerateUserBtn, messageIndex, messageIndex + 1); 
                 }
     
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
                     const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                    handleRegeneration(messageIndex, messageIndex);
+                    handleRegeneration(regenerateBtn, messageIndex, messageIndex); 
                 }
         
                 const editBtn = e.target.closest('.edit-message-btn');

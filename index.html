@@ -2531,25 +2531,26 @@
                 <div id="edit-pipeline-modal" class="modal-overlay hidden">
                     <div class="modal-content !max-w-3xl">
                         <h3 class="text-xl font-semibold mb-4">Редактировать пайплайн</h3>
-                        <form id="edit-pipeline-form" class="space-y-3">
-                            <input type="hidden" id="edit-pipeline-id">
-                            <div>
-                                <label for="edit-pipeline-name" class="text-sm text-text-secondary block mb-1">Название пайплайна</label>
-                                <input type="text" id="edit-pipeline-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                        <form id="edit-pipeline-form" class="flex flex-col h-full">
+                            <div class="flex-grow overflow-y-auto pr-2 -mr-2 space-y-3">
+                                <input type="hidden" id="edit-pipeline-id">
+                                <div>
+                                    <label for="edit-pipeline-name" class="text-sm text-text-secondary block mb-1">Название пайплайна</label>
+                                    <input type="text" id="edit-pipeline-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                                </div>
+                                
+                                <h4 class="text-lg font-semibold pt-4 border-t border-border-color mt-4">Шаги выполнения</h4>
+                                <div id="pipeline-steps-container" class="space-y-4">
+                                </div>
+                        
+                                <div class="pt-4">
+                                    <button type="button" id="add-pipeline-step-btn" class="w-full flex items-center justify-center p-2 rounded-md border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary">
+                                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить шаг
+                                    </button>
+                                </div>
                             </div>
-                            
-                            <h4 class="text-lg font-semibold pt-4 border-t border-border-color mt-4">Шаги выполнения</h4>
-                            <div id="pipeline-steps-container" class="space-y-4">
-                                <!-- Шаги пайплайна будут динамически добавляться сюда -->
-                            </div>
-
-                            <div class="pt-4">
-                                <button type="button" id="add-pipeline-step-btn" class="w-full flex items-center justify-center p-2 rounded-md border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary">
-                                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить шаг
-                                </button>
-                            </div>
-
-                            <div class="flex justify-end space-x-3 pt-4">
+                        
+                            <div class="flex justify-end space-x-3 pt-4 mt-auto flex-shrink-0">
                                 <button type="button" id="edit-pipeline-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
                                 <button type="submit" class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Сохранить</button>
                             </div>

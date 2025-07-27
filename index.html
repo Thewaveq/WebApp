@@ -553,8 +553,10 @@
         }
         
         function getChatViewHTML(activeSession) { 
+            // --- Существующий код для опций ---
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
+            
             let modelOptions = '<option disabled>Выберите провайдера</option>';
             const selectedProvider = state.providers.find(p => p.id === activeSession.providerId);
             if (selectedProvider) {
@@ -565,7 +567,14 @@
                    modelOptions = '<option disabled>Нет моделей</option>';
                 }
             }
+
+            // --- НОВЫЙ КОД: Опции для выбора пайплайна ---
+            const pipelineOptions = (state.pipelines || []).map(p => `<option value="${p.id}" ${p.id === activeSession.pipelineId ? 'selected' : ''}>${p.name}</option>`).join('');
+
             const isSettingsPanelVisible = state.isSettingsPanelExpanded;
+
+            // Определяем, активен ли режим пайплайна
+            const isPipelineMode = !!activeSession.pipelineId;
         
             return `
             <div class="flex flex-col h-full relative overflow-hidden" id="chat-view-container">
@@ -587,7 +596,7 @@
                 </div>
 
                 <!-- Плавающая панель настроек -->
-                <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
+                <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                     <div class="flex justify-between items-center border-b border-border-color pb-3 mb-4">
                         <h3 class="font-bold text-lg">Настройки чата</h3>
                         <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors -mr-2">
@@ -598,24 +607,38 @@
                         <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
                         <input type="text" id="chat-title-input" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" value="${activeSession.title || ''}" placeholder="Название чата">
                     </div>
-                    <div>
-                        <label for="role-select" class="text-sm font-medium text-text-secondary block mb-1">Роль</label>
-                        <select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-                            <option value="">Без роли</option>
-                            ${roleOptions}
+
+                    {/* -- НОВЫЙ БЛОК: ВЫБОР ПАЙПЛАЙНА -- */}
+                    <div class="pt-4 mt-4 border-t border-border-color">
+                        <label for="pipeline-select" class="text-sm font-medium text-text-secondary block mb-1">Пайплайн</label>
+                        <select id="pipeline-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                            <option value="">Без пайплайна (одиночная модель)</option>
+                            ${pipelineOptions}
                         </select>
                     </div>
-                    <div>
-                        <label for="provider-select" class="text-sm font-medium text-text-secondary block mb-1">Провайдер</label>
-                        <select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-                            ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="model-select" class="text-sm font-medium text-text-secondary block mb-1">Модель</label>
-                        <select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-                            ${modelOptions}
-                        </select>
+
+                    {/* -- ИЗМЕНЕНО: Блок для одиночной модели теперь можно скрыть -- */}
+                    <div id="single-model-settings" class="space-y-4 pt-4 mt-4 border-t border-border-color ${isPipelineMode ? 'opacity-50 pointer-events-none' : ''}">
+                         <p class="text-sm font-medium text-text-secondary -mb-2">Одиночная модель</p>
+                        <div>
+                            <label for="role-select" class="text-xs text-text-secondary block mb-1">Роль</label>
+                            <select id="role-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent" ${isPipelineMode ? 'disabled' : ''}>
+                                <option value="">Без роли</option>
+                                ${roleOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="provider-select" class="text-xs text-text-secondary block mb-1">Провайдер</label>
+                            <select id="provider-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent" ${isPipelineMode ? 'disabled' : ''}>
+                                ${providerOptions.length > 0 ? providerOptions : '<option disabled>Добавьте провайдера</option>'}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="model-select" class="text-xs text-text-secondary block mb-1">Модель</label>
+                            <select id="model-select" class="w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent" ${isPipelineMode ? 'disabled' : ''}>
+                                ${modelOptions}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
@@ -1133,7 +1156,7 @@
             const dropOverlay = document.getElementById('drop-overlay');
             const attachmentPreviewContainer = document.getElementById('attachment-preview-container');
 
-            // --- ВАШ ОРИГИНАЛЬНЫЙ КОД ДЛЯ ПОЛЯ ВВОДА ---
+            // --- Управление высотой поля ввода ---
             const MAX_VIEWPORT_HEIGHT_RATIO = 0.9;
             const adjustLayout = () => {
                 if (!form || !messagesContainer || !input) return;
@@ -1162,13 +1185,12 @@
                 }
     
                 setTimeout(() => {
-                    // ВАЖНО: высота предпросмотра файла теперь автоматически учитывается в form.offsetHeight
                     const formHeight = form.offsetHeight;
                     messagesContainer.style.paddingBottom = `${formHeight}px`;
                 }, 0);
             };
 
-            // --- НОВЫЙ КОД ДЛЯ ФАЙЛОВ ---
+            // --- Управление прикреплением файлов ---
             const renderAttachmentPreview = () => {
                 if (!attachmentPreviewContainer) return;
                 if (attachedFile) {
@@ -1187,7 +1209,7 @@
                     document.getElementById('remove-attachment-btn').addEventListener('click', () => {
                         attachedFile = null;
                         renderAttachmentPreview();
-                        adjustLayout(); // Вызываем пересчет макета после удаления
+                        adjustLayout();
                     });
                 } else {
                     attachmentPreviewContainer.innerHTML = '';
@@ -1201,12 +1223,8 @@
                         e.stopPropagation();
                     });
                 });
-            
                 chatViewContainer.addEventListener('dragenter', () => dropOverlay.classList.remove('hidden'));
-                
-                // Используем dropOverlay для события dragleave, чтобы избежать мерцания
                 dropOverlay.addEventListener('dragleave', () => dropOverlay.classList.add('hidden'));
-
                 chatViewContainer.addEventListener('drop', (e) => {
                     dropOverlay.classList.add('hidden');
                     if (e.dataTransfer.files.length > 0) {
@@ -1215,7 +1233,7 @@
                         reader.onload = (readEvent) => {
                             attachedFile = { name: file.name, content: readEvent.target.result };
                             renderAttachmentPreview();
-                            adjustLayout(); // Вызываем пересчет макета после добавления
+                            adjustLayout();
                         };
                         reader.onerror = () => showModalAlert('Не удалось прочитать файл.');
                         reader.readAsText(file);
@@ -1223,7 +1241,7 @@
                 });
             }
 
-            // --- ОСТАЛЬНОЙ ВАШ КОД ИЗ ЭТОЙ ФУНКЦИИ (без adjustLayout, т.к. он уже выше) ---
+            // --- Панель настроек чата и ее элементы ---
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
@@ -1232,12 +1250,13 @@
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
+            const pipelineSelect = document.getElementById('pipeline-select'); // НОВЫЙ ЭЛЕМЕНТ
+            const singleModelSettings = document.getElementById('single-model-settings'); // НОВЫЙ ЭЛЕМЕНТ
             
             if (widthToggleBtn) {
                 const isExpanded = !state.isChatWidthCompact;
                 widthToggleBtn.classList.toggle('active', isExpanded);
                 widthToggleBtn.title = isExpanded ? "Вернуть компактный вид" : "Расширить чат на всю ширину";
-
                 widthToggleBtn.addEventListener('click', () => {
                     state.isChatWidthCompact = !state.isChatWidthCompact;
                     const isNowExpanded = !state.isChatWidthCompact;
@@ -1266,6 +1285,7 @@
                 if (isVisible) { document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true }); }
             });
 
+            // --- Обработка отправки формы и ввода ---
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1283,11 +1303,13 @@
                 setTimeout(adjustLayout, 100);
             }
 
-            titleInput?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { title: e.target.value }); });
-            roleSelect?.addEventListener('change', (e) => { const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { roleId: e.target.value }); });
+            // --- Обработка изменений в настройках чата ---
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+            titleInput?.addEventListener('change', (e) => updateDoc(sessionRef, { title: e.target.value }));
+            roleSelect?.addEventListener('change', (e) => updateDoc(sessionRef, { roleId: e.target.value }));
+            
             providerSelect?.addEventListener('change', (e) => {
                 const newProviderId = e.target.value;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 const selectedProvider = state.providers.find(p => p.id === newProviderId);
                 let newModelName = null;
                 if (selectedProvider) {
@@ -1301,7 +1323,27 @@
                 }
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
-            modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
+            
+            modelSelect?.addEventListener('change', (e) => updateDoc(sessionRef, { modelName: e.target.value }));
+
+            // --- НОВАЯ ЛОГИКА: ОБРАБОТКА ВЫБОРА ПАЙПЛАЙНА ---
+            pipelineSelect?.addEventListener('change', (e) => {
+                const newPipelineId = e.target.value;
+                const isPipelineMode = !!newPipelineId;
+
+                // Обновляем состояние в Firestore
+                updateDoc(sessionRef, { pipelineId: newPipelineId || deleteField() });
+
+                // Обновляем интерфейс настроек
+                if (singleModelSettings) {
+                    singleModelSettings.classList.toggle('opacity-50', isPipelineMode);
+                    singleModelSettings.classList.toggle('pointer-events-none', isPipelineMode);
+                    
+                    singleModelSettings.querySelectorAll('select').forEach(sel => {
+                        sel.disabled = isPipelineMode;
+                    });
+                }
+            });
         }
         
         function setupNotepadViewEventListeners() {
@@ -1534,63 +1576,71 @@
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
+            let thinkingProcess = ''; // Для записи хода выполнения пайплайна
+
+            const activeSession = state.sessions.find(s => s.id === sessionId);
+            const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
 
             try {
-                if (!provider) throw new Error("Провайдер API не найден или не выбран.");
-                if (!modelName) throw new Error("Модель не выбрана.");
-                
-                const apiKeys = provider.apiKeys || [];
-                if (apiKeys.length === 0) throw new Error("У выбранного провайдера нет API ключей.");
+                // --- РЕЖИМ ПАЙПЛАЙНА ---
+                if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
+                    thinkingProcess += `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
+                    let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
 
-                const apiMessagesPayload = [];
-                if (selectedRole && selectedRole.content) {
-                    apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
-                }
-                apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
-
-                const startIndex = provider.currentKeyIndex || 0;
-                for (let i = 0; i < apiKeys.length; i++) {
-                    if (signal.aborted) throw new Error('AbortError');
-
-                    const keyIndex = (startIndex + i) % apiKeys.length;
-                    const currentKey = apiKeys[keyIndex];
-
-                    try {
-                        const fullUrl = new URL(provider.path, provider.baseUrl).href;
-                        const proxyRequestBody = {
-                            targetUrl: fullUrl,
-                            apiKey: currentKey,
-                            payload: { model: modelName, messages: apiMessagesPayload }
-                        };
-                        const response = await fetch('/api/proxy', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(proxyRequestBody),
-                            signal: signal
-                        });
-
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({ message: `Статус ${response.status}` }));
-                            throw new Error(`Ошибка от прокси: ${errorData.message || JSON.stringify(errorData)}`);
-                        }
-                        const data = await response.json();
-                        if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                    for (let i = 0; i < selectedPipeline.steps.length; i++) {
+                        if (signal.aborted) throw new Error('AbortError');
                         
-                        assistantMessageContent = data.choices[0].message.content;
-                        isSuccess = true;
-                        const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
-                        await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
-                        break;
-                    } catch (error) {
-                        if (error.message === 'AbortError') throw error;
-                        console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
-                        lastError = error.message;
+                        const step = selectedPipeline.steps[i];
+                        const stepProvider = state.providers.find(p => p.id === step.providerId);
+                        const stepModelName = step.modelName;
+
+                        thinkingProcess += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
+
+                        if (!stepProvider || !stepModelName) {
+                            throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
+                        }
+
+                        // Формируем сообщения для текущего шага API
+                        const stepApiMessages = [];
+                        if (step.roleContent) {
+                            stepApiMessages.push({ role: 'system', content: step.roleContent });
+                        }
+                        // Все предыдущие сообщения + текущий ввод
+                        stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
+                        stepApiMessages.push({ role: 'user', content: currentInputContent });
+                        
+                        thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
+                        thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
+
+                        const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                        
+                        // Ответ текущего шага становится входом для следующего
+                        currentInputContent = stepResponse;
+                        assistantMessageContent = stepResponse; // Сохраняем последний успешный ответ
+                        
+                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
                     }
+                    isSuccess = true;
+                    // Оборачиваем финальный ответ и процесс выполнения в теги
+                    assistantMessageContent = `<think>${thinkingProcess}</think>${assistantMessageContent}`;
+
+                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
+                } else {
+                    if (!provider) throw new Error("Провайдер API не найден или не выбран.");
+                    if (!modelName) throw new Error("Модель не выбрана.");
+
+                    const apiMessagesPayload = [];
+                    if (selectedRole && selectedRole.content) {
+                        apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
+                    }
+                    apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
+                    
+                    assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
+                    isSuccess = true;
                 }
-                if (!isSuccess && !signal.aborted) throw new Error(lastError);
 
             } catch (error) {
-                if (error.message === 'AbortError' || error.name === 'AbortError') {
+                if (error.name === 'AbortError' || error.message === 'AbortError') {
                     console.log('Генерация остановлена пользователем.');
                     wasAborted = true;
                     lastError = 'Генерация остановлена пользователем.';
@@ -1599,11 +1649,13 @@
                     lastError = error.message;
                 }
             } finally {
+                const finalModelName = selectedPipeline ? selectedPipeline.name + " (Пайплайн)" : modelName;
+
                 const messageToAdd = wasAborted
-                    ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: modelName }
+                    ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
                     : isSuccess
-                        ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
-                        : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: modelName };
+                        ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
+                        : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
                 
                 const finalMessages = [...messagesToSubmit, messageToAdd];
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
@@ -1620,6 +1672,56 @@
                 generationAbortController = null;
                 render();
             }
+        }
+
+        // Вспомогательная функция для вызова API, чтобы избежать дублирования кода
+        async function callApi(provider, modelName, messages, signal) {
+            const apiKeys = provider.apiKeys || [];
+            if (apiKeys.length === 0) throw new Error(`У провайдера "${provider.name}" нет API ключей.`);
+
+            let lastAttemptError = 'Не удалось получить ответ после всех попыток.';
+            const startIndex = provider.currentKeyIndex || 0;
+
+            for (let i = 0; i < apiKeys.length; i++) {
+                if (signal.aborted) throw new Error('AbortError');
+                const keyIndex = (startIndex + i) % apiKeys.length;
+                const currentKey = apiKeys[keyIndex];
+
+                try {
+                    const fullUrl = new URL(provider.path, provider.baseUrl).href;
+                    const proxyRequestBody = {
+                        targetUrl: fullUrl,
+                        apiKey: currentKey,
+                        payload: { model: modelName, messages: messages }
+                    };
+                    const response = await fetch('/api/proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(proxyRequestBody),
+                        signal: signal
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: `HTTP статус ${response.status}` }));
+                        throw new Error(`Ошибка от прокси: ${errorData.message || JSON.stringify(errorData)}`);
+                    }
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                    
+                    // Успешный вызов
+                    const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
+                    await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
+                    return data.choices[0].message.content;
+
+                } catch (error) {
+                    if (error.name === 'AbortError') throw error;
+                    console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} для модели ${modelName} не удалась:`, error);
+                    lastAttemptError = error.message;
+                }
+            }
+            // Если все попытки провалились
+            throw new Error(lastAttemptError);
         }
         
         function showTypingIndicatorInChat() {

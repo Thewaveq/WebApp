@@ -161,23 +161,15 @@
         </div>
     </div>
     <div id="fullscreen-modal" class="modal-overlay hidden">
-
-        <!-- Этот div содержит видимый контент окна (фон, отступы и т.д.) -->
         <div id="fullscreen-modal-content" class="bg-bg-main p-4 md:p-6 rounded-lg shadow-2xl w-[95vw] h-[90vh] flex flex-col">
-            
-            <!-- Этот div отвечает за прокрутку -->
-            <div id="fullscreen-modal-body" class="flex-grow overflow-y-auto">
-                <div id="fullscreen-prose-container" class="prose">
-                </div>
+            <div class="flex-shrink-0 flex justify-end mb-4">
+                <button id="fullscreen-modal-close" class="p-2 rounded-full hover:bg-bg-element transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div id="fullscreen-modal-body" class="prose max-w-none flex-grow overflow-y-auto">
             </div>
         </div>
-        <button id="fullscreen-width-toggle" title="Расширить">
-            <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
-        </button>
-        <button id="fullscreen-modal-close">
-            <i data-lucide="x" class="w-6 h-6"></i>
-        </button>
-    
     </div>
     <div id="in-app-notification" class="fixed top-9 left-1/2 -translate-x-1/2 z-50 w-full max-w-md cursor-pointer transition-all duration-300 ease-in-out transform -translate-y-[150%] opacity-0 hidden" >
         <div class="bg-bg-sidebar rounded-lg shadow-2xl border border-accent/50 p-4 mx-4 flex items-start space-x-3">
@@ -592,56 +584,37 @@
         }
         
         function showFullscreenMessage(content) {
-            // Получаем все нужные элементы
             const modal = document.getElementById('fullscreen-modal');
             const modalBody = document.getElementById('fullscreen-modal-body');
-            const proseContainer = document.getElementById('fullscreen-prose-container');
-            const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
-        
-            if (!modal || !modalBody || !proseContainer || !widthToggleBtn) return;
-        
-            // 1. Сбрасываем вид окна до состояния по умолчанию КАЖДЫЙ РАЗ при открытии
-            modalBody.classList.add('fullscreen-view-compact');
-            widthToggleBtn.classList.remove('active');
-            widthToggleBtn.title = 'Расширить';
-        
-            // 2. САМОЕ ГЛАВНОЕ: Безопасно вешаем обработчик, который не сломается
-            //    Создаем копию кнопки. У этой копии НЕТ старых обработчиков.
-            const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
-            //    Заменяем старую кнопку в документе на новую, чистую.
-            widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
-            //    И только теперь вешаем ОДИН-ЕДИНСТВЕННЫЙ обработчик на эту новую кнопку.
-            newWidthToggleBtn.addEventListener('click', () => {
-                const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');
-                newWidthToggleBtn.classList.toggle('active', !isNowCompact);
-                newWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
-            });
-        
-            // 3. Твой код вставки контента и подсветки (он правильный)
+            if (!modal || !modalBody) return;
+
             let processedContent = (content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            proseContainer.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-        
-            proseContainer.querySelectorAll('pre code').forEach((block) => {
+            modalBody.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+
+            modalBody.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
+                
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-code-btn';
                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
                 copyBtn.addEventListener('click', () => {
                     navigator.clipboard.writeText(block.innerText);
                     copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                    setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                        lucide.createIcons();
+                    }, 2000);
                     lucide.createIcons();
                 });
                 preElement.appendChild(copyBtn);
                 hljs.highlightElement(block);
             });
-        
-            // 4. Показываем окно
+            
             modal.classList.remove('hidden');
             lucide.createIcons();
         }
@@ -2024,6 +1997,7 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
         
                     if (activeSession && !isNaN(messageIndex)) {
+                        // ИЗМЕНЕНИЕ ЗДЕСЬ
                         requestConfirmationInMenu(deleteMessageBtn, async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -2037,6 +2011,7 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || isNaN(messageIndex)) return;
     
+                    // ИЗМЕНЕНИЕ ЗДЕСЬ
                     requestConfirmationInMenu(clickedBtn, async () => {
                         const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                         const provider = state.providers.find(p => p.id === activeSession.providerId);

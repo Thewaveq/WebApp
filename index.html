@@ -1474,91 +1474,111 @@
         
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
-        
+
             generationAbortController = new AbortController();
             const signal = generationAbortController.signal;
-        
+
             state.loadingSessionId = sessionId;
             updateLoadingIndicator(); 
-            
+
             const activeSession = state.sessions.find(s => s.id === sessionId);
-            // По умолчанию стриминг включен, если настройка не задана
             const isStreamingEnabled = activeSession.isStreamingEnabled !== false;
-        
+
             let finalAssistantMessage = {
                 role: 'assistant',
                 content: '',
                 modelName: modelName
             };
-        
+
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) {
                 console.error("Критическая ошибка: контейнер чата #chat-messages не найден.");
                 state.loadingSessionId = null;
+                updateLoadingIndicator();
                 return;
             }
-            
-            // Удаляем старый индикатор загрузки, если он был
+
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) oldIndicator.remove();
-            
-            // Создаем элемент для сообщения ассистента. Он будет обновляться по ходу.
+
             const assistantMessageElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
             messagesContainer.appendChild(assistantMessageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        
+
             const targetContentElement = assistantMessageElement.querySelector('.prose');
             if (!targetContentElement) {
-                finalAssistantMessage.content = "**Критическая ошибка:** Не удалось создать DOM-элемент для ответа.";
                 state.loadingSessionId = null;
                 updateLoadingIndicator();
                 return;
             }
+
+            // --- НОВАЯ, ИСПРАВЛЕННАЯ ЛОГИКА РЕНДЕРИНГА ---
+            let contentChanged = false;
+            let animationFrameRequest = null;
+
+            const render = () => {
+                // Если контент изменился, обновляем DOM
+                if (contentChanged) {
+                    const rawHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
+                    targetContentElement.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    contentChanged = false; // Сбрасываем флаг после отрисовки
+                }
+                
+                // Продолжаем цикл отрисовки, пока идет загрузка
+                if (state.loadingSessionId === sessionId) {
+                    animationFrameRequest = requestAnimationFrame(render);
+                }
+            };
 
             try {
                 if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                 if (!modelName) throw new Error("Модель не выбрана.");
                 const apiKeys = provider.apiKeys || [];
                 if (apiKeys.length === 0) throw new Error("У выбранного провайдера нет API ключей.");
-        
+
                 const apiMessagesPayload = [];
                 if (selectedRole && selectedRole.content) {
                     apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
                 }
                 apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
-        
+
                 if (isStreamingEnabled) {
-                    // --- КОРРЕКТНАЯ ЛОГИКА СТРИМИНГА ---
+                    // Запускаем цикл отрисовки
+                    animationFrameRequest = requestAnimationFrame(render);
+
                     const fullUrl = new URL(provider.path, provider.baseUrl).href;
-                    const currentKeyIndex = provider.currentKeyIndex || 0;
                     const proxyRequestBody = {
-                        targetUrl: fullUrl, apiKey: apiKeys[currentKeyIndex],
+                        targetUrl: fullUrl,
+                        apiKey: apiKeys[provider.currentKeyIndex || 0],
                         payload: { model: modelName, messages: apiMessagesPayload, stream: true }
                     };
-        
+
                     const response = await fetch('/api/proxy', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(proxyRequestBody), signal: signal
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(proxyRequestBody),
+                        signal: signal
                     });
-        
+
                     if (!response.ok) {
                         const errorData = await response.json();
                         throw new Error(`Ошибка от прокси: ${errorData.details?.body || JSON.stringify(errorData)}`);
                     }
-        
+
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = '';
-        
+
                     while (true) {
                         if (signal.aborted) break;
                         const { done, value } = await reader.read();
                         if (done) break;
-        
+
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        buffer = lines.pop(); 
-        
+                        buffer = lines.pop();
+
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 const data = line.substring(6);
@@ -1567,10 +1587,9 @@
                                     const parsed = JSON.parse(data);
                                     const delta = parsed.choices[0]?.delta?.content || '';
                                     if (delta) {
+                                        // Просто обновляем переменную и ставим флаг. Никаких медленных операций.
                                         finalAssistantMessage.content += delta;
-                                        const rawHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
-                                        targetContentElement.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-                                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                        contentChanged = true;
                                     }
                                 } catch (e) {
                                     console.warn('Не удалось обработать часть данных стрима:', data, e);
@@ -1578,81 +1597,75 @@
                             }
                         }
                     }
-                    
-                    targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
-
                 } else {
-                    // --- ЛОГИКА ДЛЯ ОБЫЧНОГО ЗАПРОСА (БЕЗ ИЗМЕНЕНИЙ) ---
+                    // Логика для обычного запроса (без стриминга), без изменений
                     let isSuccess = false;
                     let lastError = 'Не удалось получить ответ от API после перебора всех ключей.';
                     const startIndex = provider.currentKeyIndex || 0;
-
                     for (let i = 0; i < apiKeys.length; i++) {
                          if (signal.aborted) throw new Error('AbortError');
                          const keyIndex = (startIndex + i) % apiKeys.length;
-                         const currentKey = apiKeys[keyIndex];
-
                          try {
                             const fullUrl = new URL(provider.path, provider.baseUrl).href;
                             const proxyRequestBody = {
                                 targetUrl: fullUrl,
-                                apiKey: currentKey,
+                                apiKey: apiKeys[keyIndex],
                                 payload: { model: modelName, messages: apiMessagesPayload, stream: false }
                             };
-
                             const response = await fetch('/api/proxy', {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(proxyRequestBody), signal: signal
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(proxyRequestBody),
+                                signal: signal
                             });
-
                             if (!response.ok) {
                                 const errorData = await response.json().catch(() => ({ message: `Статус ${response.status}` }));
                                 throw new Error(`Ошибка от прокси: ${errorData.details?.body || errorData.message}`);
                             }
                             const data = await response.json();
                             if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
-                            
                             finalAssistantMessage.content = data.choices[0].message.content;
                             isSuccess = true;
-                            
                             const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                             await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
                             break; 
                          } catch(error) {
                              if (error.name === 'AbortError') throw error;
-                             console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
                              lastError = error.message;
                          }
                     }
                     if (!isSuccess) throw new Error(lastError);
-
-                    const finalHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
-                    targetContentElement.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
-                    targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
+                    contentChanged = true; // Ставим флаг для финальной отрисовки
                 }
-        
             } catch (error) {
                 const errorPrefix = finalAssistantMessage.content.length > 0 ? '\n\n' : '';
-                if (error.name === 'AbortError') {
-                    finalAssistantMessage.content += errorPrefix + `*Генерация была остановлена.*`;
-                } else {
+                if (error.name !== 'AbortError') {
                     console.error("Ошибка в generateAssistantResponse:", error);
                     finalAssistantMessage.content += errorPrefix + `**Ошибка:** Не удалось получить ответ. \n*Детали: ${error.message}*`;
+                } else {
+                    finalAssistantMessage.content += errorPrefix + `*Генерация была остановлена.*`;
                 }
-                targetContentElement.innerHTML = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
+                contentChanged = true;
             } finally {
-                // ИСПРАВЛЕНИЕ: Мы больше не заменяем элемент. Он уже в DOM и обновлен.
-                // Мы просто сохраняем финальный результат в базу данных.
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                const finalMessages = [...messagesToSubmit, finalAssistantMessage];
+                // Останавливаем цикл отрисовки
+                if (animationFrameRequest) {
+                    cancelAnimationFrame(animationFrameRequest);
+                }
                 
-                // Обновляем dataset для консистентности, если понадобится в будущем
-                assistantMessageElement.dataset.content = finalAssistantMessage.content;
+                // Делаем одну финальную, гарантированную отрисовку, чтобы показать всё, что пришло
+                render();
 
-                await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
-        
+                // Подсвечиваем код только в самом конце
+                targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
+                
+                // Обновляем состояние и сохраняем в базу данных
                 state.loadingSessionId = null;
                 generationAbortController = null;
+                
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
+                const finalMessages = [...messagesToSubmit, finalAssistantMessage];
+                await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+                
                 updateLoadingIndicator();
             }
         }

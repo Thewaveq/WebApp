@@ -603,6 +603,8 @@
         
             const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
             widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
+
+            newWidthToggleBtn.classList.add('hidden', 'lg:inline-flex');
             
             newWidthToggleBtn.addEventListener('click', () => {
                 const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');

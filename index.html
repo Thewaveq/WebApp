@@ -1800,7 +1800,7 @@
             }, 0); 
         }
     
-        function setupGlobalEventListeners() {
+       function setupGlobalEventListeners() {
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
@@ -1869,6 +1869,70 @@
             window.addEventListener('resize', updateSidebarView);
         
             document.body.addEventListener('click', async (e) => {
+                
+                // --- НОВАЯ ФУНКЦИЯ ДЛЯ ВСТРОЕННОГО ПОДТВЕРЖДЕНИЯ ---
+                const handleConfirmationRequest = (button, onConfirm) => {
+                    const dropdownMenu = button.closest('.message-actions-dropdown');
+                    if (!dropdownMenu || dropdownMenu.dataset.confirming) return;
+
+                    dropdownMenu.dataset.confirming = 'true';
+
+                    const originalButtons = Array.from(dropdownMenu.children);
+                    originalButtons.forEach(btn => {
+                        if (!btn.classList.contains('inline-confirm-wrapper')) {
+                           btn.style.display = 'none';
+                        }
+                    });
+                    
+                    const confirmationWrapper = document.createElement('div');
+                    confirmationWrapper.className = 'inline-confirm-wrapper';
+
+                    const confirmBtn = document.createElement('button');
+                    confirmBtn.className = 'dropdown-menu-item danger';
+                    confirmBtn.innerHTML = `<i></i><span>Подтвердить</span>`;
+                    confirmBtn.querySelector('i').setAttribute('data-lucide', 'check-circle');
+                    
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'dropdown-menu-item';
+                    cancelBtn.innerHTML = `<i></i><span>Отмена</span>`;
+                    cancelBtn.querySelector('i').setAttribute('data-lucide', 'x-circle');
+
+                    confirmationWrapper.appendChild(confirmBtn);
+                    confirmationWrapper.appendChild(cancelBtn);
+                    dropdownMenu.appendChild(confirmationWrapper);
+                    lucide.createIcons({nodes: [confirmationWrapper]});
+                    
+                    const cleanup = () => {
+                        confirmationWrapper.remove();
+                        originalButtons.forEach(btn => {
+                           btn.style.display = ''; // Восстанавливаем оригинальное отображение
+                        });
+                        delete dropdownMenu.dataset.confirming;
+                        document.removeEventListener('click', outsideClickListener, true);
+                    }
+                    
+                    confirmBtn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        cleanup();
+                        onConfirm();
+                    });
+
+                    cancelBtn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        cleanup();
+                    });
+
+                    // Закрытие по клику вне меню
+                    const outsideClickListener = (event) => {
+                        if (!dropdownMenu.contains(event.target)) {
+                            cleanup();
+                        }
+                    };
+                    
+                    setTimeout(() => document.addEventListener('click', outsideClickListener, true), 0);
+                };
+
+
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
@@ -1888,57 +1952,64 @@
                     }
                 }
 
+                // --- ИЗМЕНЕННАЯ ЛОГИКА ОБРАБОТЧИКОВ СООБЩЕНИЙ ---
+
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
-                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-        
-                    if (activeSession && !isNaN(messageIndex)) {
-                        showConfirmModal('Вы уверены, что хотите удалить это сообщение?', async () => {
+                    e.stopPropagation();
+                    handleConfirmationRequest(deleteMessageBtn, async () => {
+                        const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            
+                        if (activeSession && !isNaN(messageIndex)) {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: newMessages });
-                        });
-                    }
+                        }
+                    });
                 }
     
-                const handleRegeneration = (messageIndex, sliceEnd) => {
+                const handleRegenerationAction = (sliceEnd) => {
                     if (state.loadingSessionId) return;
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession || isNaN(messageIndex)) return;
-    
-                    const confirmationText = sliceEnd === messageIndex
-                        ? 'Вы уверены, что хотите перегенерировать этот ответ? Текущий ответ будет удален.'
-                        : 'Это действие удалит все сообщения после этого и сгенерирует новый ответ. Продолжить?';
-    
-                    showConfirmModal(confirmationText, async () => {
-                        const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
-                        const provider = state.providers.find(p => p.id === activeSession.providerId);
-                        const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-    
-                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                        await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
-                        
-                        await generateAssistantResponse(
-                            state.activeSessionId,
-                            messagesForRegen,
-                            provider,
-                            selectedRole,
-                            activeSession.modelName
-                        );
-                    });
+                    if (!activeSession) return;
+
+                    const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
+                    const provider = state.providers.find(p => p.id === activeSession.providerId);
+                    const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                    updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                    
+                    generateAssistantResponse(
+                        state.activeSessionId,
+                        messagesForRegen,
+                        provider,
+                        selectedRole,
+                        activeSession.modelName
+                    );
                 };
                 
                 const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
+                    e.stopPropagation();
                     const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                    handleRegeneration(messageIndex, messageIndex + 1);
+                    if (!isNaN(messageIndex)) {
+                        handleConfirmationRequest(regenerateUserBtn, () => {
+                            handleRegenerationAction(messageIndex + 1);
+                        });
+                    }
                 }
     
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
+                    e.stopPropagation();
                     const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                    handleRegeneration(messageIndex, messageIndex);
+                    if (!isNaN(messageIndex)) {
+                       handleConfirmationRequest(regenerateBtn, () => {
+                            handleRegenerationAction(messageIndex);
+                        });
+                    }
                 }
         
                 const editBtn = e.target.closest('.edit-message-btn');

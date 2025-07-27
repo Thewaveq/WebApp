@@ -162,11 +162,18 @@
     </div>
     <div id="fullscreen-modal" class="modal-overlay hidden">
         <div id="fullscreen-modal-content" class="bg-bg-main p-4 md:p-6 rounded-lg shadow-2xl w-[95vw] h-[90vh] flex flex-col">
-            <div class="flex-shrink-0 flex justify-end mb-4">
+            <!-- Блок с кнопками управления -->
+            <div class="flex-shrink-0 flex justify-end items-center mb-4 gap-2">
+                <!-- НОВАЯ КНОПКА -->
+                <button id="fullscreen-width-toggle" title="Расширить" class="p-2 rounded-full hover:bg-bg-element transition-colors">
+                    <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
+                </button>
+                <!-- Существующая кнопка закрытия -->
                 <button id="fullscreen-modal-close" class="p-2 rounded-full hover:bg-bg-element transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
+            <!-- У контейнера для контента теперь есть id -->
             <div id="fullscreen-modal-body" class="prose max-w-none flex-grow overflow-y-auto">
             </div>
         </div>
@@ -613,6 +620,21 @@
                 });
                 preElement.appendChild(copyBtn);
                 hljs.highlightElement(block);
+            });
+
+            const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
+
+            modalBody.classList.add('fullscreen-view-compact');
+            widthToggleBtn.classList.remove('active');
+            widthToggleBtn.title = 'Расширить';
+        
+            const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
+            widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
+
+            newWidthToggleBtn.addEventListener('click', () => {
+                const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');
+                newWidthToggleBtn.classList.toggle('active', !isNowCompact);
+                newWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
             });
             
             modal.classList.remove('hidden');

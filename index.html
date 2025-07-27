@@ -1868,53 +1868,64 @@
             
             window.addEventListener('resize', updateSidebarView);
 
-            // --- НОВАЯ, УЛУЧШЕННАЯ ФУНКЦИЯ ВСТРОЕННОГО ПОДТВЕРЖДЕНИЯ ---
+            // --- НОВАЯ ФУНКЦИЯ ДЛЯ ПОДТВЕРЖДЕНИЯ В ВИДЕ "СПЛИТ-КНОПКИ" ---
             const inlineConfirm = (button, onConfirm) => {
                 if (button.dataset.confirming === 'true') return;
                 button.dataset.confirming = 'true';
-                button.style.display = 'none';
-
+            
+                // Сохраняем и прячем оригинальное содержимое кнопки
+                const originalContent = Array.from(button.childNodes);
+                originalContent.forEach(child => child.style.display = 'none');
+                const originalPadding = button.style.padding;
+                button.style.padding = '0';
+            
+                // Создаем UI "сплит-кнопки"
                 const confirmationUI = document.createElement('div');
-                confirmationUI.className = 'inline-confirm-ui flex items-center';
-
-                const confirmBtn = document.createElement('button');
-                confirmBtn.className = 'p-1.5 text-green-400 hover:text-green-300';
-                confirmBtn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i>';
-                confirmBtn.title = 'Подтвердить';
-
-                const cancelBtn = document.createElement('button');
-                cancelBtn.className = 'p-1.5 text-red-400 hover:text-red-300';
-                cancelBtn.innerHTML = '<i data-lucide="x-circle" class="w-4 h-4"></i>';
-                cancelBtn.title = 'Отмена';
+                confirmationUI.className = 'inline-confirm-ui flex justify-center items-stretch w-full';
+            
+                const confirmHalf = document.createElement('div');
+                confirmHalf.className = 'flex-1 text-green-400 hover:bg-green-400/10 rounded-l-md flex items-center justify-center cursor-pointer p-1.5';
+                confirmHalf.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+                confirmHalf.title = 'Подтвердить';
+            
+                const cancelHalf = document.createElement('div');
+                cancelHalf.className = 'flex-1 text-red-400 hover:bg-red-400/10 rounded-r-md flex items-center justify-center cursor-pointer p-1.5';
+                cancelHalf.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
+                cancelHalf.title = 'Отмена';
                 
-                confirmationUI.appendChild(confirmBtn);
-                confirmationUI.appendChild(cancelBtn);
+                confirmationUI.appendChild(confirmHalf);
+                confirmationUI.appendChild(cancelHalf);
                 
-                button.after(confirmationUI);
+                // Добавляем новый UI внутрь оригинальной кнопки
+                button.appendChild(confirmationUI);
                 lucide.createIcons({nodes: [confirmationUI]});
-
+            
                 const cleanup = () => {
                     confirmationUI.remove();
-                    button.style.display = '';
+                    originalContent.forEach(child => child.style.display = '');
+                    button.style.padding = originalPadding;
                     delete button.dataset.confirming;
                     document.removeEventListener('click', outsideClickListener, true);
                 };
-
-                confirmBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    confirmationUI.remove();
-                    delete button.dataset.confirming;
-                    document.removeEventListener('click', outsideClickListener, true);
-                    onConfirm();
-                });
-
-                cancelBtn.addEventListener('click', (e) => {
+            
+                const handleConfirm = (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     cleanup();
-                });
-
+                    onConfirm();
+                };
+            
+                const handleCancel = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    cleanup();
+                };
+            
+                confirmHalf.addEventListener('click', handleConfirm);
+                cancelHalf.addEventListener('click', handleCancel);
+            
                 const outsideClickListener = (event) => {
-                    if (!confirmationUI.contains(event.target)) {
+                    if (!button.contains(event.target)) {
                         cleanup();
                     }
                 };
@@ -1986,7 +1997,7 @@
                     e.stopPropagation();
                     inlineConfirm(regenerateUserBtn, () => {
                         const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                        handleRegenerationAction(messageIndex + 1);
+                        if (!isNaN(messageIndex)) handleRegenerationAction(messageIndex + 1);
                     });
                 }
     
@@ -1996,7 +2007,7 @@
                     e.stopPropagation();
                     inlineConfirm(regenerateBtn, () => {
                         const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                        handleRegenerationAction(messageIndex);
+                         if (!isNaN(messageIndex)) handleRegenerationAction(messageIndex);
                     });
                 }
         

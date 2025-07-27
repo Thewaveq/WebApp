@@ -73,7 +73,7 @@ input::placeholder, textarea::placeholder {
         transparent
     );
 }
-/*
+
 #chat-messages {
     /* --- НАСТРОЙКИ (меняйте эти значения) --- */
     --top-fade: 50px;       /* <-- Длина верхнего затухания */
@@ -99,7 +99,7 @@ input::placeholder, textarea::placeholder {
         transparent calc(100% - var(--form-height))
     );
 }
-*/
+
 .chat-action-btn {
     background-color: rgba(51, 51, 51, 0.25);
     border: 1px solid rgba(74, 74, 74, 0.3);
@@ -522,23 +522,14 @@ details[open] > summary .details-arrow {
     background-color: var(--accent-hover);
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
+/* --- СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
 #chat-input {
-    /* 1. Делаем фон полностью прозрачным */
-    background-color: transparent; 
-
-    /* 2. Убираем эффект размытия */
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-
-    /* 3. Оставляем рамку для визуального разделения */
-    border: 1px solid var(--border-color);
-
-    /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
+    background-color: rgba(20, 20, 20, 0.6);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: none;
     outline: none;
-    
-    /* 5. Добавляем плавный переход для рамки при фокусе */
     transition: border-color 0.2s ease-in-out;
 }
 

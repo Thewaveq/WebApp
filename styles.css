@@ -11,9 +11,6 @@
     --border-color: #4a4a4a;
     --danger: #e53e3e;
     --danger-hover: #c53030;
-
-    --moody-blue: #0d1a2f;  /* Очень темный, глубокий синий */
-    --moody-purple: #1f1a2f; /* Очень темный, глубокий фиолетовый */
 }
 html, body {
     height: 100%;
@@ -33,32 +30,42 @@ html, body {
 
 body {
     font-family: 'Inter', sans-serif;
+    background-color: var(--bg-main); /* Основной сплошной цвет фона */
     color: var(--text-primary);
     font-weight: 100;
     font-size: 18px;
-
-    /* --- НОВЫЙ МНОГОСЛОЙНЫЙ АТМОСФЕРНЫЙ ФОН --- */
-    
-    /* 1. Базовый цвет как запасной вариант */
-    background-color: var(--bg-main);
-
-    /* 2. Два слоя фона: шум поверх градиента */
-    background-image: 
-        /* Слой 1: Статичная текстура шума (поверх всего) */
-        url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOCIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiLz48L3N2Zz4='),
-        /* Слой 2: Плавный, медленно движущийся градиент */
-        linear-gradient(110deg, var(--moody-blue), var(--moody-purple), var(--bg-main), var(--bg-sidebar));
-    
-    /* Прозрачность для слоя с шумом, чтобы он был едва заметен */
-    background-blend-mode: overlay;
-    opacity: 0.1; /* <-- Поэкспериментируйте с этим значением (от 0.05 до 0.2) */
-
-    /* 3. Размер для градиента (большой, чтобы движение было плавным) */
-    background-size: 300% 300%;
-
-    /* 4. Применяем очень медленную анимацию */
-    animation: backgroundDrift 40s ease-in-out infinite;
+    position: relative; /* Необходимо для позиционирования псевдо-элемента */
+    z-index: 0; /* Устанавливаем базовый z-index */
 }
+
+/* --- СЛОЙ С АНИМИРОВАННЫМ ФОНОМ И ШУМОМ --- */
+body::before {
+    content: '';
+    position: fixed; /* Растягиваем на весь экран, независимо от прокрутки */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1; /* Помещаем этот слой ЗА весь контент */
+
+    /* 1. Многослойный фон: шум поверх градиента */
+    background-image:
+        /* Слой 1: Статичная текстура шума */
+        url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOCIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiLz48L3N2Zz4='),
+        /* Слой 2: Мягкий, медленно движущийся градиент */
+        linear-gradient(110deg, #0d1a2f, var(--bg-sidebar), var(--bg-main));
+    
+    /* 2. Размер для градиента (большой для плавного движения) */
+    background-size: 400% 400%;
+    
+    /* 3. Применяем очень медленную анимацию */
+    animation: backgroundDrift 45s ease-in-out infinite;
+    
+    /* 4. ГЛАВНЫЙ ФИКС: Регулируем яркость самого фона, а не интерфейса */
+    /* Можете менять это значение от 0.3 до 0.7, чтобы сделать фон темнее или светлее */
+    opacity: 0.5; 
+}
+
 
 @media (max-width: 1023px) {
     body {

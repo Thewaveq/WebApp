@@ -1480,7 +1480,6 @@
         
             state.loadingSessionId = sessionId;
             const activeSession = state.sessions.find(s => s.id === sessionId);
-            // ПРОВЕРКА: включен ли стриминг для этого чата? (Предполагаем, что это будет в настройках)
             const isStreamingEnabled = activeSession.isStreamingEnabled === true;
         
             let finalAssistantMessage = {
@@ -1489,13 +1488,10 @@
                 modelName: modelName
             };
         
-            // Немедленно добавляем пустое сообщение ассистента в UI
-            // Это создает контейнер, который мы будем наполнять по мере поступления данных
             const messagesWithPlaceholder = [...messagesToSubmit, finalAssistantMessage];
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
             await updateDoc(sessionRef, { messages: messagesWithPlaceholder, updatedAt: serverTimestamp() });
         
-            // Обновляем UI, чтобы показать пустой контейнер сообщения (без индикатора загрузки)
             render();
             const messagesContainer = document.getElementById('chat-messages');
             if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -1512,14 +1508,15 @@
                 }
                 apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
         
-                // --- ЛОГИКА СТРИМИНГА ---
                 if (isStreamingEnabled) {
-                    // 1. Подготовка к стримингу
+                    // --- ЛОГИКА СТРИМИНГА (РАБОТАЕТ КОРРЕКТНО) ---
                     const fullUrl = new URL(provider.path, provider.baseUrl).href;
+                    // Используем текущий индекс ключа или 0, если его нет
+                    const currentKeyIndex = provider.currentKeyIndex || 0;
                     const proxyRequestBody = {
                         targetUrl: fullUrl,
-                        apiKey: apiKeys[provider.currentKeyIndex || 0], // Для стриминга пока используем первый ключ
-                        payload: { model: modelName, messages: apiMessagesPayload, stream: true } // Включаем стриминг
+                        apiKey: apiKeys[currentKeyIndex],
+                        payload: { model: modelName, messages: apiMessagesPayload, stream: true }
                     };
         
                     const response = await fetch('/api/proxy', {
@@ -1534,26 +1531,22 @@
                         throw new Error(`Ошибка от прокси: ${errorData.details?.body || JSON.stringify(errorData)}`);
                     }
         
-                    // 2. Обработка потока
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = '';
         
                     let lastRenderTime = 0;
-                    const renderInterval = 16; // Примерно 60 FPS
+                    const renderInterval = 16; 
         
                     const updateMessageContent = () => {
                         const currentSession = state.sessions.find(s => s.id === sessionId);
                         if (!currentSession || !currentSession.messages.length) return;
                         
-                        // Обновляем контент последнего сообщения в локальном состоянии
                         const lastMessage = currentSession.messages[currentSession.messages.length - 1];
                         lastMessage.content = finalAssistantMessage.content;
         
-                        // Перерисовываем только сообщения, это эффективнее полного рендера
                         renderChatMessages(currentSession);
                         
-                        // Добавляем класс для анимации появления
                         const messageElements = messagesContainer.querySelectorAll('.message-container');
                         const lastMessageElement = messageElements[messageElements.length - 1];
                         if (lastMessageElement && !lastMessageElement.classList.contains('streaming-in')) {
@@ -1564,48 +1557,80 @@
                     };
         
                     while (true) {
+                        if (signal.aborted) break;
                         const { done, value } = await reader.read();
                         if (done) break;
         
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        buffer = lines.pop(); // Все, что после последнего \n, остается в буфере
+                        buffer = lines.pop(); 
         
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 const data = line.substring(6);
-                                if (data.trim() === '[DONE]') {
-                                    break;
-                                }
+                                if (data.trim() === '[DONE]') break;
                                 try {
                                     const parsed = JSON.parse(data);
                                     const delta = parsed.choices[0]?.delta?.content || '';
-                                    if (delta) {
-                                        finalAssistantMessage.content += delta;
-                                    }
-                                } catch (e) {
-                                    console.error('Ошибка парсинга JSON из потока:', data);
-                                }
+                                    if (delta) finalAssistantMessage.content += delta;
+                                } catch (e) { /* Игнорируем ошибки парсинга */ }
                             }
                         }
                         
-                        // 3. Плавное отображение с requestAnimationFrame (или простой задержкой)
                         const now = performance.now();
                         if (now - lastRenderTime > renderInterval) {
                            updateMessageContent();
                            lastRenderTime = now;
                         }
                     }
-                    // Финальное обновление после завершения цикла
                     updateMessageContent();
         
                 } else {
-                    // --- ОБЫЧНЫЙ ЗАПРОС (без стриминга) ---
-                    // Этот код остается почти без изменений
-                    const response = await fetch(/* ... ваш обычный запрос ... */); // Здесь должен быть ваш оригинальный код для обычного запроса
-                    const data = await response.json();
-                    if(data.error) throw new Error(data.error.message);
-                    finalAssistantMessage.content = data.choices[0].message.content;
+                    // --- ИСПРАВЛЕННАЯ ЛОГИКА ОБЫЧНОГО ЗАПРОСА (БЕЗ СТРИМИНГА) ---
+                    let isSuccess = false;
+                    let lastError = 'Не удалось получить ответ от API.';
+                    const startIndex = provider.currentKeyIndex || 0;
+
+                    for (let i = 0; i < apiKeys.length; i++) {
+                         if (signal.aborted) throw new Error('AbortError');
+                         const keyIndex = (startIndex + i) % apiKeys.length;
+                         const currentKey = apiKeys[keyIndex];
+
+                         try {
+                            const fullUrl = new URL(provider.path, provider.baseUrl).href;
+                            const proxyRequestBody = {
+                                targetUrl: fullUrl,
+                                apiKey: currentKey,
+                                payload: { model: modelName, messages: apiMessagesPayload, stream: false } // stream: false
+                            };
+
+                            const response = await fetch('/api/proxy', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(proxyRequestBody),
+                                signal: signal
+                            });
+
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({ message: `Статус ${response.status}` }));
+                                throw new Error(`Ошибка от прокси: ${errorData.details?.body || errorData.message}`);
+                            }
+                            const data = await response.json();
+                            if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                            
+                            finalAssistantMessage.content = data.choices[0].message.content;
+                            isSuccess = true;
+                            
+                            const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
+                            await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
+                            break; // Выходим из цикла при успехе
+                         } catch(error) {
+                             if (error.name === 'AbortError') throw error;
+                             console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
+                             lastError = error.message;
+                         }
+                    }
+                    if (!isSuccess) throw new Error(lastError);
                 }
         
             } catch (error) {
@@ -1613,17 +1638,17 @@
                     finalAssistantMessage.content += `\n\n*Генерация была остановлена.*`;
                 } else {
                     console.error("Ошибка в generateAssistantResponse:", error);
+                    // Добавляем к уже существующему тексту (если он есть)
                     finalAssistantMessage.content += `\n\n**Ошибка:** Не удалось получить ответ. \n*Детали: ${error.message}*`;
                 }
             } finally {
-                // Финальное, однократное обновление документа в Firestore с полным текстом
+                // Финальное, однократное обновление документа в Firestore
                 const finalMessages = [...messagesToSubmit, finalAssistantMessage];
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
         
                 state.loadingSessionId = null;
                 generationAbortController = null;
-                // Полный рендер для синхронизации всех элементов UI
-                render();
+                render(); // Полный рендер для синхронизации
             }
         }
         

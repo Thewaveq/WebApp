@@ -807,3 +807,18 @@ details[open] > summary .details-arrow {
 .message-container.streaming-in .prose {
     animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* --- АНИМАЦИЯ ДЛЯ ПЛАВНОГО ПОЯВЛЕНИЯ КАЖДОГО СЛОВА --- */
+.streaming-word {
+  display: inline-block; /* Необходимо для работы transform */
+  opacity: 0;
+  transform: translateY(10px); /* Слово будет появляться чуть снизу */
+  animation: fadeInWord 0.4s ease-out forwards;
+}
+
+@keyframes fadeInWord {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

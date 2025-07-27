@@ -258,6 +258,10 @@ details[open] > summary .details-arrow {
     /* Добавляем тонкую "стеклянную" рамку */
     border: 1px solid rgba(255, 255, 255, 0.1);
 
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* Ограничиваем высоту до 90% высоты экрана */
+
     /* Остальные стили */
     padding: 2rem;
     border-radius: 0.5rem;

@@ -1942,13 +1942,15 @@
                 
                 const clearHistoryBtn = e.target.closest('#clear-chat-history-btn');
                 if (clearHistoryBtn) {
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (activeSession) {
-                        showConfirmModal('Вы уверены, что хотите очистить историю этого чата? Это действие необратимо.', async () => {
+                    if (clearHistoryBtn.style.display === 'none') return; 
+                
+                    createInlineConfirmation(clearHistoryBtn, async () => {
+                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                        if (activeSession) {
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: [], updatedAt: serverTimestamp() });
-                        });
-                    }
+                        }
+                    });
                 }
 
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');

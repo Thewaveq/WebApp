@@ -1480,7 +1480,8 @@
         
             state.loadingSessionId = sessionId;
             const activeSession = state.sessions.find(s => s.id === sessionId);
-            const isStreamingEnabled = activeSession.isStreamingEnabled === true;
+            // По умолчанию стриминг включен, если настройка отсутствует
+            const isStreamingEnabled = activeSession.isStreamingEnabled !== false;
         
             let finalAssistantMessage = {
                 role: 'assistant',
@@ -1495,14 +1496,20 @@
                 return;
             }
             
-            const placeholderElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
-            messagesContainer.appendChild(placeholderElement);
+            // Удаляем старый индикатор загрузки, если он был
+            const oldIndicator = document.getElementById('loading-message-placeholder');
+            if(oldIndicator) oldIndicator.remove();
+            
+            // Создаем новый элемент для сообщения ассистента, он будет обновляться по ходу
+            const assistantMessageElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
+            messagesContainer.appendChild(assistantMessageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             updateLoadingIndicator(); 
         
-            const targetContentElement = placeholderElement.querySelector('.prose');
+            const targetContentElement = assistantMessageElement.querySelector('.prose');
             if (!targetContentElement) {
                 finalAssistantMessage.content = "**Критическая ошибка:** Не удалось создать DOM-элемент для ответа.";
+                assistantMessageElement.innerHTML = finalAssistantMessage.content;
                 state.loadingSessionId = null;
                 updateLoadingIndicator();
                 return;
@@ -1521,8 +1528,8 @@
                 apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
         
                 if (isStreamingEnabled) {
-                    // --- ЛОГИКА ДЛЯ СТРИМИНГА ---
-                    placeholderElement.classList.add('streaming-in');
+                    // --- ИСПРАВЛЕННАЯ ЛОГИКА СТРИМИНГА ---
+                    assistantMessageElement.classList.add('streaming-in');
         
                     const fullUrl = new URL(provider.path, provider.baseUrl).href;
                     const currentKeyIndex = provider.currentKeyIndex || 0;
@@ -1544,21 +1551,8 @@
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = '';
-                    let animationFrameId = null;
-                    let needsRender = false;
         
-                    const renderLoop = () => {
-                        if (needsRender) {
-                            const rawHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
-                            targetContentElement.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                            needsRender = false;
-                        }
-                        animationFrameId = requestAnimationFrame(renderLoop);
-                    };
-                    
-                    animationFrameId = requestAnimationFrame(renderLoop);
-        
+                    // Убрали сложный и неверно работающий renderLoop. Обновляем DOM напрямую.
                     while (true) {
                         if (signal.aborted) break;
                         const { done, value } = await reader.read();
@@ -1566,29 +1560,37 @@
         
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        buffer = lines.pop();
+                        buffer = lines.pop(); // Оставляем последнюю (возможно, неполную) строку в буфере
         
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 const data = line.substring(6);
-                                if (data.trim() === '[DONE]') break;
+                                if (data.trim() === '[DONE]') continue;
                                 try {
                                     const parsed = JSON.parse(data);
                                     const delta = parsed.choices[0]?.delta?.content || '';
                                     if (delta) {
                                         finalAssistantMessage.content += delta;
-                                        needsRender = true;
+                                        
+                                        // Прямое обновление innerHTML с каждым полученным фрагментом
+                                        const rawHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
+                                        targetContentElement.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+                                        
+                                        // Прокрутка вниз для удержания нового текста в поле зрения
+                                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
                                     }
-                                } catch (e) {}
+                                } catch (e) {
+                                    console.warn('Не удалось обработать часть данных стрима:', data, e);
+                                }
                             }
                         }
                     }
                     
-                    cancelAnimationFrame(animationFrameId);
+                    // Финальная подсветка синтаксиса после завершения стрима
                     targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
 
                 } else {
-                    // --- ПОЛНАЯ ЛОГИКА ДЛЯ ОБЫЧНОГО ЗАПРОСА (БЕЗ СТРИМИНГА) ---
+                    // --- ЛОГИКА ДЛЯ ОБЫЧНОГО ЗАПРОСА (ОСТАЛАСЬ БЕЗ ИЗМЕНЕНИЙ) ---
                     let isSuccess = false;
                     let lastError = 'Не удалось получить ответ от API после перебора всех ключей.';
                     const startIndex = provider.currentKeyIndex || 0;
@@ -1649,6 +1651,12 @@
                 }
                 targetContentElement.innerHTML = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
             } finally {
+                // Заменяем временный элемент на постоянный с полным контентом
+                const finalElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
+                if (assistantMessageElement.parentNode) {
+                    assistantMessageElement.replaceWith(finalElement);
+                }
+
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
                 const finalMessages = [...messagesToSubmit, finalAssistantMessage];
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });

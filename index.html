@@ -1342,7 +1342,8 @@
                 const cardEl = deleteBtn.closest('.note-card');
                 const cardId = cardEl.dataset.cardId;
         
-                showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
+                // ИЗМЕНЕНО: Используем inline-подтверждение для удаления карточки
+                createInlineConfirmation(deleteBtn, async () => {
                     if (!state.activeSessionId) return;
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
 
@@ -1799,49 +1800,40 @@
                 newNotification.classList.remove('-translate-y-[150%]', 'opacity-0');
             }, 0); 
         }
-    
-       function setupGlobalEventListeners() {
-            mainNavItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    state.activeTab = item.dataset.tab;
-                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
-                        const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
-                        state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
-                    } else {
-                        state.activeSessionId = null;
-                    }
-                    render();
-                });
-            });
-        
-            const createNewItem = async (type) => {
-                let newSessionData;
-                if (type === 'chat') {
-                    let providerId = null;
-                    let modelName = null;
-                    if (state.providers.length > 0) {
-                        const firstProvider = state.providers[0];
-                        providerId = firstProvider.id;
-                        const models = firstProvider.models || [];
-                        if (models.length > 0) {
-                            modelName = models[0];
-                        }
-                    }
-                    newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-                } else if (type === 'notepad') {
-                    newSessionData = { 
-                        type: 'notepad', 
-                        title: 'Новая папка', 
-                        cards: [],
-                        createdAt: serverTimestamp(), 
-                        updatedAt: serverTimestamp() 
-                    };
+
+        function createInlineConfirmation(container, onConfirm) {
+            if (container.classList.contains('is-confirming')) return;
+
+            container.classList.add('is-confirming');
+            const originalHTML = container.innerHTML;
+
+            container.innerHTML = `
+                <button title="Подтвердить" class="confirm-inline-action p-1 text-green-400 hover:text-green-500 transition-colors"><i data-lucide="check" class="w-4 h-4"></i></button>
+                <button title="Отменить" class="cancel-inline-action p-1 text-red-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+            `;
+            lucide.createIcons({ nodes: [container] });
+
+            const clickHandler = (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+
+                e.stopPropagation();
+
+                container.innerHTML = originalHTML;
+                container.classList.remove('is-confirming');
+                lucide.createIcons({ nodes: [container] });
+                
+                if (button.classList.contains('confirm-inline-action')) {
+                    onConfirm();
                 }
-                
-                const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
-                state.activeSessionId = newSessionRef.id;
-                
-                render();
+
+                container.removeEventListener('click', clickHandler);
+            };
+
+            setTimeout(() => container.addEventListener('click', clickHandler), 0);
+        }
+        
+       
                 if (window.innerWidth < 1024) { 
                     sidebar.classList.remove('open'); 
                     sidebarBackdrop.classList.remove('active'); 
@@ -1867,83 +1859,20 @@
             });
             
             window.addEventListener('resize', updateSidebarView);
-
-            // --- НОВАЯ ФУНКЦИЯ ДЛЯ ПОДТВЕРЖДЕНИЯ В ВИДЕ "СПЛИТ-КНОПКИ" ---
-            const inlineConfirm = (button, onConfirm) => {
-                if (button.dataset.confirming === 'true') return;
-                button.dataset.confirming = 'true';
-            
-                // Сохраняем и прячем оригинальное содержимое кнопки
-                const originalContent = Array.from(button.childNodes);
-                originalContent.forEach(child => child.style.display = 'none');
-                const originalPadding = button.style.padding;
-                button.style.padding = '0';
-            
-                // Создаем UI "сплит-кнопки"
-                const confirmationUI = document.createElement('div');
-                confirmationUI.className = 'inline-confirm-ui flex justify-center items-stretch w-full';
-            
-                const confirmHalf = document.createElement('div');
-                confirmHalf.className = 'flex-1 text-green-400 hover:bg-green-400/10 rounded-l-md flex items-center justify-center cursor-pointer p-1.5';
-                confirmHalf.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
-                confirmHalf.title = 'Подтвердить';
-            
-                const cancelHalf = document.createElement('div');
-                cancelHalf.className = 'flex-1 text-red-400 hover:bg-red-400/10 rounded-r-md flex items-center justify-center cursor-pointer p-1.5';
-                cancelHalf.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
-                cancelHalf.title = 'Отмена';
-                
-                confirmationUI.appendChild(confirmHalf);
-                confirmationUI.appendChild(cancelHalf);
-                
-                // Добавляем новый UI внутрь оригинальной кнопки
-                button.appendChild(confirmationUI);
-                lucide.createIcons({nodes: [confirmationUI]});
-            
-                const cleanup = () => {
-                    confirmationUI.remove();
-                    originalContent.forEach(child => child.style.display = '');
-                    button.style.padding = originalPadding;
-                    delete button.dataset.confirming;
-                    document.removeEventListener('click', outsideClickListener, true);
-                };
-            
-                const handleConfirm = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    cleanup();
-                    onConfirm();
-                };
-            
-                const handleCancel = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    cleanup();
-                };
-            
-                confirmHalf.addEventListener('click', handleConfirm);
-                cancelHalf.addEventListener('click', handleCancel);
-            
-                const outsideClickListener = (event) => {
-                    if (!button.contains(event.target)) {
-                        cleanup();
-                    }
-                };
-                
-                setTimeout(() => document.addEventListener('click', outsideClickListener, true), 0);
-            };
         
             document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                    // ИЗМЕНЕНО: Используем inline-подтверждение для удаления сессии
+                    createInlineConfirmation(deleteSessionBtn, async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                     });
                 }
                 
                 const clearHistoryBtn = e.target.closest('#clear-chat-history-btn');
                 if (clearHistoryBtn) {
+                    // Оставим модальное окно здесь, так как это очень деструктивное действие
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (activeSession) {
                         showConfirmModal('Вы уверены, что хотите очистить историю этого чата? Это действие необратимо.', async () => {
@@ -1953,36 +1882,35 @@
                     }
                 }
 
-                // --- ОБНОВЛЕННЫЕ ОБРАБОТЧИКИ С ИСПОЛЬЗОВАНИЕМ inlineConfirm ---
-
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    inlineConfirm(deleteMessageBtn, async () => {
-                        const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        if (activeSession && !isNaN(messageIndex)) {
+                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const actionsContainer = e.target.closest('.message-actions-container');
+        
+                    if (activeSession && !isNaN(messageIndex) && actionsContainer) {
+                        // ИЗМЕНЕНО: Используем inline-подтверждение для удаления сообщения
+                        createInlineConfirmation(actionsContainer, async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: newMessages });
-                        }
-                    });
+                        });
+                    }
                 }
     
-                const handleRegenerationAction = (sliceEnd) => {
-                    if (state.loadingSessionId) return;
+                // ИЗМЕНЕНО: Выносим логику регенерации в отдельную функцию для чистоты
+                const executeRegeneration = async (sliceEnd) => {
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession) return;
-    
+                     if (!activeSession) return;
+
                     const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                     const provider = state.providers.find(p => p.id === activeSession.providerId);
                     const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-    
+
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                    updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                    await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
                     
-                    generateAssistantResponse(
+                    await generateAssistantResponse(
                         state.activeSessionId,
                         messagesForRegen,
                         provider,
@@ -1990,25 +1918,29 @@
                         activeSession.modelName
                     );
                 };
+
+                const handleRegenerationRequest = (e, sliceEndFn) => {
+                     if (state.loadingSessionId) return;
+                     const actionsContainer = e.target.closest('.message-actions-container');
+                     if (!actionsContainer) return;
+                     
+                     const messageIndex = parseInt(e.target.closest('[data-message-index]').dataset.messageIndex, 10);
+                     if (isNaN(messageIndex)) return;
+
+                     // ИЗМЕНЕНО: Используем inline-подтверждение для регенерации
+                     createInlineConfirmation(actionsContainer, () => {
+                         executeRegeneration(sliceEndFn(messageIndex));
+                     });
+                };
                 
                 const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    inlineConfirm(regenerateUserBtn, () => {
-                        const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                        if (!isNaN(messageIndex)) handleRegenerationAction(messageIndex + 1);
-                    });
+                    handleRegenerationRequest(regenerateUserBtn, index => index + 1);
                 }
     
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    inlineConfirm(regenerateBtn, () => {
-                        const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                         if (!isNaN(messageIndex)) handleRegenerationAction(messageIndex);
-                    });
+                    handleRegenerationRequest(regenerateBtn, index => index);
                 }
         
                 const editBtn = e.target.closest('.edit-message-btn');
@@ -2080,7 +2012,8 @@
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
                     const idToDelete = deleteProviderBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
+                    // Для настроек можно оставить модальное окно, но для консистентности тоже заменим
+                    createInlineConfirmation(deleteProviderBtn.parentElement, async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
                     });
                 }
@@ -2093,7 +2026,7 @@
                 const deleteRoleBtn = e.target.closest('.delete-role-btn');
                 if (deleteRoleBtn) {
                     const idToDelete = deleteRoleBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
+                     createInlineConfirmation(deleteRoleBtn.parentElement, async () => {
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
                     });
                 }

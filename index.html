@@ -1869,6 +1869,39 @@
             window.addEventListener('resize', updateSidebarView);
         
             document.body.addEventListener('click', async (e) => {
+                // --- Логика для inline-подтверждений ---
+                const showInlineConfirmation = (targetButton, onConfirm) => {
+                    const messageContainer = targetButton.closest('.message-container');
+                    if (!messageContainer) return;
+                    
+                    const actionsOuterContainer = messageContainer.querySelector('.absolute.bottom-1.right-2');
+                    if (!actionsOuterContainer || actionsOuterContainer.querySelector('.confirmation-controls')) return;
+                    
+                    const originalActions = actionsOuterContainer.querySelector('.message-actions-container');
+                    if (originalActions) originalActions.classList.add('hidden');
+                    
+                    const confirmationControls = document.createElement('div');
+                    confirmationControls.className = 'confirmation-controls flex items-center space-x-1';
+                    confirmationControls.innerHTML = `
+                        <button class="confirm-btn p-1.5 rounded-full text-green-400 hover:bg-green-500/20" title="Подтвердить"><i data-lucide="check" class="w-4 h-4"></i></button>
+                        <button class="cancel-btn p-1.5 rounded-full text-red-400 hover:bg-red-500/20" title="Отменить"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    `;
+                    actionsOuterContainer.appendChild(confirmationControls);
+                    lucide.createIcons({ nodes: [confirmationControls] });
+                    
+                    const cleanup = () => {
+                        confirmationControls.remove();
+                        if (originalActions) originalActions.classList.remove('hidden');
+                    };
+                    
+                    confirmationControls.querySelector('.confirm-btn').onclick = () => {
+                        onConfirm();
+                        // Не вызываем cleanup, так как DOM перерисуется после действия
+                    };
+                    
+                    confirmationControls.querySelector('.cancel-btn').onclick = cleanup;
+                };
+
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
@@ -1888,104 +1921,59 @@
                     }
                 }
 
-                // --- НОВАЯ ЛОГИКА ПОДТВЕРЖДЕНИЯ ДЕЙСТВИЙ С СООБЩЕНИЯМИ ---
-
-                const handleInlineConfirm = (targetButton, onConfirm) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    const dropdown = targetButton.closest('.message-actions-dropdown');
-                    if (dropdown.querySelector('.inline-confirm-wrapper')) return;
-
-                    const originalMenuItem = targetButton.closest('.dropdown-menu-item');
-                    const originalContent = originalMenuItem.innerHTML;
-                    
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'dropdown-menu-item inline-confirm-wrapper';
-                    wrapper.innerHTML = `
-                        <div class="flex items-center justify-between w-full gap-3">
-                            <button class="inline-confirm-yes flex-grow flex items-center justify-center gap-2 text-green-400 hover:text-green-300 focus:outline-none p-1 rounded-md hover:bg-green-500/10">
-                                <i data-lucide="check" class="w-4 h-4"></i>
-                            </button>
-                            <div class="w-px h-4 bg-border-color"></div>
-                            <button class="inline-confirm-no flex-grow flex items-center justify-center gap-2 text-red-400 hover:text-red-300 focus:outline-none p-1 rounded-md hover:bg-red-500/10">
-                                <i data-lucide="x" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    `;
-
-                    originalMenuItem.innerHTML = '';
-                    originalMenuItem.appendChild(wrapper);
-                    lucide.createIcons({ nodes: [wrapper] });
-
-                    const cleanup = () => {
-                        originalMenuItem.innerHTML = originalContent;
-                        // Иконки пересоздадутся, когда меню откроется в следующий раз, или можно добавить lucide.createIcons тут
-                    };
-
-                    wrapper.querySelector('.inline-confirm-yes').addEventListener('click', (evt) => {
-                        evt.stopPropagation();
-                        onConfirm();
-                        // Меню закроется само после клика
-                    });
-
-                    wrapper.querySelector('.inline-confirm-no').addEventListener('click', (evt) => {
-                        evt.stopPropagation();
-                        cleanup();
-                    });
-                };
-
+                // ИЗМЕНЕНИЕ: Удаление сообщения с inline-подтверждением
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
-                    handleInlineConfirm(deleteMessageBtn, async () => {
-                        const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        if (activeSession && !isNaN(messageIndex)) {
+                    const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+        
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showInlineConfirmation(deleteMessageBtn, async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: newMessages });
-                        }
-                    });
-                    return;
+                        });
+                    }
                 }
-    
-                const handleRegenerationAction = async (messageIndex, sliceEnd) => {
-                    if (state.loadingSessionId) return;
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    if (!activeSession || isNaN(messageIndex)) return;
-    
-                    const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
-                    const provider = state.providers.find(p => p.id === activeSession.providerId);
-                    const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-
-                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                    await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
-                    
-                    await generateAssistantResponse(
-                        state.activeSessionId,
-                        messagesForRegen,
-                        provider,
-                        selectedRole,
-                        activeSession.modelName
-                    );
-                };
                 
+                // ИЗМЕНЕНИЕ: Перегенерация ответа на сообщение пользователя с inline-подтверждением
                 const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
+                    if (state.loadingSessionId) return;
                     const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                    handleInlineConfirm(regenerateUserBtn, () => handleRegenerationAction(messageIndex, messageIndex + 1));
-                    return;
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showInlineConfirmation(regenerateUserBtn, async () => {
+                            const messagesForRegen = activeSession.messages.slice(0, messageIndex + 1);
+                            const provider = state.providers.find(p => p.id === activeSession.providerId);
+                            const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                            await generateAssistantResponse(state.activeSessionId, messagesForRegen, provider, selectedRole, activeSession.modelName);
+                        });
+                    }
                 }
     
+                // ИЗМЕНЕНИЕ: Перегенерация ответа ассистента с inline-подтверждением
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
+                    if (state.loadingSessionId) return;
                     const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                    handleInlineConfirm(regenerateBtn, () => handleRegenerationAction(messageIndex, messageIndex));
-                    return;
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+
+                    if (activeSession && !isNaN(messageIndex)) {
+                        showInlineConfirmation(regenerateBtn, async () => {
+                            const messagesForRegen = activeSession.messages.slice(0, messageIndex);
+                            const provider = state.providers.find(p => p.id === activeSession.providerId);
+                            const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
+                            await generateAssistantResponse(state.activeSessionId, messagesForRegen, provider, selectedRole, activeSession.modelName);
+                        });
+                    }
                 }
         
-                // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
-
                 const editBtn = e.target.closest('.edit-message-btn');
                 if (editBtn) {
                     if (state.loadingSessionId) return;

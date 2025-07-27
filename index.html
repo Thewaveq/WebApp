@@ -161,14 +161,28 @@
         </div>
     </div>
     <div id="fullscreen-modal" class="modal-overlay hidden">
-        <div id="fullscreen-modal-content" class="bg-bg-main p-4 md:p-6 rounded-lg shadow-2xl w-[95vw] h-[90vh] flex flex-col">
-            <div class="flex-shrink-0 flex justify-end mb-4">
+        <div id="fullscreen-modal-content" class="bg-bg-main flex flex-col">
+            
+            <!-- Верхняя панель с кнопками -->
+            <div class="flex-shrink-0 flex justify-end items-center mb-4 gap-2 px-4 pt-4">
+                <!-- НОВАЯ КНОПКА ПЕРЕКЛЮЧЕНИЯ ШИРИНЫ -->
+                <button id="fullscreen-width-toggle" title="Расширить" class="p-2 rounded-full hover:bg-bg-element transition-colors">
+                    <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
+                </button>
+                <!-- Существующая кнопка закрытия -->
                 <button id="fullscreen-modal-close" class="p-2 rounded-full hover:bg-bg-element transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
-            <div id="fullscreen-modal-body" class="prose max-w-none flex-grow overflow-y-auto">
+    
+            <!-- Контейнер для прокрутки -->
+            <div id="fullscreen-modal-body" class="flex-grow overflow-y-auto">
+                <!-- Внутренний контейнер для текста, который мы будем анимировать -->
+                <div id="fullscreen-prose-container" class="prose max-w-none">
+                    <!-- Сюда будет вставляться контент -->
+                </div>
             </div>
+    
         </div>
     </div>
     <div id="in-app-notification" class="fixed top-9 left-1/2 -translate-x-1/2 z-50 w-full max-w-md cursor-pointer transition-all duration-300 ease-in-out transform -translate-y-[150%] opacity-0 hidden" >
@@ -586,16 +600,32 @@
         function showFullscreenMessage(content) {
             const modal = document.getElementById('fullscreen-modal');
             const modalBody = document.getElementById('fullscreen-modal-body');
-            if (!modal || !modalBody) return;
-
+            const proseContainer = document.getElementById('fullscreen-prose-container');
+            const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
+        
+            if (!modal || !modalBody || !proseContainer || !widthToggleBtn) return;
+        
+            modalBody.classList.add('fullscreen-view-compact');
+            widthToggleBtn.classList.remove('active');
+            widthToggleBtn.title = 'Расширить';
+        
+            const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
+            widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
+            
+            newWidthToggleBtn.addEventListener('click', () => {
+                const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');
+                newWidthToggleBtn.classList.toggle('active', !isNowCompact);
+                newWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
+            });
+        
             let processedContent = (content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            modalBody.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-
-            modalBody.querySelectorAll('pre code').forEach((block) => {
+            proseContainer.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+        
+            proseContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
                 

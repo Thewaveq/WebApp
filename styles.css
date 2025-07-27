@@ -73,7 +73,7 @@ input::placeholder, textarea::placeholder {
         transparent
     );
 }
-
+/*
 #chat-messages {
     /* --- НАСТРОЙКИ (меняйте эти значения) --- */
     --top-fade: 50px;       /* <-- Длина верхнего затухания */
@@ -99,7 +99,7 @@ input::placeholder, textarea::placeholder {
         transparent calc(100% - var(--form-height))
     );
 }
-
+*/
 .chat-action-btn {
     background-color: rgba(51, 51, 51, 0.25);
     border: 1px solid rgba(74, 74, 74, 0.3);

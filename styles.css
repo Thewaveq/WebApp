@@ -16,54 +16,37 @@ html, body {
     height: 100%;
 }
 /* Ключевые кадры для очень плавной анимации */
-@keyframes backgroundDrift {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
-}
-
 body {
     font-family: 'Inter', sans-serif;
-    background-color: var(--bg-main); /* Основной сплошной цвет фона */
+    /* Устанавливаем базовый, сплошной цвет фона */
+    background-color: var(--bg-main);
     color: var(--text-primary);
     font-weight: 100;
     font-size: 18px;
-    position: relative; /* Необходимо для позиционирования псевдо-элемента */
-    z-index: 0; /* Устанавливаем базовый z-index */
+    position: relative; /* Нужно для позиционирования фона */
+    z-index: 0;
 }
 
-/* --- СЛОЙ С АНИМИРОВАННЫМ ФОНОМ И ШУМОМ --- */
+/* --- ИЗОЛИРОВАННЫЙ СЛОЙ ФОНА --- */
 body::before {
     content: '';
-    position: fixed; /* Растягиваем на весь экран, независимо от прокрутки */
+    position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: -1; /* Помещаем этот слой ЗА весь контент */
+    width: 100%;
+    height: 100%;
+    z-index: -1; /* Помещаем фон ЗА весь остальной контент */
 
-    /* 1. Многослойный фон: шум поверх градиента */
+    /* 1. Два слоя фона: текстура зерна поверх мягкого свечения */
     background-image:
-        /* Слой 1: Статичная текстура шума */
-        url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOCIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiLz48L3N2Zz4='),
-        /* Слой 2: Мягкий, медленно движущийся градиент */
-        linear-gradient(110deg, #0d1a2f, var(--bg-sidebar), var(--bg-main));
-    
-    /* 2. Размер для градиента (большой для плавного движения) */
-    background-size: 400% 400%;
-    
-    /* 3. Применяем очень медленную анимацию */
-    animation: backgroundDrift 45s ease-in-out infinite;
-    
-    /* 4. ГЛАВНЫЙ ФИКС: Регулируем яркость самого фона, а не интерфейса */
-    /* Можете менять это значение от 0.3 до 0.7, чтобы сделать фон темнее или светлее */
-    opacity: 0.5; 
+        /* Слой 1: Текстура зерна (маленькая картинка, которая будет повторяться) */
+        url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWYmJitbW1tbW18fHxxcXOLi4uBgYGIiIiHh4dvb29zc3NwcHBvb29CV0iLAAAAFXRSTlMACkG8MFrwPA4Q8VAm4+r2b2kLBTgFFQ4PAAAAAWJLRURP7AbfwwAAAF5JREFUSMft1EkSgEAMBVDDDRdwB3ef/0RBQhGb2Ie4d+4fW1u3p9d4lK6+xOq1eNvG8Mow/BvD+D2/p+3s3M/z4Tz3cM8x/JvP8/H4/T3/bh+f7f8L89j8v2H8P3B8B8Hw/wB/BwB8AAB8BAAAAABJRU5ErkJggg=='),
+
+        /* Слой 2: Едва заметное свечение в центре */
+        radial-gradient(ellipse at center, rgba(255, 255, 255, 0.06) 0%, transparent 60%);
+
+    /* Прозрачность слоя с зерном. Можете менять от 0.4 до 1.0 */
+    opacity: 0.6;
 }
 
 

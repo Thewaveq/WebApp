@@ -1604,11 +1604,13 @@
                             stepApiMessages.push({ role: 'system', content: step.roleContent });
                         }
                         // Все предыдущие сообщения + текущий ввод
-                        stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
+                        //stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
                         thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
+                        
+                        //thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
+                        thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
 
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
                         
@@ -1616,7 +1618,8 @@
                         currentInputContent = stepResponse;
                         assistantMessageContent = stepResponse; // Сохраняем последний успешный ответ
                         
-                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
+                        //thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
+                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
                     // Оборачиваем финальный ответ и процесс выполнения в теги

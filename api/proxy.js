@@ -36,17 +36,38 @@ export default async function handler(req, res) {
     }
 
     if (isStreaming) {
-      // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
-      // Устанавливаем заголовки для потоковой передачи (Server-Sent Events)
+      // --- ПРАВИЛЬНЫЙ СПОСОБ РУЧНОЙ ПЕРЕДАЧИ ПОТОКА ---
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      // apiResponse.body - это ReadableStream (читаемый поток)
-      // res - это WritableStream (записываемый поток)
-      // .pipe() напрямую соединяет их, обеспечивая настоящую потоковую передачу
-      // без буферизации на нашем сервере.
-      apiResponse.body.pipe(res);
+      // 1. Получаем читатель из веб-потока (ReadableStream)
+      const reader = apiResponse.body.getReader();
+
+      // 2. Создаем цикл, который будет читать и отправлять данные
+      const pump = async () => {
+        while (true) {
+          try {
+            // Читаем следующий чанк данных
+            const { done, value } = await reader.read();
+            
+            // Если поток закончился, завершаем наш ответ
+            if (done) {
+              return res.end();
+            }
+            
+            // Если данные есть, отправляем их клиенту
+            res.write(value);
+
+          } catch (error) {
+            console.error("Ошибка при чтении потока:", error);
+            res.end(); // Завершаем соединение в случае ошибки
+            break;
+          }
+        }
+      };
+      
+      await pump();
 
     } else {
       // Для обычных запросов все остается как было

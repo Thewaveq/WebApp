@@ -15,45 +15,27 @@
 html, body {
     height: 100%;
 }
-/* Ключевые кадры для очень плавной анимации */
 body {
     font-family: 'Inter', sans-serif;
-    /* Устанавливаем базовый, сплошной цвет фона */
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-weight: 100;
     font-size: 18px;
-    position: relative; /* Нужно для позиционирования фона */
-    z-index: 0;
 }
-
-/* --- ИЗОЛИРОВАННЫЙ СЛОЙ ФОНА --- */
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1; /* Помещаем фон ЗА весь остальной контент */
-
-    /* 1. Два слоя фона: текстура зерна поверх мягкого свечения */
-    background-image:
-        /* Слой 1: Текстура зерна (маленькая картинка, которая будет повторяться) */
-        url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWYmJitbW1tbW18fHxxcXOLi4uBgYGIiIiHh4dvb29zc3NwcHBvb29CV0iLAAAAFXRSTlMACkG8MFrwPA4Q8VAm4+r2b2kLBTgFFQ4PAAAAAWJLRURP7AbfwwAAAF5JREFUSMft1EkSgEAMBVDDDRdwB3ef/0RBQhGb2Ie4d+4fW1u3p9d4lK6+xOq1eNvG8Mow/BvD+D2/p+3s3M/z4Tz3cM8x/JvP8/H4/T3/bh+f7f8L89j8v2H8P3B8B8Hw/wB/BwB8AAB8BAAAAABJRU5ErkJggg=='),
-
-        /* Слой 2: Едва заметное свечение в центре */
-        radial-gradient(ellipse at center, rgba(255, 255, 255, 0.06) 0%, transparent 60%);
-
-    /* Прозрачность слоя с зерном. Можете менять от 0.4 до 1.0 */
-    opacity: 0.6;
-}
-
-
 @media (max-width: 1023px) {
     body {
         font-size: 15px;
     }
+}
+
+input, textarea, select {
+    color: var(--text-primary);
+}
+input::placeholder, textarea::placeholder {
+    color: var(--text-secondary);
+}
+.bg-input {
+    background-color: var(--bg-input);
 }
 
 .text-text-secondary {
@@ -118,32 +100,26 @@ body::before {
     );
 }
 
+/* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {
-    background-color: rgba(51, 51, 51, 0.25);
-    border: 1px solid rgba(74, 74, 74, 0.3);
-    color: rgba(245, 245, 245, 0.6);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    border-radius: 0.375rem;
-    padding: 0.5rem;
+    background-color: var(--bg-element);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem; /* rounded-md */
+    padding: 0.5rem; /* p-2 */
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease-out;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 .chat-action-btn:hover {
-    background-color: rgba(60, 60, 60, 0.8);
-    border-color: rgba(74, 74, 74, 0.7);
+    background-color: var(--bg-input);
     color: var(--text-primary);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
 }
 .chat-action-btn.active {
     background-color: var(--accent);
     border-color: var(--accent-hover);
     color: white;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
 }
 
 /* --- СТИЛИ ДЛЯ АККОРДЕОНА В НАСТРОЙКАХ --- */
@@ -540,20 +516,26 @@ details[open] > summary .details-arrow {
     background-color: var(--accent-hover);
 }
 
-/* --- СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
+/* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
 #chat-input {
     /* 1. Устанавливаем более темный и полупрозрачный фон */
-    background-color: rgba(20, 20, 20, 0.6); /* Почти черный с 60% непрозрачности */
+    /* Используем почти черный цвет (20, 20, 20) с 60% непрозрачности */
+    background-color: rgba(20, 20, 20, 0.6);
 
     /* 2. Добавляем эффект размытия фона (блюр) */
+    /* Это создаст эффект "матового стекла" на элементах позади поля ввода */
     -webkit-backdrop-filter: blur(12px); /* Префикс для поддержки Safari */
     backdrop-filter: blur(12px);
 
-    border: 1px solid rgba(255, 255, 255, 0.1); /* Тонкая, полупрозрачная белая рамка */
+    /* 3. Настраиваем рамку, чтобы она лучше сочеталась с новым стилем */
+    /* Тонкая, полупрозрачная белая рамка для выделения краев */
+    border: 1px solid rgba(255, 255, 255, 0.1);
 
+    /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
     box-shadow: none;
     outline: none;
     
+    /* 5. Добавляем плавный переход для рамки при фокусе */
     transition: border-color 0.2s ease-in-out;
 }
 

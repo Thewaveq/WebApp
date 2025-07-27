@@ -574,14 +574,13 @@ details[open] > summary .details-arrow {
     padding: 0; 
 }
 
-/* Контейнер-обертка для прокрутки, всегда на всю ширину */
+/* Контейнер для прокрутки, всегда на всю ширину */
 #fullscreen-modal-body {
     padding: 2rem 4rem;
     height: 100%;
     max-width: 100%;
 }
 
-/* Медиа-запрос для мобильных устройств */
 @media (max-width: 768px) {
     #fullscreen-modal-body {
         padding: 1.5rem 1rem;
@@ -595,12 +594,12 @@ details[open] > summary .details-arrow {
     margin-right: auto;
 }
 
-/* Правило для сужения контента, когда на контейнере есть класс */
+/* Правило для сужения контента, когда на #fullscreen-modal-body есть класс */
 #fullscreen-modal-body.fullscreen-view-compact .prose {
     max-width: 896px; 
 }
 
-/* Стили для кнопки закрытия (из вашего файла) */
+/* Стили для кнопки закрытия */
 #fullscreen-modal-close {
     position: fixed;
     top: 2rem;

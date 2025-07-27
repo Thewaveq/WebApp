@@ -1338,18 +1338,15 @@
             cardsGrid?.addEventListener('click', (e) => {
                 const deleteBtn = e.target.closest('.note-card-delete-btn');
                 if (!deleteBtn) return;
-        
-                const cardEl = deleteBtn.closest('.note-card');
-                const cardId = cardEl.dataset.cardId;
-        
-                showConfirmModal('Вы уверены, что хотите удалить эту карточку?', async () => {
+                
+                createInlineConfirmation(deleteBtn, async () => {
+                    const cardEl = deleteBtn.closest('.note-card');
+                    const cardId = cardEl.dataset.cardId;
                     if (!state.activeSessionId) return;
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    const cards = activeSession.cards || [];
-                    const cardToDelete = cards.find(c => c.id === cardId);
-        
+                    const cardToDelete = (activeSession.cards || []).find(c => c.id === cardId);
+            
                     if (cardToDelete) {
                         await updateDoc(sessionRef, {
                             cards: arrayRemove(cardToDelete),
@@ -1728,63 +1725,65 @@
 
         function requestConfirmationInMenu(clickedElement, onConfirm) {
             const dropdownMenu = clickedElement.closest('.message-actions-dropdown');
-            // Если меню не найдено или подтверждение уже активно, ничего не делаем
             if (!dropdownMenu || dropdownMenu.querySelector('.inline-confirm-container')) {
                 return;
             }
         
-            // 1. Прячем все оригинальные элементы меню
             const originalItems = Array.from(dropdownMenu.children);
             originalItems.forEach(item => item.style.display = 'none');
-        
-            // 2. Создаем и добавляем наш блок подтверждения
+            
+            createInlineConfirmation(clickedElement, () => {
+                onConfirm();
+            });
+        }
+
+        function createInlineConfirmation(clickedButton, onConfirm) {
+            // Прячем оригинальную кнопку
+            clickedButton.style.display = 'none';
+
+            // Создаем контейнер для подтверждения
             const confirmContainer = document.createElement('div');
-            confirmContainer.className = 'inline-confirm-container flex items-center justify-between p-2';
+            confirmContainer.className = 'inline-confirm-container flex items-center space-x-2';
             confirmContainer.innerHTML = `
-                <span class="text-sm font-semibold">Уверены?</span>
-                <div class="flex items-center space-x-2">
-                    <button class="confirm-btn p-1.5 rounded-full text-green-400 hover:bg-green-400/20 transition-colors" title="Подтвердить">
-                        <i data-lucide="check" class="w-5 h-5"></i>
-                    </button>
-                    <button class="cancel-btn p-1.5 rounded-full text-red-400 hover:bg-red-400/20 transition-colors" title="Отменить">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
+                <span class="text-sm font-semibold text-text-secondary">Уверены?</span>
+                <button class="confirm-btn p-1.5 rounded-full text-green-400 hover:bg-green-400/20 transition-colors" title="Подтвердить">
+                    <i data-lucide="check" class="w-5 h-5"></i>
+                </button>
+                <button class="cancel-btn p-1.5 rounded-full text-red-400 hover:bg-red-400/20 transition-colors" title="Отменить">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             `;
-            dropdownMenu.appendChild(confirmContainer);
+            
+            // Вставляем блок подтверждения сразу после скрытой кнопки
+            clickedButton.after(confirmContainer);
             lucide.createIcons({ nodes: [confirmContainer] });
-        
-            // 3. Функция для очистки и восстановления исходного меню
+
+            // Функция для очистки и восстановления
             const cleanupAndRestore = () => {
                 confirmContainer.remove();
-                originalItems.forEach(item => item.style.display = '');
-                // ВАЖНО: Удаляем наш временный обработчик клика снаружи
+                clickedButton.style.display = ''; // Показываем кнопку обратно
                 document.removeEventListener('click', clickOutsideHandler, { capture: true });
             };
-        
-            // 4. Назначаем обработчики на кнопки "Да" и "Нет"
+
+            // Обработчики для кнопок "Да" и "Нет"
             confirmContainer.querySelector('.confirm-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                onConfirm(); // Выполняем действие
-                cleanupAndRestore(); // Восстанавливаем меню
-                dropdownMenu.classList.add('hidden'); // Закрываем меню
+                onConfirm();
+                cleanupAndRestore();
             });
-        
+
             confirmContainer.querySelector('.cancel-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 cleanupAndRestore();
             });
-            
-            // 5. Создаем свой обработчик клика снаружи, который отменит действие
+
+            // Обработчик для клика вне элемента для отмены
             const clickOutsideHandler = (event) => {
-                // Если клик произошел не внутри нашего выпадающего меню
-                if (!dropdownMenu.contains(event.target)) {
+                if (!confirmContainer.contains(event.target)) {
                     cleanupAndRestore();
                 }
             };
             
-            // С небольшой задержкой вешаем наш обработчик, чтобы он не сработал от клика,
-            // который открыл меню подтверждения. `capture: true` гарантирует, что он сработает раньше других.
             setTimeout(() => {
                 document.addEventListener('click', clickOutsideHandler, { capture: true });
             }, 0);
@@ -1935,8 +1934,8 @@
             document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
-                    const idToDelete = deleteSessionBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этот элемент?', async () => {
+                    createInlineConfirmation(deleteSessionBtn, async () => {
+                        const idToDelete = deleteSessionBtn.dataset.id;
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, idToDelete));
                     });
                 }
@@ -2071,8 +2070,8 @@
                 
                 const deleteProviderBtn = e.target.closest('.delete-provider-btn');
                 if (deleteProviderBtn) {
-                    const idToDelete = deleteProviderBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить этого провайдера?', async () => {
+                    createInlineConfirmation(deleteProviderBtn, async () => {
+                        const idToDelete = deleteProviderBtn.dataset.id;
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/providers`, idToDelete));
                     });
                 }
@@ -2084,8 +2083,8 @@
                 
                 const deleteRoleBtn = e.target.closest('.delete-role-btn');
                 if (deleteRoleBtn) {
-                    const idToDelete = deleteRoleBtn.dataset.id;
-                    showConfirmModal('Вы уверены, что хотите удалить эту роль?', async () => {
+                    createInlineConfirmation(deleteRoleBtn, async () => {
+                        const idToDelete = deleteRoleBtn.dataset.id;
                         await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/roles`, idToDelete));
                     });
                 }

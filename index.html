@@ -2044,6 +2044,12 @@
         
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+
+            document.querySelector('#main-content').addEventListener('click', e => {
+                if (e.target.closest('#add-new-pipeline-btn')) {
+                    handleAddPipeline();
+                }
+            });
             
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
@@ -2233,6 +2239,67 @@
                     handleOpenEditRoleModal(idToEdit);
                 }
             });
+
+            if (editPipelineModal) {
+                editPipelineModal.addEventListener('click', (e) => {
+                    const stepsContainer = document.getElementById('pipeline-steps-container');
+                    if (!stepsContainer) return;
+
+                    // 1. Обработка удаления шага
+                    const removeBtn = e.target.closest('.remove-pipeline-step-btn');
+                    if (removeBtn) {
+                        const stepElement = removeBtn.closest('.pipeline-step');
+                        stepElement?.remove();
+                        // Перенумеровываем оставшиеся шаги
+                        const remainingSteps = stepsContainer.querySelectorAll('.pipeline-step');
+                        remainingSteps.forEach((step, index) => {
+                            step.dataset.stepIndex = index;
+                            step.querySelector('span.font-bold').textContent = `Шаг ${index + 1}`;
+                        });
+                         // Если шагов не осталось, показываем сообщение
+                        if(remainingSteps.length === 0) {
+                             stepsContainer.innerHTML = '<p id="no-steps-message" class="text-center text-sm text-text-secondary py-4">В этом пайплайне пока нет шагов. Нажмите "Добавить шаг", чтобы начать.</p>';
+                        }
+                        return;
+                    }
+
+                    // 2. Обработка добавления нового шага
+                    const addBtn = e.target.closest('#add-pipeline-step-btn');
+                    if (addBtn) {
+                        // Убираем сообщение "нет шагов", если оно было
+                        const noStepsMsg = document.getElementById('no-steps-message');
+                        noStepsMsg?.remove();
+                        
+                        const newStepIndex = stepsContainer.querySelectorAll('.pipeline-step').length;
+                        // Создаем пустой объект для нового шага
+                        const newStepData = { providerId: '', modelName: '', roleContent: '' };
+                        // Генерируем HTML для нового шага
+                        const stepHTML = renderPipelineStep(newStepData, newStepIndex);
+                        stepsContainer.insertAdjacentHTML('beforeend', stepHTML);
+                        lucide.createIcons();
+                        return;
+                    }
+                });
+
+                // 3. Обработка изменения провайдера (динамическое обновление моделей)
+                editPipelineModal.addEventListener('change', (e) => {
+                    const providerSelect = e.target;
+                    if (providerSelect.matches('.step-provider-select')) {
+                        const stepElement = providerSelect.closest('.pipeline-step');
+                        const modelSelect = stepElement.querySelector('.step-model-select');
+                        const selectedProviderId = providerSelect.value;
+                        const provider = state.providers.find(p => p.id === selectedProviderId);
+
+                        if (provider && provider.models && provider.models.length > 0) {
+                            modelSelect.innerHTML = provider.models.map(m => `<option value="${m}">${m}</option>`).join('');
+                            modelSelect.disabled = false;
+                        } else {
+                            modelSelect.innerHTML = '<option value="" disabled selected>Нет доступных моделей</option>';
+                            modelSelect.disabled = true;
+                        }
+                    }
+                });
+            }
             
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) { confirmModalCallback(); } hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK') { if (confirmModalCallback) confirmModalCallback(); } hideConfirmModal(); });

@@ -15,27 +15,50 @@
 html, body {
     height: 100%;
 }
+@keyframes subtle-gradient {
+    0% {
+        /* Начальная позиция градиента */
+        background-position: 0% 50%, 0% 50%;
+    }
+    50% {
+        /* Промежуточная позиция */
+        background-position: 0% 50%, 100% 50%;
+    }
+    100% {
+        /* Возвращение в начало для плавного цикла */
+        background-position: 0% 50%, 0% 50%;
+    }
+}
+
 body {
     font-family: 'Inter', sans-serif;
-    background-color: var(--bg-main);
     color: var(--text-primary);
     font-weight: 100;
     font-size: 18px;
+
+    /* --- ОБЪЕДИНЕННЫЙ ФОН --- */
+
+    /* 1. Базовый цвет фона как запасной вариант (fallback) */
+    background-color: var(--bg-main);
+
+    /* 2. Многослойный фон: точки находятся поверх градиента */
+    background-image:
+        /* Слой 1: Точечный паттерн (сверху) */
+        radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0),
+        /* Слой 2: Анимированный градиент (снизу) */
+        linear-gradient(-45deg, var(--bg-main), var(--bg-sidebar), var(--bg-main), var(--accent));
+
+    /* 3. Размеры для каждого слоя фона (для точек и для градиента) */
+    background-size: 25px 25px, 400% 400%;
+
+    /* 4. Анимация, которая двигает фон */
+    /* Длительность 30с, плавный ход, бесконечный цикл */
+    animation: subtle-gradient 30s ease infinite;
 }
 @media (max-width: 1023px) {
     body {
         font-size: 15px;
     }
-}
-
-input, textarea, select {
-    color: var(--text-primary);
-}
-input::placeholder, textarea::placeholder {
-    color: var(--text-secondary);
-}
-.bg-input {
-    background-color: var(--bg-input);
 }
 
 .text-text-secondary {

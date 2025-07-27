@@ -1492,7 +1492,6 @@
 
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) {
-                console.error("Критическая ошибка: контейнер чата #chat-messages не найден.");
                 state.loadingSessionId = null;
                 updateLoadingIndicator();
                 return;
@@ -1503,8 +1502,7 @@
 
             const assistantMessageElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
             messagesContainer.appendChild(assistantMessageElement);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
+            
             const targetContentElement = assistantMessageElement.querySelector('.prose');
             if (!targetContentElement) {
                 state.loadingSessionId = null;
@@ -1512,24 +1510,8 @@
                 return;
             }
 
-            // --- НОВАЯ, ИСПРАВЛЕННАЯ ЛОГИКА РЕНДЕРИНГА ---
-            let contentChanged = false;
-            let animationFrameRequest = null;
-
-            const render = () => {
-                // Если контент изменился, обновляем DOM
-                if (contentChanged) {
-                    const rawHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
-                    targetContentElement.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    contentChanged = false; // Сбрасываем флаг после отрисовки
-                }
-                
-                // Продолжаем цикл отрисовки, пока идет загрузка
-                if (state.loadingSessionId === sessionId) {
-                    animationFrameRequest = requestAnimationFrame(render);
-                }
-            };
+            // Устанавливаем стиль, который сохраняет переносы строк при обновлении через innerText
+            targetContentElement.style.whiteSpace = 'pre-wrap';
 
             try {
                 if (!provider) throw new Error("Провайдер API не найден или не выбран.");
@@ -1544,9 +1526,6 @@
                 apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
 
                 if (isStreamingEnabled) {
-                    // Запускаем цикл отрисовки
-                    animationFrameRequest = requestAnimationFrame(render);
-
                     const fullUrl = new URL(provider.path, provider.baseUrl).href;
                     const proxyRequestBody = {
                         targetUrl: fullUrl,
@@ -1587,18 +1566,19 @@
                                     const parsed = JSON.parse(data);
                                     const delta = parsed.choices[0]?.delta?.content || '';
                                     if (delta) {
-                                        // Просто обновляем переменную и ставим флаг. Никаких медленных операций.
+                                        // 1. НАКАПЛИВАЕМ ПОЛНЫЙ ТЕКСТ
                                         finalAssistantMessage.content += delta;
-                                        contentChanged = true;
+                                        // 2. ПРОСТО ОБНОВЛЯЕМ ТЕКСТ В КОНТЕЙНЕРЕ. БЫСТРО И ПРОСТО.
+                                        targetContentElement.innerText = finalAssistantMessage.content;
+                                        // 3. ПРОКРУЧИВАЕМ ВНИЗ
+                                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
                                     }
-                                } catch (e) {
-                                    console.warn('Не удалось обработать часть данных стрима:', data, e);
-                                }
+                                } catch (e) {}
                             }
                         }
                     }
                 } else {
-                    // Логика для обычного запроса (без стриминга), без изменений
+                    // Логика для запроса без стриминга (осталась прежней)
                     let isSuccess = false;
                     let lastError = 'Не удалось получить ответ от API после перебора всех ключей.';
                     const startIndex = provider.currentKeyIndex || 0;
@@ -1635,7 +1615,6 @@
                          }
                     }
                     if (!isSuccess) throw new Error(lastError);
-                    contentChanged = true; // Ставим флаг для финальной отрисовки
                 }
             } catch (error) {
                 const errorPrefix = finalAssistantMessage.content.length > 0 ? '\n\n' : '';
@@ -1645,20 +1624,19 @@
                 } else {
                     finalAssistantMessage.content += errorPrefix + `*Генерация была остановлена.*`;
                 }
-                contentChanged = true;
             } finally {
-                // Останавливаем цикл отрисовки
-                if (animationFrameRequest) {
-                    cancelAnimationFrame(animationFrameRequest);
-                }
+                // Сбрасываем стиль, чтобы markdown-парсер работал корректно
+                targetContentElement.style.whiteSpace = 'normal';
                 
-                // Делаем одну финальную, гарантированную отрисовку, чтобы показать всё, что пришло
-                render();
-
-                // Подсвечиваем код только в самом конце
+                // ТЕПЕРЬ, В САМОМ КОНЦЕ, ДЕЛАЕМ ОДНУ-ЕДИНСТВЕННУЮ ПЕРЕРИСОВКУ
+                const finalHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
+                targetContentElement.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
+                
+                // И ОДИН РАЗ ПОДСВЕЧИВАЕМ КОД
                 targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
-                
-                // Обновляем состояние и сохраняем в базу данных
+                lucide.createIcons({ nodes: [assistantMessageElement]}); // Обновляем иконки копирования и т.д.
+
+                // Обновляем состояние и сохраняем в базу
                 state.loadingSessionId = null;
                 generationAbortController = null;
                 

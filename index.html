@@ -1585,8 +1585,6 @@
                     }
                     
                     cancelAnimationFrame(animationFrameId);
-                    const finalHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
-                    targetContentElement.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
                     targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
 
                 } else {
@@ -1636,7 +1634,6 @@
                     }
                     if (!isSuccess) throw new Error(lastError);
 
-                    // Обновляем контент в существующем плейсхолдере
                     const finalHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
                     targetContentElement.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
                     targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
@@ -1659,8 +1656,6 @@
                 state.loadingSessionId = null;
                 generationAbortController = null;
                 updateLoadingIndicator();
-                // Полный рендер здесь не нужен, но можно вызвать для синхронизации, если есть другие зависимые элементы
-                // render(); 
             }
         }
         

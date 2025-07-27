@@ -1478,8 +1478,6 @@
             generationAbortController = new AbortController();
             const signal = generationAbortController.signal;
 
-            // Устанавливаем состояние загрузки ДЛЯ ЭТОЙ СЕССИИ.
-            // Наш новый listener теперь будет игнорировать обновления для нее.
             state.loadingSessionId = sessionId;
             updateLoadingIndicator(); 
 
@@ -1487,6 +1485,8 @@
             const isStreamingEnabled = activeSession.isStreamingEnabled !== false;
 
             let finalAssistantMessage = { role: 'assistant', content: '', modelName: modelName };
+            let rendererInterval = null;
+            let textBuffer = '';
 
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) { state.loadingSessionId = null; updateLoadingIndicator(); return; }
@@ -1494,19 +1494,40 @@
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) oldIndicator.remove();
 
-            // Создаем ОДИН раз элемент сообщения и больше его не трогаем
             const assistantMessageElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
             messagesContainer.appendChild(assistantMessageElement);
             
             const targetContentElement = assistantMessageElement.querySelector('.prose');
             if (!targetContentElement) { state.loadingSessionId = null; updateLoadingIndicator(); return; }
 
-            // Стиль, который заставляет innerText уважать переносы строк
-            targetContentElement.style.whiteSpace = 'pre-wrap';
+            // --- НАЧАЛО НОВОЙ ЛОГИКИ ---
+            const renderer = () => {
+                if (textBuffer.length > 0) {
+                    // Находим первое слово или знак препинания в буфере
+                    const match = textBuffer.match(/^(\s*\S+)/);
+                    if (match) {
+                        const word = match[0];
+                        
+                        // Создаем span для нового слова с анимацией
+                        const span = document.createElement('span');
+                        span.textContent = word;
+                        span.className = 'streaming-word';
+                        
+                        targetContentElement.appendChild(span);
+                        
+                        // Удаляем обработанное слово из буфера
+                        textBuffer = textBuffer.substring(word.length);
+                        
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                }
+            };
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
 
             try {
-                // Логика для запроса без стриминга (осталась без изменений)
                 if (!isStreamingEnabled) {
+                    // Логика для запроса без стриминга (осталась прежней)
+                    // ... (здесь ваш код для не-стримингового запроса, он корректен)
                     let isSuccess = false;
                     let lastError = 'Не удалось получить ответ.';
                     const apiKeys = provider.apiKeys || [];
@@ -1528,8 +1549,11 @@
                          } catch(error) { if (error.name === 'AbortError') throw error; lastError = error.message; }
                     }
                     if (!isSuccess) throw new Error(lastError);
+                    textBuffer = finalAssistantMessage.content; // Помещаем весь текст в буфер для отрисовки
                 } else {
-                    // ПРОСТАЯ И РАБОЧАЯ ЛОГИКА СТРИМИНГА
+                    // Запускаем нашего "аниматора", который будет отрисовывать слова
+                    rendererInterval = setInterval(renderer, 50); // отрисовка каждые 50мс
+
                     const fullUrl = new URL(provider.path, provider.baseUrl).href;
                     const proxyRequestBody = { targetUrl: fullUrl, apiKey: (provider.apiKeys||[])[provider.currentKeyIndex || 0], payload: { model: modelName, messages: messagesToSubmit.map(m=>({role:m.role, content:m.content})), stream: true } };
                     const response = await fetch('/api/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(proxyRequestBody), signal: signal });
@@ -1553,10 +1577,10 @@
                                     const parsed = JSON.parse(data);
                                     const delta = parsed.choices[0]?.delta?.content || '';
                                     if (delta) {
+                                        // Просто добавляем полученный кусок в буфер
+                                        textBuffer += delta;
+                                        // Накапливаем итоговое сообщение для сохранения
                                         finalAssistantMessage.content += delta;
-                                        // Тупо и просто обновляем текст. Это работает.
-                                        targetContentElement.innerText = finalAssistantMessage.content;
-                                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
                                     }
                                 } catch (e) {}
                             }
@@ -1568,20 +1592,24 @@
                 if (error.name === 'AbortError') { finalAssistantMessage.content += errorPrefix + `*Генерация была остановлена.*`; }
                 else { finalAssistantMessage.content += errorPrefix + `**Ошибка:** Не удалось получить ответ. \n*Детали: ${error.message}*`; }
             } finally {
-                // В самом конце один раз форматируем итоговый текст
-                targetContentElement.style.whiteSpace = 'normal';
+                // Останавливаем "аниматор"
+                if (rendererInterval) clearInterval(rendererInterval);
+
+                // Даем немного времени, чтобы последние слова из буфера успели отрисоваться
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // В самом конце заменяем простые span на отформатированный HTML
                 const finalHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
                 targetContentElement.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
                 targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
-                // Обновляем иконки, например "копировать" для блоков кода
                 lucide.createIcons({ nodes: [assistantMessageElement]});
 
-                // Сохраняем итоговое сообщение в базу
+                // Сохраняем в базу
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
                 const finalMessages = [...messagesToSubmit, finalAssistantMessage];
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
                 
-                // И ТОЛЬКО ТЕПЕРЬ разрешаем listener'у снова работать
+                // Разрешаем listener'у снова работать
                 state.loadingSessionId = null;
                 generationAbortController = null;
                 updateLoadingIndicator();

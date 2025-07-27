@@ -1,21 +1,33 @@
 // Файл: /api/proxy.js
-// Исправленная и улучшенная версия прокси-сервера
+// ФИНАЛЬНАЯ ВЕРСИЯ ДЛЯ EDGE RUNTIME - ГАРАНТИРОВАННЫЙ СТРИМИНГ
 
-export default async function handler(req, res) {
+// Эта конфигурация ОБЯЗАТЕЛЬНА. Она указывает Vercel/Netlify
+// запускать эту функцию в специальной среде для стриминга.
+export const config = {
+  runtime: 'edge',
+};
+
+export default async function handler(req) {
+  // В Edge-среде мы работаем с стандартными объектами Request и Response.
+  
   if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+    return new Response('Method Not Allowed', { status: 405 });
   }
 
   try {
-    const { targetUrl, apiKey, payload } = req.body;
+    // Получаем тело запроса
+    const { targetUrl, apiKey, payload } = await req.json();
 
     if (!targetUrl || !apiKey || !payload) {
-      return res.status(400).json({ error: 'Missing required parameters.' });
+      return new Response(JSON.stringify({ error: 'Missing required parameters.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
-    
+
     const isStreaming = payload.stream === true;
 
+    // Делаем запрос к внешнему API
     const apiResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: {
@@ -26,57 +38,41 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload),
     });
 
+    // Если у внешнего API ошибка, сообщаем об этом
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
       console.error(`Error from target API [${apiResponse.status}]:`, errorText);
-      return res.status(502).json({
+      return new Response(JSON.stringify({
         error: `Upstream API returned an error.`,
         details: { status: apiResponse.status, body: errorText }
+      }), {
+        status: 502, // Bad Gateway
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    if (isStreaming) {
-      // --- ПРАВИЛЬНЫЙ СПОСОБ РУЧНОЙ ПЕРЕДАЧИ ПОТОКА ---
-      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
+    // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
+    // Мы не читаем поток вручную. Мы просто берем ReadableStream 
+    // из ответа API и передаем его напрямую в конструктор нашего ответа.
+    // Платформа (Vercel/Netlify) сама позаботится о том, чтобы передать
+    // его клиенту по частям без буферизации.
+    
+    // Копируем заголовки из ответа API в наш ответ (важно для Content-Type)
+    const headers = new Headers(apiResponse.headers);
+    headers.set('Cache-Control', 'no-cache');
+    headers.set('Connection', 'keep-alive');
 
-      // 1. Получаем читатель из веб-потока (ReadableStream)
-      const reader = apiResponse.body.getReader();
-
-      // 2. Создаем цикл, который будет читать и отправлять данные
-      const pump = async () => {
-        while (true) {
-          try {
-            // Читаем следующий чанк данных
-            const { done, value } = await reader.read();
-            
-            // Если поток закончился, завершаем наш ответ
-            if (done) {
-              return res.end();
-            }
-            
-            // Если данные есть, отправляем их клиенту
-            res.write(value);
-
-          } catch (error) {
-            console.error("Ошибка при чтении потока:", error);
-            res.end(); // Завершаем соединение в случае ошибки
-            break;
-          }
-        }
-      };
-      
-      await pump();
-
-    } else {
-      // Для обычных запросов все остается как было
-      const data = await apiResponse.json();
-      return res.status(200).json(data);
-    }
+    return new Response(apiResponse.body, {
+      status: apiResponse.status,
+      statusText: apiResponse.statusText,
+      headers: headers,
+    });
 
   } catch (error) {
     console.error('Proxy Internal Error:', error);
-    res.status(500).json({ error: 'An internal error occurred in the proxy.', details: error.message });
+    return new Response(JSON.stringify({ error: 'An internal error occurred in the proxy.', details: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

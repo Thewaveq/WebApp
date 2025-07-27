@@ -209,6 +209,7 @@
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
+        let unsubscribePipelines = () => {};
         let generationAbortController = null;
         let notificationTimeout = null;
         let attachedFile = null;
@@ -248,6 +249,10 @@
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
 
+        let editPipelineModal;
+        let editPipelineForm;
+        let editPipelineCancelBtn;
+        
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
         function loadUserPreferences() {
             const savedCompactMode = localStorage.getItem('chatViewCompact');
@@ -345,7 +350,6 @@
                  return;
             }
 
-            // --- ЕСЛИ ТРЕБУЕТСЯ ПОЛНАЯ ПЕРЕРИСОВКА ---
             mainContent.innerHTML = '';
             mainContent.dataset.activeTabType = state.activeTab;
             mainContent.dataset.activeSessionId = state.activeSessionId || '';
@@ -416,6 +420,7 @@
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
                     renderRoles();
+                    renderPipelines();
                     setupSettingsViewEventListeners();
                     break;
             }
@@ -488,6 +493,48 @@
                     autoResizeTextarea(newTextarea);
                 }
             });
+        }
+
+        function renderPipelines() {
+            const list = document.getElementById('pipelines-list');
+            if (!list) return;
+
+            // Проверяем, есть ли пайплайны
+            if (!state.pipelines || state.pipelines.length === 0) {
+                list.innerHTML = `<p class="text-text-secondary md:col-span-2 xl:col-span-3 text-center py-10">Нет созданных пайплайнов. Нажмите "Создать пайплайн", чтобы начать.</p>`;
+                return;
+            }
+
+            // Генерируем HTML для каждого пайплайна
+            list.innerHTML = state.pipelines.map(p => {
+                const stepCount = (p.steps && p.steps.length) > 0 ? p.steps.length : 0;
+                const stepSummary = stepCount > 0 
+                    ? (p.steps.map(s => s.modelName || 'Модель').join(' → '))
+                    : 'Нет шагов';
+
+                return `
+                <div class="bg-bg-sidebar rounded-lg border border-border-color p-4 flex flex-col justify-between h-full transition-shadow hover:shadow-lg hover:border-accent/50">
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                             <h3 class="font-bold text-lg pr-2">${p.name || 'Безымянный пайплайн'}</h3>
+                             <div class="flex items-center space-x-1 flex-shrink-0">
+                                <button class="edit-pipeline-btn p-1.5 text-text-secondary hover:text-accent transition-colors" data-id="${p.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                                <button class="delete-pipeline-btn p-1.5 text-text-secondary hover:text-red-400 transition-colors" data-id="${p.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center text-text-secondary"><i data-lucide="layers" class="w-4 h-4 mr-2 flex-shrink-0"></i><span class="font-semibold text-text-primary mr-2">Шагов:</span> ${stepCount}</div>
+                            <div class="flex items-start text-text-secondary">
+                                <i data-lucide="route" class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0"></i>
+                                <span class="font-semibold text-text-primary mr-2">Маршрут:</span> 
+                                <span class="break-all truncate">${stepSummary}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `
+            }).join(''); 
+            lucide.createIcons(); 
         }
     
         // --- ШАБЛОНЫ HTML ---
@@ -1019,6 +1066,25 @@
                             </button>
                         </div>
                         <div id="roles-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- НОВЫЙ Аккордеон для Пайплайнов -->
+                <details class="bg-bg-sidebar rounded-lg border border-border-color transition-shadow hover:shadow-lg">
+                    <summary class="p-4 cursor-pointer font-bold text-xl flex justify-between items-center hover:bg-bg-element rounded-t-lg">
+                        <span class="flex items-center"><i data-lucide="route" class="w-6 h-6 mr-3 text-accent"></i>Конструктор пайплайнов</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform details-arrow"></i>
+                    </summary>
+                    <div class="p-4 border-t border-border-color">
+                        <div class="flex justify-end mb-6">
+                            <button id="add-new-pipeline-btn" class="flex items-center px-4 py-2 bg-accent hover:bg-accent-hover rounded-md transition-colors flex-shrink-0">
+                                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                                Создать пайплайн
+                            </button>
+                        </div>
+                        <div id="pipelines-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                           <!-- Здесь будут отображаться карточки пайплайнов -->
                         </div>
                     </div>
                 </details>
@@ -1964,6 +2030,8 @@
                     };
                 }
                 
+                document.getElementById('add-new-pipeline-btn')?.addEventListener('click', handleAddPipeline);
+                
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                 state.activeSessionId = newSessionRef.id;
                 
@@ -2034,6 +2102,7 @@
                             createInlineConfirmation(deleteMessageBtn, onConfirm);
                         }
                     }
+                    
                 }
     
                 const handleRegeneration = (clickedBtn, messageIndex, sliceEnd) => {
@@ -2187,11 +2256,101 @@
             document.getElementById('google-signin-btn')?.addEventListener('click', async () => { try { const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); } catch (error) { console.error("Google sign-in error", error); showModalAlert("Не удалось войти через Google. Ошибка: " + error.message); }});
             document.getElementById('sign-out-btn')?.addEventListener('click', async (e) => { e.preventDefault(); try { await signOut(auth); } catch (error) { console.error("Sign-out error", error); }});
         }
+
+        function renderPipelineStep(step, index) {
+            // Генерируем опции для выбора провайдера
+            const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === step.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+            // Генерируем опции для выбора модели на основе выбранного провайдера
+            let modelOptions = '<option value="" disabled>Сначала выберите провайдера</option>';
+            const selectedProvider = state.providers.find(p => p.id === step.providerId);
+            if (selectedProvider && selectedProvider.models) {
+                modelOptions = selectedProvider.models.map(m => `<option value="${m}" ${m === step.modelName ? 'selected' : ''}>${m}</option>`).join('');
+            }
+
+            // HTML-структура для одного шага
+            const stepHTML = `
+                <div class="pipeline-step bg-bg-main p-3 rounded-lg border border-border-color" data-step-index="${index}">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-text-secondary">Шаг ${index + 1}</span>
+                        <button type="button" class="remove-pipeline-step-btn p-1.5 text-text-secondary hover:text-red-400 transition-colors" title="Удалить шаг">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-text-secondary block mb-1">Провайдер</label>
+                            <select class="step-provider-select w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                                <option value="" disabled ${!step.providerId ? 'selected' : ''}>-- Выберите --</option>
+                                ${providerOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-text-secondary block mb-1">Модель</label>
+                            <select class="step-model-select w-full bg-input border border-border-color rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent" ${!selectedProvider ? 'disabled' : ''}>
+                                ${modelOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="text-xs text-text-secondary block mb-1">Роль на этом шаге (Системный промпт)</label>
+                        <textarea class="step-role-content w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" rows="3" placeholder="Например: Ты — опытный копирайтер, который пишет краткие и броские заголовки.">${step.roleContent || ''}</textarea>
+                    </div>
+                </div>
+            `;
+            return stepHTML;
+        }
+
+        function handleOpenEditPipelineModal(pipelineId) {
+            const pipelineToEdit = state.pipelines.find(p => p.id === pipelineId);
+            if (!pipelineToEdit) {
+                console.error("Пайплайн для редактирования не найден:", pipelineId);
+                return;
+            }
+
+            // Заполняем простые поля
+            document.getElementById('edit-pipeline-id').value = pipelineToEdit.id;
+            document.getElementById('edit-pipeline-name').value = pipelineToEdit.name;
+
+            // Находим контейнер для шагов
+            const stepsContainer = document.getElementById('pipeline-steps-container');
+            stepsContainer.innerHTML = ''; // Очищаем от предыдущих шагов
+
+            // Отрисовываем каждый шаг пайплайна
+            if (pipelineToEdit.steps && pipelineToEdit.steps.length > 0) {
+                pipelineToEdit.steps.forEach((step, index) => {
+                    const stepHTML = renderPipelineStep(step, index);
+                    stepsContainer.insertAdjacentHTML('beforeend', stepHTML);
+                });
+            } else {
+                // Если шагов нет, показываем сообщение
+                stepsContainer.innerHTML = '<p id="no-steps-message" class="text-center text-sm text-text-secondary py-4">В этом пайплайне пока нет шагов. Нажмите "Добавить шаг", чтобы начать.</p>';
+            }
+
+            // Показываем иконки
+            lucide.createIcons();
+
+            // Открываем модальное окно
+            editPipelineModal.classList.remove('hidden');
+        }
         
         function attachFirestoreListeners() {
-            unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
+            unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles(); unsubscribePipelines(); // Добавили unsubscribePipelines
             if (!userId) return;
         
+            // --- НОВЫЙ СЛУШАТЕЛЬ ДЛЯ ПАЙПЛАЙНОВ ---
+            const pipelinesCol = collection(db, `artifacts/${appId}/users/${userId}/pipelines`);
+            unsubscribePipelines = onSnapshot(pipelinesCol, (snapshot) => {
+                state.pipelines = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                
+                if (state.activeTab === 'settings' && !state.isLoading) {
+                    render();
+                }
+            }, error => console.error("Pipeline listener error: ", error));
+
+
+            // --- СУЩЕСТВУЮЩИЕ СЛУШАТЕЛИ (без изменений) ---
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -2232,8 +2391,69 @@
             sidebarList.innerHTML = '<div class="p-4 text-center text-gray-500">Пожалуйста, войдите, чтобы начать работу.</div>';
             mainContent.innerHTML = getEmptyStateHTML('chat');
         }
-    
+
+        async function handleAddPipeline() {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            try {
+                // Создаем базовую структуру для нового пайплайна
+                const newPipelineData = {
+                    name: 'Новый пайплайн',
+                    steps: [], // Начинаем с пустого массива шагов
+                    createdAt: serverTimestamp()
+                };
+                
+                // Добавляем документ в коллекцию 'pipelines'
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/pipelines`), newPipelineData);
+                
+                // Сразу же открываем модальное окно для редактирования созданного пайплайна
+                handleOpenEditPipelineModal(docRef.id);
+
+            } catch (error) {
+                console.error("Ошибка при добавлении пайплайна: ", error);
+                showModalAlert("Не удалось создать пайплайн.");
+            } finally {
+                state.isLoading = false;
+            }
+        }
+        
         async function init() {
+            const pipelineModalHTML = `
+                <div id="edit-pipeline-modal" class="modal-overlay hidden">
+                    <div class="modal-content !max-w-3xl">
+                        <h3 class="text-xl font-semibold mb-4">Редактировать пайплайн</h3>
+                        <form id="edit-pipeline-form" class="space-y-3">
+                            <input type="hidden" id="edit-pipeline-id">
+                            <div>
+                                <label for="edit-pipeline-name" class="text-sm text-text-secondary block mb-1">Название пайплайна</label>
+                                <input type="text" id="edit-pipeline-name" class="w-full bg-input p-2 rounded border border-border-color focus:outline-none focus:ring-2 focus:ring-accent" required>
+                            </div>
+                            
+                            <h4 class="text-lg font-semibold pt-4 border-t border-border-color mt-4">Шаги выполнения</h4>
+                            <div id="pipeline-steps-container" class="space-y-4">
+                                <!-- Шаги пайплайна будут динамически добавляться сюда -->
+                            </div>
+
+                            <div class="pt-4">
+                                <button type="button" id="add-pipeline-step-btn" class="w-full flex items-center justify-center p-2 rounded-md border-2 border-dashed border-border-color hover:bg-bg-element transition-colors text-text-secondary">
+                                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Добавить шаг
+                                </button>
+                            </div>
+
+                            <div class="flex justify-end space-x-3 pt-4">
+                                <button type="button" id="edit-pipeline-cancel-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
+                                <button type="submit" class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Сохранить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', pipelineModalHTML);
+            
+            editPipelineModal = document.getElementById('edit-pipeline-modal');
+            editPipelineForm = document.getElementById('edit-pipeline-form');
+            editPipelineCancelBtn = document.getElementById('edit-pipeline-cancel-btn');
+
             loadUserPreferences();
             try {
                 const app = initializeApp(firebaseConfig);

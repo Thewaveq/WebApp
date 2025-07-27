@@ -594,22 +594,25 @@
         function showFullscreenMessage(content) {
             const modal = document.getElementById('fullscreen-modal');
             const modalBody = document.getElementById('fullscreen-modal-body');
-            // Получаем новый, стабильный контейнер для текста
-            const proseContainer = document.getElementById('fullscreen-prose-container'); 
-            
-            if (!modal || !modalBody || !proseContainer) return; // Проверяем, что все элементы на месте
+            const proseContainer = document.getElementById('fullscreen-prose-container');
+            const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
         
-            // Твой код обработки контента
+            if (!modal || !modalBody || !proseContainer || !widthToggleBtn) return;
+        
+            // СБРАСЫВАЕМ СОСТОЯНИЕ ОКНА ПРИ КАЖДОМ ОТКРЫТИИ
+            modalBody.classList.add('fullscreen-view-compact');
+            widthToggleBtn.classList.remove('active');
+            widthToggleBtn.title = 'Расширить';
+        
+            // Вставляем контент (твой код)
             let processedContent = (content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            
-            // МЕНЯЕМ СОДЕРЖИМОЕ ВНУТРЕННЕГО КОНТЕЙНЕРА, А НЕ УДАЛЯЕМ ЕГО
             proseContainer.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
         
-            // Твой код подсветки синтаксиса, теперь он работает с `proseContainer`
+            // Подсветка кода (твой код)
             proseContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
@@ -625,24 +628,8 @@
                 preElement.appendChild(copyBtn);
                 hljs.highlightElement(block);
             });
-            
-            // Остальная логика остается прежней и правильной
-            const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
         
-            // Всегда открываем в компактном режиме
-            modalBody.classList.add('fullscreen-view-compact');
-            widthToggleBtn.classList.remove('active');
-            widthToggleBtn.title = 'Расширить';
-        
-            const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
-            widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
-        
-            newWidthToggleBtn.addEventListener('click', () => {
-                const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');
-                newWidthToggleBtn.classList.toggle('active', !isNowCompact);
-                newWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
-            });
-            
+            // Просто показываем модальное окно
             modal.classList.remove('hidden');
             lucide.createIcons();
         }
@@ -2174,6 +2161,13 @@
                 if (e.target === fullscreenModal) {
                     hideFullscreenMessage();
                 }
+            });
+
+            fullscreenWidthToggleBtn?.addEventListener('click', () => {
+                if (!fullscreenModalBody) return;
+                const isNowCompact = fullscreenModalBody.classList.toggle('fullscreen-view-compact');
+                fullscreenWidthToggleBtn.classList.toggle('active', !isNowCompact);
+                fullscreenWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
             });
             
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);

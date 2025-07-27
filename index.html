@@ -162,7 +162,7 @@
     </div>
     <div id="fullscreen-modal" class="modal-overlay hidden">
         <div id="fullscreen-modal-content" class="bg-bg-main p-4 md:p-6 rounded-lg shadow-2xl w-[95vw] h-[90vh] flex flex-col">
-            <div id="fullscreen-modal-body" class="prose max-w-none flex-grow overflow-y-auto">
+            <div id="fullscreen-modal-body" class="flex-grow overflow-y-auto">
             </div>
         </div>
         <!-- НОВАЯ КНОПКА ПЕРЕКЛЮЧЕНИЯ ШИРИНЫ -->
@@ -596,7 +596,7 @@
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            modalBody.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            modalBody.innerHTML = `<div class="prose">${DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] })}</div>`;
 
             modalBody.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;

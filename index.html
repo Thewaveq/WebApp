@@ -570,13 +570,6 @@
                             ${modelOptions}
                         </select>
                     </div>
-                    <div class="flex items-center justify-between pt-2">
-                        <label for="streaming-toggle" class="text-sm font-medium text-text-secondary select-none">Стриминг ответа</label>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="streaming-toggle" class="toggle-switch-checkbox" ${activeSession.isStreamingEnabled ? 'checked' : ''}>
-                            <label for="streaming-toggle" class="toggle-switch-label"></label>
-                        </div>
-                    </div>
                 </div>
                 
                 <!-- Область чата (ОРИГИНАЛЬНАЯ СТРУКТУРА) -->
@@ -1164,7 +1157,7 @@
                 });
             }
 
-            // --- ОБРАБОТЧИКИ ОСТАЛЬНЫХ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ ---
+            // --- ОСТАЛЬНОЙ ВАШ КОД ИЗ ЭТОЙ ФУНКЦИИ (без adjustLayout, т.к. он уже выше) ---
             const settingsToggle = document.getElementById('chat-settings-toggle');
             const settingsPanel = document.getElementById('chat-settings-panel');
             const settingsIcon = document.getElementById('chat-settings-icon');
@@ -1173,8 +1166,6 @@
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
-            // НОВЫЙ ЭЛЕМЕНТ
-            const streamingToggle = document.getElementById('streaming-toggle');
             
             if (widthToggleBtn) {
                 const isExpanded = !state.isChatWidthCompact;
@@ -1245,14 +1236,6 @@
                 updateDoc(sessionRef, { providerId: newProviderId, modelName: newModelName });
             });
             modelSelect?.addEventListener('change', (e) => { const newModelName = e.target.value; const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId); updateDoc(sessionRef, { modelName: newModelName }); });
-            
-            // НОВЫЙ ОБРАБОТЧИК
-            streamingToggle?.addEventListener('change', (e) => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                // Обновляем поле isStreamingEnabled в Firestore
-                updateDoc(sessionRef, { isStreamingEnabled: e.target.checked });
-            });
         }
         
         function setupNotepadViewEventListeners() {
@@ -1479,140 +1462,97 @@
             const signal = generationAbortController.signal;
 
             state.loadingSessionId = sessionId;
-            updateLoadingIndicator(); 
+            render();
 
-            const activeSession = state.sessions.find(s => s.id === sessionId);
-            const isStreamingEnabled = activeSession.isStreamingEnabled !== false;
-
-            let finalAssistantMessage = { role: 'assistant', content: '', modelName: modelName };
-            let rendererInterval = null;
-            let textBuffer = '';
-
-            const messagesContainer = document.getElementById('chat-messages');
-            if (!messagesContainer) { state.loadingSessionId = null; updateLoadingIndicator(); return; }
-
-            const oldIndicator = document.getElementById('loading-message-placeholder');
-            if(oldIndicator) oldIndicator.remove();
-
-            const assistantMessageElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
-            messagesContainer.appendChild(assistantMessageElement);
-            
-            const targetContentElement = assistantMessageElement.querySelector('.prose');
-            if (!targetContentElement) { state.loadingSessionId = null; updateLoadingIndicator(); return; }
-
-            // --- НАЧАЛО НОВОЙ ЛОГИКИ ---
-            const renderer = () => {
-                if (textBuffer.length > 0) {
-                    // Находим первое слово или знак препинания в буфере
-                    const match = textBuffer.match(/^(\s*\S+)/);
-                    if (match) {
-                        const word = match[0];
-                        
-                        // Создаем span для нового слова с анимацией
-                        const span = document.createElement('span');
-                        span.textContent = word;
-                        span.className = 'streaming-word';
-                        
-                        targetContentElement.appendChild(span);
-                        
-                        // Удаляем обработанное слово из буфера
-                        textBuffer = textBuffer.substring(word.length);
-                        
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    }
-                }
-            };
-            // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+            let assistantMessageContent = '';
+            let isSuccess = false;
+            let wasAborted = false;
+            let lastError = 'Неизвестная ошибка.';
 
             try {
-                if (!isStreamingEnabled) {
-                    // Логика для запроса без стриминга (осталась прежней)
-                    // ... (здесь ваш код для не-стримингового запроса, он корректен)
-                    let isSuccess = false;
-                    let lastError = 'Не удалось получить ответ.';
-                    const apiKeys = provider.apiKeys || [];
-                    const startIndex = provider.currentKeyIndex || 0;
-                    for (let i = 0; i < apiKeys.length; i++) {
-                         if (signal.aborted) throw new Error('AbortError');
-                         const keyIndex = (startIndex + i) % apiKeys.length;
-                         try {
-                            const fullUrl = new URL(provider.path, provider.baseUrl).href;
-                            const proxyRequestBody = { targetUrl: fullUrl, apiKey: apiKeys[keyIndex], payload: { model: modelName, messages: messagesToSubmit.map(m=>({role:m.role, content:m.content})), stream: false } };
-                            const response = await fetch('/api/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(proxyRequestBody), signal: signal });
-                            if (!response.ok) { const errorData = await response.json().catch(() => ({ message: `Статус ${response.status}` })); throw new Error(`Ошибка от прокси: ${errorData.details?.body || errorData.message}`); }
-                            const data = await response.json();
-                            if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
-                            finalAssistantMessage.content = data.choices[0].message.content; isSuccess = true;
-                            const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
-                            await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
-                            break; 
-                         } catch(error) { if (error.name === 'AbortError') throw error; lastError = error.message; }
-                    }
-                    if (!isSuccess) throw new Error(lastError);
-                    textBuffer = finalAssistantMessage.content; // Помещаем весь текст в буфер для отрисовки
-                } else {
-                    // Запускаем нашего "аниматора", который будет отрисовывать слова
-                    rendererInterval = setInterval(renderer, 50); // отрисовка каждые 50мс
+                if (!provider) throw new Error("Провайдер API не найден или не выбран.");
+                if (!modelName) throw new Error("Модель не выбрана.");
+                
+                const apiKeys = provider.apiKeys || [];
+                if (apiKeys.length === 0) throw new Error("У выбранного провайдера нет API ключей.");
 
-                    const fullUrl = new URL(provider.path, provider.baseUrl).href;
-                    const proxyRequestBody = { targetUrl: fullUrl, apiKey: (provider.apiKeys||[])[provider.currentKeyIndex || 0], payload: { model: modelName, messages: messagesToSubmit.map(m=>({role:m.role, content:m.content})), stream: true } };
-                    const response = await fetch('/api/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(proxyRequestBody), signal: signal });
-                    if (!response.ok) { const errorData = await response.json(); throw new Error(`Ошибка от прокси: ${errorData.details?.body || JSON.stringify(errorData)}`); }
+                const apiMessagesPayload = [];
+                if (selectedRole && selectedRole.content) {
+                    apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
+                }
+                apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
 
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-                    while (true) {
-                        if (signal.aborted) break;
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = line.substring(6);
-                                if (data.trim() === '[DONE]') continue;
-                                try {
-                                    const parsed = JSON.parse(data);
-                                    const delta = parsed.choices[0]?.delta?.content || '';
-                                    if (delta) {
-                                        // Просто добавляем полученный кусок в буфер
-                                        textBuffer += delta;
-                                        // Накапливаем итоговое сообщение для сохранения
-                                        finalAssistantMessage.content += delta;
-                                    }
-                                } catch (e) {}
-                            }
+                const startIndex = provider.currentKeyIndex || 0;
+                for (let i = 0; i < apiKeys.length; i++) {
+                    if (signal.aborted) throw new Error('AbortError');
+
+                    const keyIndex = (startIndex + i) % apiKeys.length;
+                    const currentKey = apiKeys[keyIndex];
+
+                    try {
+                        const fullUrl = new URL(provider.path, provider.baseUrl).href;
+                        const proxyRequestBody = {
+                            targetUrl: fullUrl,
+                            apiKey: currentKey,
+                            payload: { model: modelName, messages: apiMessagesPayload }
+                        };
+                        const response = await fetch('/api/proxy', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(proxyRequestBody),
+                            signal: signal
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({ message: `Статус ${response.status}` }));
+                            throw new Error(`Ошибка от прокси: ${errorData.message || JSON.stringify(errorData)}`);
                         }
+                        const data = await response.json();
+                        if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                        
+                        assistantMessageContent = data.choices[0].message.content;
+                        isSuccess = true;
+                        const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
+                        await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
+                        break;
+                    } catch (error) {
+                        if (error.message === 'AbortError') throw error;
+                        console.error(`Попытка с ключом ${keyIndex + 1}/${apiKeys.length} не удалась:`, error);
+                        lastError = error.message;
                     }
                 }
+                if (!isSuccess && !signal.aborted) throw new Error(lastError);
+
             } catch (error) {
-                const errorPrefix = finalAssistantMessage.content.length > 0 ? '\n\n' : '';
-                if (error.name === 'AbortError') { finalAssistantMessage.content += errorPrefix + `*Генерация была остановлена.*`; }
-                else { finalAssistantMessage.content += errorPrefix + `**Ошибка:** Не удалось получить ответ. \n*Детали: ${error.message}*`; }
+                if (error.message === 'AbortError' || error.name === 'AbortError') {
+                    console.log('Генерация остановлена пользователем.');
+                    wasAborted = true;
+                    lastError = 'Генерация остановлена пользователем.';
+                } else {
+                    console.error("Ошибка в generateAssistantResponse:", error);
+                    lastError = error.message;
+                }
             } finally {
-                // Останавливаем "аниматор"
-                if (rendererInterval) clearInterval(rendererInterval);
-
-                // Даем немного времени, чтобы последние слова из буфера успели отрисоваться
-                await new Promise(resolve => setTimeout(resolve, 100));
+                const messageToAdd = wasAborted
+                    ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: modelName }
+                    : isSuccess
+                        ? { role: 'assistant', content: assistantMessageContent, modelName: modelName }
+                        : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: modelName };
                 
-                // В самом конце заменяем простые span на отформатированный HTML
-                const finalHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
-                targetContentElement.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
-                targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
-                lucide.createIcons({ nodes: [assistantMessageElement]});
-
-                // Сохраняем в базу
+                const finalMessages = [...messagesToSubmit, messageToAdd];
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                const finalMessages = [...messagesToSubmit, finalAssistantMessage];
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
-                
-                // Разрешаем listener'у снова работать
+
+                if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
+                    const session = state.sessions.find(s => s.id === sessionId);
+                    const chatTitle = session?.title || 'Новый чат';
+                    const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
+                    showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
+                }
+
                 state.loadingSessionId = null;
                 generationAbortController = null;
-                updateLoadingIndicator();
+                render();
             }
         }
         
@@ -2254,18 +2194,6 @@
         
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
-                if (state.loadingSessionId) {
-                    const updatedSession = snapshot.docChanges().find(change => change.doc.id === state.loadingSessionId);
-                    if (updatedSession) {
-                        const sessionData = { id: updatedSession.doc.id, ...updatedSession.doc.data() };
-                        const index = state.sessions.findIndex(s => s.id === state.loadingSessionId);
-                        if (index > -1) {
-                            state.sessions[index] = sessionData;
-                        }
-                        return; // Прерываем выполнение, чтобы избежать перерисовки
-                    }
-                }
-
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a,b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
         
@@ -2273,8 +2201,9 @@
                 if (!activeSessionExists) {
                     state.activeSessionId = null;
                 }
-                render();
-
+                if (!state.isLoading) {
+                    render();
+                }
             }, error => console.error("Session listener error: ", error));
         
             const providersCol = collection(db, `artifacts/${appId}/users/${userId}/providers`);

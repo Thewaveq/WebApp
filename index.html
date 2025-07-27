@@ -604,7 +604,9 @@
             const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
             widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
 
-            newWidthToggleBtn.classList.add('hidden', 'lg:inline-flex');
+            if (window.innerWidth < 1024) {
+                newWidthToggleBtn.style.display = 'none';
+            }
             newWidthToggleBtn.classList.remove('active');
             newWidthToggleBtn.title = 'Расширить';
             

@@ -248,21 +248,16 @@ details[open] > summary .details-arrow {
 }
 
 .modal-content {
-    /* Делаем фон полупрозрачным, используя цвет боковой панели */
-    background-color: rgba(37, 37, 38, 0.8); /* --bg-sidebar с 80% непрозрачности */
-
-    /* Добавляем эффект размытия (блюр) */
+    /* "Стеклянные" стили */
+    background-color: rgba(37, 37, 38, 0.8);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-
-    /* Добавляем тонкую "стеклянную" рамку */
     border: 1px solid rgba(255, 255, 255, 0.1);
 
+    /* Стили для макета и размера */
     display: flex;
     flex-direction: column;
-    max-height: 90vh; /* Ограничиваем высоту до 90% высоты экрана */
-
-    /* Остальные стили */
+    max-height: 90vh; /* Крайне важно для ограничения высоты */
     padding: 2rem;
     border-radius: 0.5rem;
     width: 90%;

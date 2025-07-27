@@ -161,18 +161,23 @@
         </div>
     </div>
     <div id="fullscreen-modal" class="modal-overlay hidden">
+
+        <!-- Этот div содержит видимый контент окна (фон, отступы и т.д.) -->
         <div id="fullscreen-modal-content" class="bg-bg-main p-4 md:p-6 rounded-lg shadow-2xl w-[95vw] h-[90vh] flex flex-col">
+            
+            <!-- Этот div отвечает за прокрутку -->
             <div id="fullscreen-modal-body" class="flex-grow overflow-y-auto">
+                <div id="fullscreen-prose-container" class="prose">
+                </div>
             </div>
         </div>
-        <!-- НОВАЯ КНОПКА ПЕРЕКЛЮЧЕНИЯ ШИРИНЫ -->
         <button id="fullscreen-width-toggle" title="Расширить">
             <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
         </button>
-        <!-- Ваша существующая кнопка закрытия -->
         <button id="fullscreen-modal-close">
             <i data-lucide="x" class="w-6 h-6"></i>
         </button>
+    
     </div>
     <div id="in-app-notification" class="fixed top-9 left-1/2 -translate-x-1/2 z-50 w-full max-w-md cursor-pointer transition-all duration-300 ease-in-out transform -translate-y-[150%] opacity-0 hidden" >
         <div class="bg-bg-sidebar rounded-lg shadow-2xl border border-accent/50 p-4 mx-4 flex items-start space-x-3">
@@ -589,48 +594,53 @@
         function showFullscreenMessage(content) {
             const modal = document.getElementById('fullscreen-modal');
             const modalBody = document.getElementById('fullscreen-modal-body');
-            if (!modal || !modalBody) return;
-
+            // Получаем новый, стабильный контейнер для текста
+            const proseContainer = document.getElementById('fullscreen-prose-container'); 
+            
+            if (!modal || !modalBody || !proseContainer) return; // Проверяем, что все элементы на месте
+        
+            // Твой код обработки контента
             let processedContent = (content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
             );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            modalBody.innerHTML = `<div class="prose">${DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] })}</div>`;
-
-            modalBody.querySelectorAll('pre code').forEach((block) => {
+            
+            // МЕНЯЕМ СОДЕРЖИМОЕ ВНУТРЕННЕГО КОНТЕЙНЕРА, А НЕ УДАЛЯЕМ ЕГО
+            proseContainer.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+        
+            // Твой код подсветки синтаксиса, теперь он работает с `proseContainer`
+            proseContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
-                
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-code-btn';
                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
                 copyBtn.addEventListener('click', () => {
                     navigator.clipboard.writeText(block.innerText);
                     copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                    setTimeout(() => {
-                        copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                        lucide.createIcons();
-                    }, 2000);
+                    setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
                     lucide.createIcons();
                 });
                 preElement.appendChild(copyBtn);
                 hljs.highlightElement(block);
             });
-
+            
+            // Остальная логика остается прежней и правильной
             const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
+        
+            // Всегда открываем в компактном режиме
             modalBody.classList.add('fullscreen-view-compact');
             widthToggleBtn.classList.remove('active');
             widthToggleBtn.title = 'Расширить';
         
             const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
             widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
-
+        
             newWidthToggleBtn.addEventListener('click', () => {
                 const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');
                 newWidthToggleBtn.classList.toggle('active', !isNowCompact);
                 newWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
-                lucide.createIcons({ nodes: [newWidthToggleBtn] });
             });
             
             modal.classList.remove('hidden');

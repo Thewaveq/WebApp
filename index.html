@@ -596,7 +596,7 @@
             const widthToggleBtn = document.getElementById('fullscreen-width-toggle');
         
             if (!modal || !modalBody || !proseContainer || !widthToggleBtn) return;
-        
+            
             modalBody.classList.add('fullscreen-view-compact');
             widthToggleBtn.classList.remove('active');
             widthToggleBtn.title = 'Расширить';
@@ -605,6 +605,8 @@
             widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
 
             newWidthToggleBtn.classList.add('hidden', 'lg:inline-flex');
+            newWidthToggleBtn.classList.remove('active');
+            newWidthToggleBtn.title = 'Расширить';
             
             newWidthToggleBtn.addEventListener('click', () => {
                 const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');

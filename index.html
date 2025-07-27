@@ -2020,14 +2020,19 @@
                 if (deleteMessageBtn) {
                     const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-        
+                
                     if (activeSession && !isNaN(messageIndex)) {
-                        // ИЗМЕНЕНИЕ ЗДЕСЬ
-                        requestConfirmationInMenu(deleteMessageBtn, async () => {
+                        const onConfirm = async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: newMessages });
-                        });
+                        };
+                
+                        if (deleteMessageBtn.closest('.message-actions-dropdown')) {
+                            requestConfirmationInMenu(deleteMessageBtn, onConfirm);
+                        } else {
+                            createInlineConfirmation(deleteMessageBtn, onConfirm);
+                        }
                     }
                 }
     
@@ -2036,7 +2041,7 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || isNaN(messageIndex)) return;
     
-                    // ИЗМЕНЕНИЕ ЗДЕСЬ
+                    
                     requestConfirmationInMenu(clickedBtn, async () => {
                         const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                         const provider = state.providers.find(p => p.id === activeSession.providerId);

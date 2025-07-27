@@ -689,3 +689,50 @@ details[open] > summary .details-arrow {
     margin: 0.5rem 0;
     border: none;
 }
+
+/* 1. СТИЛИ ДЛЯ КНОПКИ ПЕРЕКЛЮЧЕНИЯ ШИРИНЫ В ФУЛСКРИН МОДЕ ЧИТАЛКЕ */
+#fullscreen-width-toggle {
+    /* Позиционируем рядом с кнопкой закрытия */
+    position: fixed;
+    top: 2rem;
+    right: 5.5rem; /* 2rem (отступ кнопки X) + 44px (ширина X) + 1rem (пробел) */
+    z-index: 60;
+
+    /* Стили, аналогичные кнопке закрытия для единообразия */
+    background-color: rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    border: none;
+    cursor: pointer;
+}
+
+#fullscreen-width-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+/* 2. Стиль для активного состояния кнопки (когда контент расширен) */
+#fullscreen-width-toggle.active {
+    background-color: var(--accent);
+    color: white;
+}
+
+/* 3. Базовые стили для тела модального окна для плавной анимации */
+#fullscreen-modal-body {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    transition: max-width 0.4s ease-in-out;
+}
+
+/* 4. Класс, который делает контент узким (компактным) */
+#fullscreen-modal-body.fullscreen-view-compact {
+    /* Такая же ширина, как в вашем чате */
+    max-width: 896px; 
+}

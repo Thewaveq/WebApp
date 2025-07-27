@@ -249,7 +249,24 @@ details[open] > summary .details-arrow {
     z-index: 50;
 }
 
-.modal-content { background-color: var(--bg-element); padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+.modal-content {
+    /* Делаем фон полупрозрачным, используя цвет боковой панели */
+    background-color: rgba(37, 37, 38, 0.8); /* --bg-sidebar с 80% непрозрачности */
+
+    /* Добавляем эффект размытия (блюр) */
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+
+    /* Добавляем тонкую "стеклянную" рамку */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Остальные стили */
+    padding: 2rem;
+    border-radius: 0.5rem;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
 
 /* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar {

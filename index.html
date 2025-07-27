@@ -643,8 +643,9 @@
             if (modal) {
                 modal.classList.add('hidden');
             }
-            if (modalBody) {
-                modalBody.innerHTML = '';
+            const proseContainer = document.getElementById('fullscreen-prose-container');
+            if (proseContainer) {
+                proseContainer.innerHTML = '';
             }
         }
         

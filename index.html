@@ -592,6 +592,7 @@
         }
         
         function showFullscreenMessage(content) {
+            // Получаем все нужные элементы
             const modal = document.getElementById('fullscreen-modal');
             const modalBody = document.getElementById('fullscreen-modal-body');
             const proseContainer = document.getElementById('fullscreen-prose-container');
@@ -599,12 +600,24 @@
         
             if (!modal || !modalBody || !proseContainer || !widthToggleBtn) return;
         
-            // СБРАСЫВАЕМ СОСТОЯНИЕ ОКНА ПРИ КАЖДОМ ОТКРЫТИИ
+            // 1. Сбрасываем вид окна до состояния по умолчанию КАЖДЫЙ РАЗ при открытии
             modalBody.classList.add('fullscreen-view-compact');
             widthToggleBtn.classList.remove('active');
             widthToggleBtn.title = 'Расширить';
         
-            // Вставляем контент (твой код)
+            // 2. САМОЕ ГЛАВНОЕ: Безопасно вешаем обработчик, который не сломается
+            //    Создаем копию кнопки. У этой копии НЕТ старых обработчиков.
+            const newWidthToggleBtn = widthToggleBtn.cloneNode(true);
+            //    Заменяем старую кнопку в документе на новую, чистую.
+            widthToggleBtn.parentNode.replaceChild(newWidthToggleBtn, widthToggleBtn);
+            //    И только теперь вешаем ОДИН-ЕДИНСТВЕННЫЙ обработчик на эту новую кнопку.
+            newWidthToggleBtn.addEventListener('click', () => {
+                const isNowCompact = modalBody.classList.toggle('fullscreen-view-compact');
+                newWidthToggleBtn.classList.toggle('active', !isNowCompact);
+                newWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
+            });
+        
+            // 3. Твой код вставки контента и подсветки (он правильный)
             let processedContent = (content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
                 `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
@@ -612,7 +625,6 @@
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             proseContainer.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
         
-            // Подсветка кода (твой код)
             proseContainer.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
@@ -629,7 +641,7 @@
                 hljs.highlightElement(block);
             });
         
-            // Просто показываем модальное окно
+            // 4. Показываем окно
             modal.classList.remove('hidden');
             lucide.createIcons();
         }
@@ -2012,7 +2024,6 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
         
                     if (activeSession && !isNaN(messageIndex)) {
-                        // ИЗМЕНЕНИЕ ЗДЕСЬ
                         requestConfirmationInMenu(deleteMessageBtn, async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -2026,7 +2037,6 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || isNaN(messageIndex)) return;
     
-                    // ИЗМЕНЕНИЕ ЗДЕСЬ
                     requestConfirmationInMenu(clickedBtn, async () => {
                         const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
@@ -2155,21 +2165,12 @@
 
             const fullscreenModal = document.getElementById('fullscreen-modal');
             const fullscreenCloseBtn = document.getElementById('fullscreen-modal-close');
-            const fullscreenWidthToggleBtn = document.getElementById('fullscreen-width-toggle'); 
-            const fullscreenModalBody = document.getElementById('fullscreen-modal-body');
             
             fullscreenCloseBtn?.addEventListener('click', hideFullscreenMessage);
             fullscreenModal?.addEventListener('click', (e) => {
                 if (e.target === fullscreenModal) {
                     hideFullscreenMessage();
                 }
-            });
-
-            fullscreenWidthToggleBtn?.addEventListener('click', () => {
-                if (!fullscreenModalBody) return;
-                const isNowCompact = fullscreenModalBody.classList.toggle('fullscreen-view-compact');
-                fullscreenWidthToggleBtn.classList.toggle('active', !isNowCompact);
-                fullscreenWidthToggleBtn.title = isNowCompact ? 'Расширить' : 'Вернуть компактный вид';
             });
             
             editProviderForm?.addEventListener('submit', handleEditProviderSubmit);

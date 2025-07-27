@@ -203,7 +203,6 @@
         let unsubscribeSessions = () => {};
         let unsubscribeProviders = () => {};
         let unsubscribeRoles = () => {};
-        let chatObserver = null;
         let generationAbortController = null;
         let notificationTimeout = null;
         let attachedFile = null;
@@ -322,13 +321,8 @@
         }
     
         function renderMainContent() {
-            if (chatObserver) {
-                chatObserver.disconnect();
-                chatObserver = null;
-            }
 
             const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            
             const needsFullRender = mainContent.dataset.activeTabType !== state.activeTab ||
                                   mainContent.dataset.activeSessionId !== (state.activeSessionId || '');
 
@@ -2157,10 +2151,7 @@
     
         function resetState() {
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles();
-            if (chatObserver) {
-                chatObserver.disconnect();
-                chatObserver = null;
-            }
+
             userId = null;
             state = { activeTab: 'chat', activeSessionId: null, sessions: [], providers: [], roles: [], isLoading: false, isAuthReady: false, isSidebarCollapsed: false };
             sidebar.classList.remove('collapsed', 'open');

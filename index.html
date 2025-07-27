@@ -1726,64 +1726,68 @@
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
 
-        function setupInlineConfirmation(button, onConfirm) {
-            // Если на кнопке уже есть подтверждение, ничего не делаем
-            if (button.querySelector('.inline-confirm-wrapper')) {
+        function requestConfirmationInMenu(clickedElement, onConfirm) {
+            const dropdownMenu = clickedElement.closest('.message-actions-dropdown');
+            // Если меню не найдено или подтверждение уже активно, ничего не делаем
+            if (!dropdownMenu || dropdownMenu.querySelector('.inline-confirm-container')) {
                 return;
             }
-
-            const originalContent = button.innerHTML;
-            const dropdownMenu = button.closest('.message-actions-dropdown');
-            button.style.width = button.offsetWidth + 'px'; // Фиксируем ширину, чтобы не прыгала
-            button.innerHTML = `
-                <div class="inline-confirm-wrapper flex items-center justify-between w-full">
-                    <span class="text-xs font-bold animate-pulse">Уверены?</span>
-                    <div class="flex items-center">
-                        <span class="confirm-yes p-1 rounded-full text-green-400 hover:bg-green-400/20" title="Да">
-                            <i data-lucide="check" class="w-4 h-4"></i>
-                        </span>
-                        <span class="confirm-no p-1 rounded-full text-red-400 hover:bg-red-400/20" title="Нет">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </span>
-                    </div>
+        
+            // 1. Прячем все оригинальные элементы меню
+            const originalItems = Array.from(dropdownMenu.children);
+            originalItems.forEach(item => item.style.display = 'none');
+        
+            // 2. Создаем и добавляем наш блок подтверждения
+            const confirmContainer = document.createElement('div');
+            confirmContainer.className = 'inline-confirm-container flex items-center justify-between p-2';
+            confirmContainer.innerHTML = `
+                <span class="text-sm font-semibold">Уверены?</span>
+                <div class="flex items-center space-x-2">
+                    <button class="confirm-btn p-1.5 rounded-full text-green-400 hover:bg-green-400/20 transition-colors" title="Подтвердить">
+                        <i data-lucide="check" class="w-5 h-5"></i>
+                    </button>
+                    <button class="cancel-btn p-1.5 rounded-full text-red-400 hover:bg-red-400/20 transition-colors" title="Отменить">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
                 </div>
             `;
-            lucide.createIcons({ nodes: [button] });
-
-            const restoreButton = () => {
-                button.innerHTML = originalContent;
-                button.style.width = '';
-                lucide.createIcons({ nodes: [button] });
-                // Снимаем глобальный обработчик, он нам больше не нужен
-                document.body.removeEventListener('click', clickOutsideHandler, true);
+            dropdownMenu.appendChild(confirmContainer);
+            lucide.createIcons({ nodes: [confirmContainer] });
+        
+            // 3. Функция для очистки и восстановления исходного меню
+            const cleanupAndRestore = () => {
+                confirmContainer.remove();
+                originalItems.forEach(item => item.style.display = '');
+                // ВАЖНО: Удаляем наш временный обработчик клика снаружи
+                document.removeEventListener('click', clickOutsideHandler, { capture: true });
             };
-
-            const confirmWrapper = button.querySelector('.inline-confirm-wrapper');
-
-            // Обработчик для "Да"
-            confirmWrapper.querySelector('.confirm-yes').addEventListener('click', (e) => {
-                e.stopPropagation(); // Крайне важно, чтобы клик не "провалился" дальше
-                restoreButton();
-                if (dropdownMenu) dropdownMenu.classList.add('hidden'); // Закрываем меню
-                onConfirm();
-            });
-
-            // Обработчик для "Нет"
-            confirmWrapper.querySelector('.confirm-no').addEventListener('click', (e) => {
+        
+            // 4. Назначаем обработчики на кнопки "Да" и "Нет"
+            confirmContainer.querySelector('.confirm-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                restoreButton();
+                onConfirm(); // Выполняем действие
+                cleanupAndRestore(); // Восстанавливаем меню
+                dropdownMenu.classList.add('hidden'); // Закрываем меню
             });
-
-            // Обработчик для клика вне кнопки, который отменяет действие
-            const clickOutsideHandler = (e) => {
-                if (!button.contains(e.target)) {
-                    restoreButton();
+        
+            confirmContainer.querySelector('.cancel-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                cleanupAndRestore();
+            });
+            
+            // 5. Создаем свой обработчик клика снаружи, который отменит действие
+            const clickOutsideHandler = (event) => {
+                // Если клик произошел не внутри нашего выпадающего меню
+                if (!dropdownMenu.contains(event.target)) {
+                    cleanupAndRestore();
                 }
             };
             
-            // Ждем следующий "тик" чтобы повесить обработчик клика снаружи.
-            // Это нужно, чтобы он не сработал на тот же клик, который вызвал эту функцию.
-            setTimeout(() => document.body.addEventListener('click', clickOutsideHandler, true), 0);
+            // С небольшой задержкой вешаем наш обработчик, чтобы он не сработал от клика,
+            // который открыл меню подтверждения. `capture: true` гарантирует, что он сработает раньше других.
+            setTimeout(() => {
+                document.addEventListener('click', clickOutsideHandler, { capture: true });
+            }, 0);
         }
         
         function updateSidebarView() {
@@ -1954,8 +1958,8 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
         
                     if (activeSession && !isNaN(messageIndex)) {
-                        // ВЫЗЫВАЕМ НОВУЮ ФУНКЦИЮ
-                        setupInlineConfirmation(deleteMessageBtn, async () => {
+                        // ИЗМЕНЕНИЕ ЗДЕСЬ
+                        requestConfirmationInMenu(deleteMessageBtn, async () => {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                             await updateDoc(sessionRef, { messages: newMessages });
@@ -1968,8 +1972,8 @@
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || isNaN(messageIndex)) return;
     
-                    // ВЫЗЫВАЕМ НОВУЮ ФУНКЦИЮ
-                    setupInlineConfirmation(clickedBtn, async () => {
+                    // ИЗМЕНЕНИЕ ЗДЕСЬ
+                    requestConfirmationInMenu(clickedBtn, async () => {
                         const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
@@ -1986,17 +1990,17 @@
                         );
                     });
                 };
-
+                
                 const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
                     const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                    handleRegeneration(regenerateUserBtn, messageIndex, messageIndex + 1); 
+                    handleRegeneration(regenerateUserBtn, messageIndex, messageIndex + 1);
                 }
     
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
                     const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                    handleRegeneration(regenerateBtn, messageIndex, messageIndex); 
+                    handleRegeneration(regenerateBtn, messageIndex, messageIndex);
                 }
         
                 const editBtn = e.target.closest('.edit-message-btn');

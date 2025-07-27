@@ -1867,72 +1867,62 @@
             });
             
             window.addEventListener('resize', updateSidebarView);
-        
-            document.body.addEventListener('click', async (e) => {
+
+            // --- НОВАЯ, УЛУЧШЕННАЯ ФУНКЦИЯ ВСТРОЕННОГО ПОДТВЕРЖДЕНИЯ ---
+            const inlineConfirm = (button, onConfirm) => {
+                if (button.dataset.confirming === 'true') return;
+                button.dataset.confirming = 'true';
+                button.style.display = 'none';
+
+                const confirmationUI = document.createElement('div');
+                confirmationUI.className = 'inline-confirm-ui flex items-center';
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = 'p-1.5 text-green-400 hover:text-green-300';
+                confirmBtn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i>';
+                confirmBtn.title = 'Подтвердить';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'p-1.5 text-red-400 hover:text-red-300';
+                cancelBtn.innerHTML = '<i data-lucide="x-circle" class="w-4 h-4"></i>';
+                cancelBtn.title = 'Отмена';
                 
-                // --- НОВАЯ ФУНКЦИЯ ДЛЯ ВСТРОЕННОГО ПОДТВЕРЖДЕНИЯ ---
-                const handleConfirmationRequest = (button, onConfirm) => {
-                    const dropdownMenu = button.closest('.message-actions-dropdown');
-                    if (!dropdownMenu || dropdownMenu.dataset.confirming) return;
+                confirmationUI.appendChild(confirmBtn);
+                confirmationUI.appendChild(cancelBtn);
+                
+                button.after(confirmationUI);
+                lucide.createIcons({nodes: [confirmationUI]});
 
-                    dropdownMenu.dataset.confirming = 'true';
-
-                    const originalButtons = Array.from(dropdownMenu.children);
-                    originalButtons.forEach(btn => {
-                        if (!btn.classList.contains('inline-confirm-wrapper')) {
-                           btn.style.display = 'none';
-                        }
-                    });
-                    
-                    const confirmationWrapper = document.createElement('div');
-                    confirmationWrapper.className = 'inline-confirm-wrapper';
-
-                    const confirmBtn = document.createElement('button');
-                    confirmBtn.className = 'dropdown-menu-item danger';
-                    confirmBtn.innerHTML = `<i></i><span>Подтвердить</span>`;
-                    confirmBtn.querySelector('i').setAttribute('data-lucide', 'check-circle');
-                    
-                    const cancelBtn = document.createElement('button');
-                    cancelBtn.className = 'dropdown-menu-item';
-                    cancelBtn.innerHTML = `<i></i><span>Отмена</span>`;
-                    cancelBtn.querySelector('i').setAttribute('data-lucide', 'x-circle');
-
-                    confirmationWrapper.appendChild(confirmBtn);
-                    confirmationWrapper.appendChild(cancelBtn);
-                    dropdownMenu.appendChild(confirmationWrapper);
-                    lucide.createIcons({nodes: [confirmationWrapper]});
-                    
-                    const cleanup = () => {
-                        confirmationWrapper.remove();
-                        originalButtons.forEach(btn => {
-                           btn.style.display = ''; // Восстанавливаем оригинальное отображение
-                        });
-                        delete dropdownMenu.dataset.confirming;
-                        document.removeEventListener('click', outsideClickListener, true);
-                    }
-                    
-                    confirmBtn.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        cleanup();
-                        onConfirm();
-                    });
-
-                    cancelBtn.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        cleanup();
-                    });
-
-                    // Закрытие по клику вне меню
-                    const outsideClickListener = (event) => {
-                        if (!dropdownMenu.contains(event.target)) {
-                            cleanup();
-                        }
-                    };
-                    
-                    setTimeout(() => document.addEventListener('click', outsideClickListener, true), 0);
+                const cleanup = () => {
+                    confirmationUI.remove();
+                    button.style.display = '';
+                    delete button.dataset.confirming;
+                    document.removeEventListener('click', outsideClickListener, true);
                 };
 
+                confirmBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    confirmationUI.remove();
+                    delete button.dataset.confirming;
+                    document.removeEventListener('click', outsideClickListener, true);
+                    onConfirm();
+                });
 
+                cancelBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    cleanup();
+                });
+
+                const outsideClickListener = (event) => {
+                    if (!confirmationUI.contains(event.target)) {
+                        cleanup();
+                    }
+                };
+                
+                setTimeout(() => document.addEventListener('click', outsideClickListener, true), 0);
+            };
+        
+            document.body.addEventListener('click', async (e) => {
                 const deleteSessionBtn = e.target.closest('.delete-session-btn');
                 if (deleteSessionBtn) {
                     const idToDelete = deleteSessionBtn.dataset.id;
@@ -1952,15 +1942,15 @@
                     }
                 }
 
-                // --- ИЗМЕНЕННАЯ ЛОГИКА ОБРАБОТЧИКОВ СООБЩЕНИЙ ---
+                // --- ОБНОВЛЕННЫЕ ОБРАБОТЧИКИ С ИСПОЛЬЗОВАНИЕМ inlineConfirm ---
 
                 const deleteMessageBtn = e.target.closest('.delete-message-btn');
                 if (deleteMessageBtn) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    handleConfirmationRequest(deleteMessageBtn, async () => {
+                    inlineConfirm(deleteMessageBtn, async () => {
                         const messageIndex = parseInt(deleteMessageBtn.dataset.messageIndex, 10);
                         const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-            
                         if (activeSession && !isNaN(messageIndex)) {
                             const newMessages = activeSession.messages.filter((_, index) => index !== messageIndex);
                             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1973,11 +1963,11 @@
                     if (state.loadingSessionId) return;
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession) return;
-
+    
                     const messagesForRegen = activeSession.messages.slice(0, sliceEnd);
                     const provider = state.providers.find(p => p.id === activeSession.providerId);
                     const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
-
+    
                     const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                     updateDoc(sessionRef, { messages: messagesForRegen, updatedAt: serverTimestamp() });
                     
@@ -1992,24 +1982,22 @@
                 
                 const regenerateUserBtn = e.target.closest('.regenerate-user-message-btn');
                 if (regenerateUserBtn) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
-                    if (!isNaN(messageIndex)) {
-                        handleConfirmationRequest(regenerateUserBtn, () => {
-                            handleRegenerationAction(messageIndex + 1);
-                        });
-                    }
+                    inlineConfirm(regenerateUserBtn, () => {
+                        const messageIndex = parseInt(regenerateUserBtn.dataset.messageIndex, 10);
+                        handleRegenerationAction(messageIndex + 1);
+                    });
                 }
     
                 const regenerateBtn = e.target.closest('.regenerate-message-btn');
                 if (regenerateBtn) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
-                    if (!isNaN(messageIndex)) {
-                       handleConfirmationRequest(regenerateBtn, () => {
-                            handleRegenerationAction(messageIndex);
-                        });
-                    }
+                    inlineConfirm(regenerateBtn, () => {
+                        const messageIndex = parseInt(regenerateBtn.dataset.messageIndex, 10);
+                        handleRegenerationAction(messageIndex);
+                    });
                 }
         
                 const editBtn = e.target.closest('.edit-message-btn');

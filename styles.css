@@ -58,40 +58,6 @@ input::placeholder, textarea::placeholder {
 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
 @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
-/* --- СТИЛЬ ДЛЯ ВИНЬЕТКИ НА ФОНЕ (УТРИРОВАННАЯ ВЕРСИЯ) --- */
-#main-content {
-    /* Это нужно, чтобы правильно спозиционировать псевдоэлемент виньетки */
-    position: relative;
-    /* Это нужно, чтобы виньетка не выходила за пределы блока */
-    overflow: hidden; 
-}
-
-#main-content::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    
-    /* Градиент остается тем же для теста */
-    background: radial-gradient(
-        ellipse at center, 
-        transparent 20%, 
-        black 65%
-    );
-    
-    /* Псевдоэлемент не должен перехватывать клики */
-    pointer-events: none;
-    
-    /* 
-      КЛЮЧЕВОЕ ИЗМЕНЕНИЕ:
-      Отрицательный z-index заставит этот псевдоэлемент отображаться
-      ПОЗАДИ всего остального контента внутри #main-content.
-    */
-    z-index: -1;
-}
-
 /* --- СТИЛЬ ДЛЯ ЭФФЕКТА ЗАТУХАНИЯ ПРИ ПРОКРУТКЕ (УВЕЛИЧЕННЫЙ) --- */
 #notepad-scroll-container {
     -webkit-mask-image: linear-gradient(to bottom, 

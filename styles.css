@@ -11,22 +11,23 @@
     --border-color: #4a4a4a;
     --danger: #e53e3e;
     --danger-hover: #c53030;
+
+    --moody-blue: #0d1a2f;  /* Очень темный, глубокий синий */
+    --moody-purple: #1f1a2f; /* Очень темный, глубокий фиолетовый */
 }
 html, body {
     height: 100%;
 }
-@keyframes subtle-gradient {
+/* Ключевые кадры для очень плавной анимации */
+@keyframes backgroundDrift {
     0% {
-        /* Начальная позиция градиента */
-        background-position: 0% 50%, 0% 50%;
+        background-position: 0% 50%;
     }
     50% {
-        /* Промежуточная позиция */
-        background-position: 0% 50%, 100% 50%;
+        background-position: 100% 50%;
     }
     100% {
-        /* Возвращение в начало для плавного цикла */
-        background-position: 0% 50%, 0% 50%;
+        background-position: 0% 50%;
     }
 }
 
@@ -36,25 +37,29 @@ body {
     font-weight: 100;
     font-size: 18px;
 
-    /* --- ОБЪЕДИНЕННЫЙ ФОН --- */
-
-    /* 1. Базовый цвет фона как запасной вариант (fallback) */
+    /* --- НОВЫЙ МНОГОСЛОЙНЫЙ АТМОСФЕРНЫЙ ФОН --- */
+    
+    /* 1. Базовый цвет как запасной вариант */
     background-color: var(--bg-main);
 
-    /* 2. Многослойный фон: точки находятся поверх градиента */
-    background-image:
-        /* Слой 1: Точечный паттерн (сверху) */
-        radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0),
-        /* Слой 2: Анимированный градиент (снизу) */
-        linear-gradient(-45deg, var(--bg-main), var(--bg-sidebar), var(--bg-main), var(--accent));
+    /* 2. Два слоя фона: шум поверх градиента */
+    background-image: 
+        /* Слой 1: Статичная текстура шума (поверх всего) */
+        url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOCIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiLz48L3N2Zz4='),
+        /* Слой 2: Плавный, медленно движущийся градиент */
+        linear-gradient(110deg, var(--moody-blue), var(--moody-purple), var(--bg-main), var(--bg-sidebar));
+    
+    /* Прозрачность для слоя с шумом, чтобы он был едва заметен */
+    background-blend-mode: overlay;
+    opacity: 0.1; /* <-- Поэкспериментируйте с этим значением (от 0.05 до 0.2) */
 
-    /* 3. Размеры для каждого слоя фона (для точек и для градиента) */
-    background-size: 25px 25px, 400% 400%;
+    /* 3. Размер для градиента (большой, чтобы движение было плавным) */
+    background-size: 300% 300%;
 
-    /* 4. Анимация, которая двигает фон */
-    /* Длительность 30с, плавный ход, бесконечный цикл */
-    animation: subtle-gradient 30s ease infinite;
+    /* 4. Применяем очень медленную анимацию */
+    animation: backgroundDrift 40s ease-in-out infinite;
 }
+
 @media (max-width: 1023px) {
     body {
         font-size: 15px;

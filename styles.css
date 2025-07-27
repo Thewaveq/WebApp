@@ -21,6 +21,17 @@ body {
     color: var(--text-primary);
     font-weight: 100;
     font-size: 18px;
+
+    /* --- Фон с эффектом сетки "Блюпринт" --- */
+    --grid-color: rgba(255, 255, 255, 0.07); /* Цвет линий сетки (очень тусклый белый) */
+    --grid-size: 40px; /* Размер ячейки сетки */
+
+    background-image:
+      /* Вертикальные линии */
+      repeating-linear-gradient(to right, var(--grid-color) 0, var(--grid-color) 1px, transparent 1px, transparent var(--grid-size)),
+      /* Горизонтальные линии */
+      repeating-linear-gradient(to bottom, var(--grid-color) 0, var(--grid-color) 1px, transparent 1px, transparent var(--grid-size));
+    background-size: var(--grid-size) var(--grid-size);
 }
 @media (max-width: 1023px) {
     body {
@@ -227,11 +238,32 @@ details[open] > summary .details-arrow {
 }
 
 /* --- СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
-.user-message-bg {
-    background-color: var(--bg-element);
-}
+.user-message-bg,
 .assistant-message-bg {
-    background-color: var(--bg-sidebar);
+    /* 1. Эффект размытия фона (матовое стекло) */
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+
+    /* 2. Тонкая светлая рамка для имитации края стекла */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* 3. Мягкая тень для придания глубины и отрыва от фона */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+    /* 4. Небольшой совет: асимметричные углы для вида "пузыря" */
+    /* Вы можете вернуть border-radius: 1rem; если этот вид не понравится */
+}
+
+
+/* Фон сообщения пользователя (нейтральный серый) */
+.user-message-bg {
+    background-color: rgba(51, 51, 51, 0.45); /* Полупрозрачный серый */
+    border-radius: 1rem 1rem 0.25rem 1rem; /* "Хвостик" слева внизу */
+}
+/* Фон сообщения ассистента (с акцентным цветом) */
+.assistant-message-bg {
+    background-color: rgba(14, 99, 156, 0.3); /* Полупрозрачный акцентный цвет */
+    border-radius: 1rem 1rem 1rem 0.25rem; /* "Хвостик" справа внизу */
 }
 
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }

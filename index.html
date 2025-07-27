@@ -1479,8 +1479,10 @@
             const signal = generationAbortController.signal;
         
             state.loadingSessionId = sessionId;
+            updateLoadingIndicator(); 
+            
             const activeSession = state.sessions.find(s => s.id === sessionId);
-            // По умолчанию стриминг включен, если настройка отсутствует
+            // По умолчанию стриминг включен, если настройка не задана
             const isStreamingEnabled = activeSession.isStreamingEnabled !== false;
         
             let finalAssistantMessage = {
@@ -1500,16 +1502,14 @@
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) oldIndicator.remove();
             
-            // Создаем новый элемент для сообщения ассистента, он будет обновляться по ходу
+            // Создаем элемент для сообщения ассистента. Он будет обновляться по ходу.
             const assistantMessageElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
             messagesContainer.appendChild(assistantMessageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            updateLoadingIndicator(); 
         
             const targetContentElement = assistantMessageElement.querySelector('.prose');
             if (!targetContentElement) {
                 finalAssistantMessage.content = "**Критическая ошибка:** Не удалось создать DOM-элемент для ответа.";
-                assistantMessageElement.innerHTML = finalAssistantMessage.content;
                 state.loadingSessionId = null;
                 updateLoadingIndicator();
                 return;
@@ -1528,9 +1528,7 @@
                 apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
         
                 if (isStreamingEnabled) {
-                    // --- ИСПРАВЛЕННАЯ ЛОГИКА СТРИМИНГА ---
-                    assistantMessageElement.classList.add('streaming-in');
-        
+                    // --- КОРРЕКТНАЯ ЛОГИКА СТРИМИНГА ---
                     const fullUrl = new URL(provider.path, provider.baseUrl).href;
                     const currentKeyIndex = provider.currentKeyIndex || 0;
                     const proxyRequestBody = {
@@ -1552,7 +1550,6 @@
                     const decoder = new TextDecoder();
                     let buffer = '';
         
-                    // Убрали сложный и неверно работающий renderLoop. Обновляем DOM напрямую.
                     while (true) {
                         if (signal.aborted) break;
                         const { done, value } = await reader.read();
@@ -1560,7 +1557,7 @@
         
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        buffer = lines.pop(); // Оставляем последнюю (возможно, неполную) строку в буфере
+                        buffer = lines.pop(); 
         
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
@@ -1571,12 +1568,8 @@
                                     const delta = parsed.choices[0]?.delta?.content || '';
                                     if (delta) {
                                         finalAssistantMessage.content += delta;
-                                        
-                                        // Прямое обновление innerHTML с каждым полученным фрагментом
                                         const rawHtml = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
                                         targetContentElement.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-                                        
-                                        // Прокрутка вниз для удержания нового текста в поле зрения
                                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
                                     }
                                 } catch (e) {
@@ -1586,11 +1579,10 @@
                         }
                     }
                     
-                    // Финальная подсветка синтаксиса после завершения стрима
                     targetContentElement.querySelectorAll('pre code').forEach(hljs.highlightElement);
 
                 } else {
-                    // --- ЛОГИКА ДЛЯ ОБЫЧНОГО ЗАПРОСА (ОСТАЛАСЬ БЕЗ ИЗМЕНЕНИЙ) ---
+                    // --- ЛОГИКА ДЛЯ ОБЫЧНОГО ЗАПРОСА (БЕЗ ИЗМЕНЕНИЙ) ---
                     let isSuccess = false;
                     let lastError = 'Не удалось получить ответ от API после перебора всех ключей.';
                     const startIndex = provider.currentKeyIndex || 0;
@@ -1609,10 +1601,8 @@
                             };
 
                             const response = await fetch('/api/proxy', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(proxyRequestBody),
-                                signal: signal
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(proxyRequestBody), signal: signal
                             });
 
                             if (!response.ok) {
@@ -1651,14 +1641,14 @@
                 }
                 targetContentElement.innerHTML = marked.parse(finalAssistantMessage.content, { breaks: true, gfm: true });
             } finally {
-                // Заменяем временный элемент на постоянный с полным контентом
-                const finalElement = createMessageElement(finalAssistantMessage, messagesToSubmit.length);
-                if (assistantMessageElement.parentNode) {
-                    assistantMessageElement.replaceWith(finalElement);
-                }
-
+                // ИСПРАВЛЕНИЕ: Мы больше не заменяем элемент. Он уже в DOM и обновлен.
+                // Мы просто сохраняем финальный результат в базу данных.
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
                 const finalMessages = [...messagesToSubmit, finalAssistantMessage];
+                
+                // Обновляем dataset для консистентности, если понадобится в будущем
+                assistantMessageElement.dataset.content = finalAssistantMessage.content;
+
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
         
                 state.loadingSessionId = null;

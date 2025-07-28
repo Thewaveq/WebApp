@@ -1570,41 +1570,41 @@
         
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
-
+        
             generationAbortController = new AbortController();
             const signal = generationAbortController.signal;
-
+        
             state.loadingSessionId = sessionId;
             render();
-
+        
             let assistantMessageContent = '';
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let thinkingProcess = '';
-
+            let thinkingProcess = ''; // <-- `thinkingProcess` будет использоваться для обоих режимов
+        
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
-
+        
             try {
                 // --- РЕЖИМ ПАЙПЛАЙНА ---
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     thinkingProcess += `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
-
+        
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
                         
                         const step = selectedPipeline.steps[i];
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
                         const stepModelName = step.modelName;
-
+        
                         thinkingProcess += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
-
+        
                         if (!stepProvider || !stepModelName) {
                             throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         }
-
+        
                         const stepApiMessages = [];
                         if (step.roleContent) {
                             stepApiMessages.push({ role: 'system', content: step.roleContent });
@@ -1613,21 +1613,21 @@
                         
                         thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
                         thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
-
+        
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
                         
-                        currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; 
+                        currentInputContent = stepResponse || ''; // Убедимся, что не null
+                        assistantMessageContent = currentInputContent; 
                         
                         thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
-
+        
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
-
+        
                     const apiMessagesPayload = [];
                     if (selectedRole && selectedRole.content) {
                         apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
@@ -1635,20 +1635,25 @@
                     apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
                     
                     const rawResponse = await callApi(provider, modelName, apiMessagesPayload, signal);
-                    
-                    const thinkRegex = /<think>([\s\S]*?)<\/think>/;
-                    const thinkMatch = rawResponse.match(thinkRegex);
-                    
-                    if (thinkMatch) {
-                        thinkingProcess = thinkMatch[1].trim();
-                        assistantMessageContent = rawResponse.replace(thinkRegex, '').trim();
+        
+                    // --- БЕЗОПАСНАЯ ОБРАБОТКА ОТВЕТА ---
+                    if (typeof rawResponse === 'string') {
+                        const thinkRegex = /<think>([\s\S]*?)<\/think>/;
+                        const thinkMatch = rawResponse.match(thinkRegex);
+                        
+                        if (thinkMatch) {
+                            thinkingProcess = thinkMatch[1].trim();
+                            assistantMessageContent = rawResponse.replace(thinkRegex, '').trim();
+                        } else {
+                            assistantMessageContent = rawResponse;
+                        }
                     } else {
-                        assistantMessageContent = rawResponse;
+                        // Если ответ не строка (null, undefined, и т.д.), оставляем его пустым
+                        assistantMessageContent = '';
                     }
-
                     isSuccess = true;
                 }
-
+        
             } catch (error) {
                 if (error.name === 'AbortError' || error.message === 'AbortError') {
                     wasAborted = true;
@@ -1667,21 +1672,22 @@
                             role: 'assistant',
                             content: assistantMessageContent,
                             modelName: finalModelName,
-                            thinkingLog: thinkingProcess ? thinkingProcess : null 
+                            // Теперь это корректно работает и для пайплайнов, и для одиночных моделей
+                            thinkingLog: thinkingProcess ? thinkingProcess : null
                           }
                         : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
                 
                 const finalMessages = [...messagesToSubmit, messageToAdd];
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
-
+        
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const session = state.sessions.find(s => s.id === sessionId);
                     const chatTitle = session?.title || 'Новый чат';
                     const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }
-
+        
                 state.loadingSessionId = null;
                 generationAbortController = null;
                 render();

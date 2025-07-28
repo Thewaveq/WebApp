@@ -426,25 +426,6 @@ details[open] > summary .details-arrow {
     color: var(--danger);
     background-color: rgba(229, 62, 62, 0.1);
 }
-
-/* Стиль для активной кнопки MD и при наведении */
-.note-card.markdown-preview-active .note-card-md-toggle-btn,
-.note-card-md-toggle-btn:hover {
-    color: var(--accent);
-    background-color: rgba(14, 99, 156, 0.1);
-}
-
-/* Логика скрытия/показа элементов */
-.note-card.markdown-preview-active .note-card-content { display: none; }
-.note-card .note-card-markdown-preview:not(.hidden) { 
-    display: block; 
-    border: 1px solid var(--border-color);
-    border-radius: 0.3rem;
-    padding: 0.75rem;
-    min-height: 118px;
-    flex-grow: 1;
-}
-
 #add-new-card-btn {
     border-style: dashed;
     border-width: 2px;
@@ -472,54 +453,6 @@ details[open] > summary .details-arrow {
 #notepad-width-toggle.active {
     background-color: var(--accent);
     color: white;
-}
-
-/* Общий стиль для кнопок в шапке карточки */
-.note-card-header .note-card-delete-btn,
-.note-card-header .note-card-md-toggle-btn {
-    color: var(--text-secondary);
-    transition: all 0.2s;
-    padding: 0.25rem;
-    border-radius: 9999px;
-    display: flex; /* Для корректного отображения иконки */
-    align-items: center;
-    justify-content: center;
-}
-
-/* Стиль при наведении на кнопку удаления */
-.note-card-header .note-card-delete-btn:hover {
-    color: var(--danger);
-    background-color: rgba(229, 62, 62, 0.1);
-}
-
-/* Стиль при наведении на кнопку Markdown */
-.note-card-header .note-card-md-toggle-btn:hover {
-    color: var(--accent);
-    background-color: rgba(14, 99, 156, 0.1);
-}
-
-/* Стиль для активного состояния кнопки Markdown (когда предпросмотр включен) */
-.note-card.markdown-preview-active .note-card-md-toggle-btn {
-    color: white;
-    background-color: var(--accent);
-}
-
-/* Стиль для области предпросмотра Markdown */
-.note-card-markdown-preview {
-    border: 1px solid var(--border-color);
-    border-radius: 0.3rem;
-    padding: 0.75rem;
-    min-height: 118px; /* Примерно как у textarea, чтобы карточка не "прыгала" по высоте */
-    flex-grow: 1;
-}
-
-/* Когда предпросмотр активен, мы скрываем этот класс (который добавлен к textarea) */
-.note-card.markdown-preview-active .note-card-content {
-    display: none;
-}
-/* А этот класс (добавленный к div) наоборот, показываем */
-.note-card.markdown-preview-active .note-card-markdown-preview {
-    display: block;
 }
 
 /* --- Стили для In-App Уведомления с эффектом свечения --- */

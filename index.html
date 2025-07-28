@@ -439,8 +439,10 @@
             const cardsGrid = document.getElementById('note-cards-grid');
             if (!cardsGrid) return;
         
+
             function autoResizeTextarea(textarea) {
                 if (!textarea) return;
+
                 setTimeout(() => {
                     textarea.style.height = 'auto';
                     textarea.style.height = (textarea.scrollHeight) + 'px';
@@ -451,6 +453,7 @@
             const newCardIds = new Set(newCards.map(c => c.id));
             const addButton = document.getElementById('add-new-card-btn');
         
+
             const existingCardElements = cardsGrid.querySelectorAll('.note-card');
             existingCardElements.forEach(cardEl => {
                 const cardId = cardEl.dataset.cardId;
@@ -459,11 +462,12 @@
                 }
             });
         
+
             newCards.forEach((cardData, index) => {
                 let cardEl = cardsGrid.querySelector(`.note-card[data-card-id="${cardData.id}"]`);
         
                 if (cardEl) {
-                    // Логика обновления существующей карточки (без изменений)
+
                     const titleInput = cardEl.querySelector('.note-card-title');
                     const contentTextarea = cardEl.querySelector('.note-card-content');
                     
@@ -472,19 +476,17 @@
                     }
                     if (document.activeElement !== contentTextarea && contentTextarea.value !== cardData.content) {
                         contentTextarea.value = cardData.content || '';
+
                         autoResizeTextarea(contentTextarea);
                     }
                 } else {
-                    // Логика создания НОВОЙ карточки
+
                     const newCardHTML = getCardHTML(cardData);
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newCardHTML;
                     const newCardElement = tempDiv.firstElementChild;
                     
                     cardsGrid.insertBefore(newCardElement, addButton);
-        
-                    // ----- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ -----
-                    // Эта строка гарантирует, что иконки отрисуются именно для новой карточки.
                     lucide.createIcons({ nodes: [newCardElement] });
                     
                     const newTextarea = newCardElement.querySelector('.note-card-content');
@@ -764,28 +766,16 @@
         function getCardHTML(card) {
             const title = card.title ? card.title.replace(/"/g, '"') : '';
             const content = card.content || '';
-        
-            // Этот HTML-код теперь точно содержит все нужные элементы
+
             return `
-                <div class="note-card" data-card-id="${card.id}">
-                    <div class="note-card-header">
-                        <input type="text" class="note-card-title" placeholder="Заголовок" value="${title}">
-                        
-                        <!-- Этот блок содержит обе кнопки -->
-                        <div class="flex-shrink-0 flex items-center">
-                            <!-- КНОПКА ДЛЯ MARKDOWN -->
-                            <button class="note-card-md-toggle-btn p-1 rounded-full text-text-secondary" title="Переключить режим Markdown">
-                                <i data-lucide="markdown" class="w-4 h-4"></i>
-                            </button>
-                            <!-- КНОПКА УДАЛЕНИЯ -->
-                            <button class="note-card-delete-btn ml-1" title="Удалить карточку">
-                                <i data-lucide="x" class="w-4 h-4"></i>
-                            </button>
-                        </div>
+                <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}">
+                    <div class="note-card-header flex items-center justify-between">
+                        <input type="text" class="note-card-title bg-transparent font-bold w-full focus:outline-none" placeholder="Заголовок" value="${title}">
+                        <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-2" title="Удалить карточку">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
                     </div>
-                    
-                    <textarea class="note-card-content" placeholder="Содержимое карточки...">${content}</textarea>
-                    <div class="note-card-markdown-preview prose max-w-none hidden"></div>
+                    <textarea class="note-card-content bg-transparent w-full resize-none focus:outline-none overflow-hidden text-sm" placeholder="Содержимое карточки...">${content}</textarea>
                 </div>
             `;
         }
@@ -1480,50 +1470,23 @@
         
             cardsGrid?.addEventListener('click', (e) => {
                 const deleteBtn = e.target.closest('.note-card-delete-btn');
-                if (deleteBtn) {
-                    createInlineConfirmation(deleteBtn, async () => {
-                        const cardEl = deleteBtn.closest('.note-card');
-                        const cardId = cardEl.dataset.cardId;
-                        if (!state.activeSessionId) return;
-                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                        const cardToDelete = (activeSession.cards || []).find(c => c.id === cardId);
+                if (!deleteBtn) return;
                 
-                        if (cardToDelete) {
-                            await updateDoc(sessionRef, {
-                                cards: arrayRemove(cardToDelete),
-                                updatedAt: serverTimestamp()
-                            });
-                        }
-                    });
-                    return;
-                }
-
-                // --- НОВАЯ ЛОГИКА ДЛЯ ПЕРЕКЛЮЧЕНИЯ MD ---
-                const mdToggleBtn = e.target.closest('.note-card-md-toggle-btn');
-                if (mdToggleBtn) {
-                    const cardEl = mdToggleBtn.closest('.note-card');
-                    const textarea = cardEl.querySelector('.note-card-content');
-                    const previewEl = cardEl.querySelector('.note-card-markdown-preview');
-                    
-                    const isPreviewActive = cardEl.classList.toggle('markdown-preview-active');
-                    previewEl.classList.toggle('hidden', !isPreviewActive);
-
-
-                    if (isPreviewActive) {
-                        const rawContent = textarea.value;
-                        const rawHtml = marked.parse(rawContent, { breaks: true, gfm: true });
-                        previewEl.innerHTML = DOMPurify.sanitize(rawHtml);
-                        
-                        previewEl.querySelectorAll('pre code').forEach((block) => {
-                            hljs.highlightElement(block);
+                createInlineConfirmation(deleteBtn, async () => {
+                    const cardEl = deleteBtn.closest('.note-card');
+                    const cardId = cardEl.dataset.cardId;
+                    if (!state.activeSessionId) return;
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const cardToDelete = (activeSession.cards || []).find(c => c.id === cardId);
+            
+                    if (cardToDelete) {
+                        await updateDoc(sessionRef, {
+                            cards: arrayRemove(cardToDelete),
+                            updatedAt: serverTimestamp()
                         });
-
-                    } else {
-                        autoResizeTextarea(textarea);
                     }
-                    return; 
-                }
+                });
             });
             
             cardsGrid?.addEventListener('input', (e) => {

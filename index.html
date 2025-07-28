@@ -782,12 +782,13 @@
         
         function createMessageElement(msg, index) {
             const isUser = msg.role === 'user';
-            
             const messageWrapper = document.createElement('div');
-            messageWrapper.dataset.content = msg.content; 
+            const contentAsString = String(msg.content || ''); 
+            
+            messageWrapper.dataset.content = contentAsString;
             
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
-            const fileMatch = msg.content && msg.content.match(fileRegex);
+            const fileMatch = contentAsString.match(fileRegex);
 
             if (isUser && fileMatch) {
                 const fileName = fileMatch[1];

@@ -1634,8 +1634,6 @@
                         thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
-                    // Оборачиваем финальный ответ и процесс выполнения в теги
-                    assistantMessageContent = `<think>${thinkingProcess}</think>${assistantMessageContent}`;
 
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {

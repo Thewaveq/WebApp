@@ -1634,7 +1634,18 @@
                     }
                     apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
                     
-                    assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
+                    const rawResponse = await callApi(provider, modelName, apiMessagesPayload, signal);
+                    
+                    const thinkRegex = /<think>([\s\S]*?)<\/think>/;
+                    const thinkMatch = rawResponse.match(thinkRegex);
+                    
+                    if (thinkMatch) {
+                        thinkingProcess = thinkMatch[1].trim();
+                        assistantMessageContent = rawResponse.replace(thinkRegex, '').trim();
+                    } else {
+                        assistantMessageContent = rawResponse;
+                    }
+
                     isSuccess = true;
                 }
 
@@ -1654,9 +1665,9 @@
                     : isSuccess
                         ? {
                             role: 'assistant',
-                            content: assistantMessageContent, // <-- Теперь здесь ВСЕГДА чистый ответ
+                            content: assistantMessageContent,
                             modelName: finalModelName,
-                            thinkingLog: selectedPipeline ? thinkingProcess : null // <-- А здесь лог, если он был
+                            thinkingLog: thinkingProcess ? thinkingProcess : null 
                           }
                         : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
                 

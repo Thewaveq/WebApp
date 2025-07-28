@@ -769,13 +769,19 @@
 
             return `
                 <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}">
-                    <div class="note-card-header flex items-center justify-between">
+                    <div class="note-card-header flex items-center justify-between gap-2">
                         <input type="text" class="note-card-title bg-transparent font-bold w-full focus:outline-none" placeholder="Заголовок" value="${title}">
-                        <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-2" title="Удалить карточку">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
+                        <div class="flex-shrink-0 flex items-center">
+                            <button class="note-card-md-toggle-btn flex-shrink-0 text-text-secondary hover:text-accent p-1" title="Переключить режим Markdown">
+                                <i data-lucide="markdown" class="w-4 h-4"></i>
+                            </button>
+                            <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-1 p-1" title="Удалить карточку">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                     <textarea class="note-card-content bg-transparent w-full resize-none focus:outline-none overflow-hidden text-sm" placeholder="Содержимое карточки...">${content}</textarea>
+                    <div class="note-card-markdown-preview prose max-w-none text-sm hidden"></div>
                 </div>
             `;
         }
@@ -1470,23 +1476,55 @@
         
             cardsGrid?.addEventListener('click', (e) => {
                 const deleteBtn = e.target.closest('.note-card-delete-btn');
-                if (!deleteBtn) return;
+                if (deleteBtn) {
+                    createInlineConfirmation(deleteBtn, async () => {
+                        const cardEl = deleteBtn.closest('.note-card');
+                        const cardId = cardEl.dataset.cardId;
+                        if (!state.activeSessionId) return;
+                        const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                        const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                        const cardToDelete = (activeSession.cards || []).find(c => c.id === cardId);
                 
-                createInlineConfirmation(deleteBtn, async () => {
-                    const cardEl = deleteBtn.closest('.note-card');
-                    const cardId = cardEl.dataset.cardId;
-                    if (!state.activeSessionId) return;
-                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                    const cardToDelete = (activeSession.cards || []).find(c => c.id === cardId);
-            
-                    if (cardToDelete) {
-                        await updateDoc(sessionRef, {
-                            cards: arrayRemove(cardToDelete),
-                            updatedAt: serverTimestamp()
+                        if (cardToDelete) {
+                            await updateDoc(sessionRef, {
+                                cards: arrayRemove(cardToDelete),
+                                updatedAt: serverTimestamp()
+                            });
+                        }
+                    });
+                    return;
+                }
+
+                // --- НОВАЯ ЛОГИКА ДЛЯ ПЕРЕКЛЮЧЕНИЯ MD ---
+                const mdToggleBtn = e.target.closest('.note-card-md-toggle-btn');
+                if (mdToggleBtn) {
+                    const cardEl = mdToggleBtn.closest('.note-card');
+                    const textarea = cardEl.querySelector('.note-card-content');
+                    const previewEl = cardEl.querySelector('.note-card-markdown-preview');
+                    const isPreviewActive = cardEl.classList.toggle('markdown-preview-active');
+
+                    if (isPreviewActive) {
+                        // Включаем режим предпросмотра
+                        const rawContent = textarea.value;
+                        const rawHtml = marked.parse(rawContent, { breaks: true, gfm: true });
+                        previewEl.innerHTML = DOMPurify.sanitize(rawHtml);
+                        
+                        // Применяем подсветку синтаксиса, как в чате
+                        previewEl.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
                         });
+
+                        textarea.classList.add('hidden');
+                        previewEl.classList.remove('hidden');
+                    } else {
+                        // Выключаем режим предпросмотра
+                        previewEl.classList.add('hidden');
+                        textarea.classList.remove('hidden');
+                        // Важно пересчитать высоту поля, когда оно снова становится видимым
+                        autoResizeTextarea(textarea);
                     }
-                });
+                    return; 
+                }
             });
             
             cardsGrid?.addEventListener('input', (e) => {

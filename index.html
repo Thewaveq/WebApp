@@ -787,7 +787,8 @@
             messageWrapper.dataset.content = msg.content; 
             
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
-            const fileMatch = msg.content && msg.content.match(fileRegex);
+            const contentAsString = String(msg.content || '');
+            const fileMatch = contentAsString.match(fileRegex);
 
             if (isUser && fileMatch) {
                 const fileName = fileMatch[1];

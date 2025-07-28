@@ -2272,8 +2272,68 @@
         
                 const editBtn = e.target.closest('.edit-message-btn');
                 if (editBtn) {
-                    // ... (существующий код для редактирования сообщения без изменений)
-                    return;
+                    if (state.loadingSessionId) return;
+                    const messageContainer = editBtn.closest('.message-container');
+                    const contentDiv = messageContainer.querySelector('.prose');
+                    if (messageContainer.querySelector('.edit-form')) return; 
+        
+                    const messageIndex = parseInt(editBtn.dataset.messageIndex, 10);
+                    const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                    const originalContent = activeSession.messages[messageIndex].content;
+        
+                    contentDiv.classList.add('hidden');
+        
+                    const editForm = document.createElement('div');
+                    editForm.className = 'edit-form w-full mt-2';
+                    editForm.innerHTML = `
+                        <textarea class="w-full bg-input border border-border-color rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-accent" rows="3"></textarea>
+                        <div class="flex justify-start items-center mt-2 space-x-2">
+                             <button type="button" class="cancel-edit-btn px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors">Отмена</button>
+                             <button type="button" class="save-edit-btn px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors">Завершить</button>
+                        </div>
+                    `;
+                    
+                    contentDiv.after(editForm);
+                    
+                    const textarea = editForm.querySelector('textarea');
+                    textarea.value = originalContent;
+                    textarea.focus();
+                    textarea.style.height = 'auto';
+                    textarea.style.height = (textarea.scrollHeight) + 'px';
+                    textarea.addEventListener('input', () => {
+                       textarea.style.height = 'auto';
+                       textarea.style.height = (textarea.scrollHeight) + 'px';
+                    });
+        
+                    editForm.querySelector('.save-edit-btn').addEventListener('click', async () => {
+                        const newContent = textarea.value.trim();
+                        if (newContent) {
+                            editForm.remove();
+                            contentDiv.classList.remove('hidden');
+                            
+                            const messagesForSubmit = activeSession.messages.slice(0, messageIndex);
+                            messagesForSubmit.push({ role: 'user', content: newContent });
+                            
+                            const provider = state.providers.find(p => p.id === activeSession.providerId);
+                            const selectedRole = state.roles.find(r => r.id === activeSession.roleId);
+    
+                            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                            await updateDoc(sessionRef, { messages: messagesForSubmit, updatedAt: serverTimestamp() });
+                            
+                            await generateAssistantResponse(
+                                state.activeSessionId,
+                                messagesForSubmit,
+                                provider,
+                                selectedRole,
+                                activeSession.modelName
+                            );
+                        }
+                    });
+        
+                    editForm.querySelector('.cancel-edit-btn').addEventListener('click', () => {
+                        editForm.remove();
+                        contentDiv.classList.remove('hidden');
+                    });
                 }
                 
                 // --- Управление Провайдерами и Ролями из Настроек ---

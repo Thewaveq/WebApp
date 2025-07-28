@@ -229,11 +229,11 @@ details[open] > summary .details-arrow {
 /* --- СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
 .user-message-bg {
     background-color: var(--bg-element);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
 }
 .assistant-message-bg {
     background-color: var(--bg-sidebar);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
 }
 
 .modal-overlay {

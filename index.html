@@ -1676,6 +1676,26 @@
             }
         }
 
+        function parseApiResponseContent(content) {
+            // Если это уже простая строка (старый формат), просто возвращаем ее.
+            if (typeof content === 'string') {
+                return content;
+            }
+        
+            // Если это массив (новый формат), собираем текст из всех его частей.
+            if (Array.isArray(content)) {
+                return content
+                    .map(part => {
+                        if (part && typeof part.text === 'string') {
+                            return part.text;
+                        }
+                        return '';
+                    })
+                    .join('\n');
+            }
+            return '';
+        }
+        
         // Вспомогательная функция для вызова API, чтобы избежать дублирования кода
         async function callApi(provider, modelName, messages, signal) {
             const apiKeys = provider.apiKeys || [];
@@ -1710,11 +1730,14 @@
 
                     const data = await response.json();
                     if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+
+                    const rawContent = data.choices[0].message.content;
+                    const finalContent = parseApiResponseContent(rawContent);
                     
                     // Успешный вызов
                     const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
                     await updateDoc(providerRef, { currentKeyIndex: (keyIndex + 1) % apiKeys.length });
-                    return data.choices[0].message.content;
+                    return finalContent;
 
                 } catch (error) {
                     if (error.name === 'AbortError') throw error;

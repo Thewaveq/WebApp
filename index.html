@@ -771,16 +771,24 @@
                 <div class="note-card bg-bg-sidebar rounded-lg border border-border-color p-3 flex flex-col gap-2 transition-shadow hover:shadow-lg hover:border-accent/50" data-card-id="${card.id}">
                     <div class="note-card-header flex items-center justify-between gap-2">
                         <input type="text" class="note-card-title bg-transparent font-bold w-full focus:outline-none" placeholder="Заголовок" value="${title}">
+                        
+                        <!-- ВОТ БЛОК С КНОПКАМИ -->
                         <div class="flex-shrink-0 flex items-center">
+                            <!-- НОВАЯ КНОПКА ДЛЯ ПЕРЕКЛЮЧЕНИЯ MD-РЕЖИМА -->
                             <button class="note-card-md-toggle-btn flex-shrink-0 text-text-secondary hover:text-accent p-1" title="Переключить режим Markdown">
                                 <i data-lucide="markdown" class="w-4 h-4"></i>
                             </button>
+                            <!-- СТАРАЯ КНОПКА УДАЛЕНИЯ -->
                             <button class="note-card-delete-btn flex-shrink-0 text-text-secondary hover:text-red-400 ml-1 p-1" title="Удалить карточку">
                                 <i data-lucide="x" class="w-4 h-4"></i>
                             </button>
                         </div>
                     </div>
+                    
+                    <!-- ТЕКСТОВОЕ ПОЛЕ -->
                     <textarea class="note-card-content bg-transparent w-full resize-none focus:outline-none overflow-hidden text-sm" placeholder="Содержимое карточки...">${content}</textarea>
+                    
+                    <!-- НОВЫЙ СКРЫТЫЙ БЛОК ДЛЯ ОТОБРАЖЕНИЯ MD -->
                     <div class="note-card-markdown-preview prose max-w-none text-sm hidden"></div>
                 </div>
             `;

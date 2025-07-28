@@ -369,7 +369,7 @@ details[open] > summary .details-arrow {
     background-color: var(--bg-sidebar);
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
-    padding: 0.75rem 1rem 1rem 1rem; /* Слегка изменил отступы для баланса */
+    padding: 1rem;
     display: flex;
     flex-direction: column;
     transition: box-shadow 0.2s, border-color 0.2s;
@@ -383,7 +383,6 @@ details[open] > summary .details-arrow {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.75rem;
-    gap: 0.5rem; /* Добавил отступ между элементами */
 }
 .note-card-title {
     background-color: transparent;
@@ -402,20 +401,20 @@ details[open] > summary .details-arrow {
     box-shadow: 0 0 0 2px var(--accent);
 }
 .note-card-content {
-    background-color: transparent; /* Убрал фон, чтобы было единообразно */
+    background-color: var(--bg-element);
     border-radius: 0.3rem;
     padding: 0.75rem;
     width: 100%;
     min-height: 100px;
-    resize: none; /* Убрал системный ресайз, так как он автоматический */
+    resize: vertical;
     flex-grow: 1;
     border: 1px solid var(--border-color);
-    color: var(--text-primary); /* Сделал основной цвет, как в поле фокуса */
+    color: var(--text-secondary);
 }
 .note-card-content:focus {
     outline: none;
     box-shadow: 0 0 0 2px var(--accent);
-    border-color: var(--accent);
+    color: var(--text-primary);
 }
 .note-card-delete-btn {
     color: var(--text-secondary);
@@ -427,6 +426,25 @@ details[open] > summary .details-arrow {
     color: var(--danger);
     background-color: rgba(229, 62, 62, 0.1);
 }
+
+/* Стиль для активной кнопки MD и при наведении */
+.note-card.markdown-preview-active .note-card-md-toggle-btn,
+.note-card-md-toggle-btn:hover {
+    color: var(--accent);
+    background-color: rgba(14, 99, 156, 0.1);
+}
+
+/* Логика скрытия/показа элементов */
+.note-card.markdown-preview-active .note-card-content { display: none; }
+.note-card .note-card-markdown-preview:not(.hidden) { 
+    display: block; 
+    border: 1px solid var(--border-color);
+    border-radius: 0.3rem;
+    padding: 0.75rem;
+    min-height: 118px;
+    flex-grow: 1;
+}
+
 #add-new-card-btn {
     border-style: dashed;
     border-width: 2px;

@@ -1635,7 +1635,17 @@
                     if (selectedRole && selectedRole.content) {
                         apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
                     }
-                    apiMessagesPayload.push(...messagesToSubmit.map(m => ({ role: m.role, content: m.content })));
+                    
+                    const cleanedMessages = messagesToSubmit.map(msg => {
+                        if (msg.role === 'assistant' && typeof msg.content === 'string') {
+                            const cleanedContent = msg.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+                            return { ...msg, content: cleanedContent };
+                        }
+                        return msg;
+                    });
+
+                    // Используем очищенную историю для формирования запроса к API
+                    apiMessagesPayload.push(...cleanedMessages.map(m => ({ role: m.role, content: m.content })));
                     
                     assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
                     isSuccess = true;

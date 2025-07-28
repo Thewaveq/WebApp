@@ -812,7 +812,6 @@
                 return messageWrapper;
             }
 
-            // ВАШ ОСТАЛЬНОЙ КОД ДЛЯ ОБЫЧНЫХ СООБЩЕНИЙ ОСТАЛСЯ БЕЗ ИЗМЕНЕНИЙ
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -845,24 +844,20 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
             
-            // 1. Создаем пустую строку, в которую будем собирать HTML для отображения
             let renderableHtml = '';
             
-            // 2. Проверяем, есть ли у сообщения поле thinkingLog (которое мы добавили в generateAssistantResponse)
+            // Эта логика теперь абсолютно безопасна.
+            // 1. Проверяем, есть ли отдельное поле с логом.
             if (msg.thinkingLog) {
-                // Если есть, конвертируем его из Markdown в HTML
                 const logHtml = marked.parse(msg.thinkingLog, { breaks: true, gfm: true });
-                // И оборачиваем в теги <details> для создания спойлера
                 renderableHtml += `<details><summary>Показать ход мыслей</summary><div>${logHtml}</div></details>`;
             }
             
-            // 3. Добавляем основной контент сообщения (поле content)
-            // Эта часть будет отображаться либо после спойлера, либо сама по себе
+            // 2. Добавляем основной контент. Он всегда будет чистым.
             if (msg.content) {
                 renderableHtml += marked.parse(msg.content || '', { breaks: true, gfm: true });
             }
             
-            // 4. Очищаем (санитизируем) весь собранный HTML и вставляем в контейнер
             contentDiv.innerHTML = DOMPurify.sanitize(renderableHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsOuterContainer = document.createElement('div');
@@ -1586,7 +1581,7 @@
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let thinkingProcess = ''; // Для записи хода выполнения пайплайна
+            let thinkingProcess = '';
 
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
@@ -1610,27 +1605,20 @@
                             throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         }
 
-                        // Формируем сообщения для текущего шага API
                         const stepApiMessages = [];
                         if (step.roleContent) {
                             stepApiMessages.push({ role: 'system', content: step.roleContent });
                         }
-                        // Все предыдущие сообщения + текущий ввод
-                        //stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
                         thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        
-                        //thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
                         thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
 
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
                         
-                        // Ответ текущего шага становится входом для следующего
                         currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; // Сохраняем последний успешный ответ
+                        assistantMessageContent = stepResponse; 
                         
-                        //thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
                         thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
@@ -1652,7 +1640,6 @@
 
             } catch (error) {
                 if (error.name === 'AbortError' || error.message === 'AbortError') {
-                    console.log('Генерация остановлена пользователем.');
                     wasAborted = true;
                     lastError = 'Генерация остановлена пользователем.';
                 } else {
@@ -1667,9 +1654,9 @@
                     : isSuccess
                         ? {
                             role: 'assistant',
-                            content: assistantMessageContent,
+                            content: assistantMessageContent, // <-- Теперь здесь ВСЕГДА чистый ответ
                             modelName: finalModelName,
-                            thinkingLog: selectedPipeline ? thinkingProcess : null
+                            thinkingLog: selectedPipeline ? thinkingProcess : null // <-- А здесь лог, если он был
                           }
                         : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
                 

@@ -246,6 +246,13 @@ details[open] > summary .details-arrow {
     color: var(--text-primary);
 }
 
+.code-action-btn:disabled,
+.code-action-btn:disabled:hover {
+    background-color: var(--bg-element); 
+    opacity: 0.5;                        
+    cursor: not-allowed;                 
+}
+
 /* Контейнер для отрендеренной диаграммы */
 .mermaid-render-container {
     background-color: rgba(0, 0, 0, 0.2);

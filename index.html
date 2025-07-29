@@ -1569,22 +1569,49 @@
                 if (splitInstance) {
                     splitInstance.destroy();
                 }
+        
                 const isMobile = window.innerWidth < 1024;
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
+        
+                // --- НОВАЯ ЛОГИКА ---
+                // Вспомогательная функция для обновления стиля полосы ресайза
+                const updateGutterStyle = (sizes) => {
+                    if (!splitInstance) return;
+                    const gutter = splitInstance.gutters[0];
+                    if (!gutter) return;
+        
+                    const isMobileLayout = window.innerWidth < 1024;
+                    // Проверяем, свернута ли одна из панелей (ее размер равен 0)
+                    const isCollapsed = sizes[0] === 0 || sizes[1] === 0;
+        
+                    // Применяем наш "толстый" класс, только если мы на мобильном И одна из панелей свернута
+                    if (isMobileLayout && isCollapsed) {
+                        gutter.classList.add('gutter-touch-friendly');
+                    } else {
+                        gutter.classList.remove('gutter-touch-friendly');
+                    }
+                };
+        
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
                     gutterSize: 10,
                     direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
+                    // Вызываем нашу функцию при каждом движении, чтобы стиль менялся динамически
+                    onDrag: updateGutterStyle,
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
                     }
                 });
+        
+                // Вызываем функцию один раз при инициализации, чтобы применить стиль сразу, если окно уже было свернуто
+                updateGutterStyle(initialSizes);
             }
         
             initializeSplitter();
         
+            // Остальной код функции остается без изменений...
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';
@@ -1620,10 +1647,7 @@
                 }
         
                 try {
-                    // <-- РЕШЕНИЕ №2: Сначала парсим, чтобы перехватить ошибку ДО рендеринга
                     await mermaid.parse(diagramCode);
-        
-                    // Если парсинг прошел успешно, рендерим
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
@@ -1637,7 +1661,6 @@
                     }
         
                 } catch (error) {
-                    // Теперь мы ловим ошибку от parse() и безопасно выводим ее
                     const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
                     output.innerHTML = `
                         <div class="text-center p-4 flex flex-col items-center justify-center h-full">

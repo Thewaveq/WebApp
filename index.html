@@ -593,7 +593,7 @@
                             <h3 class="font-semibold text-lg">Результат</h3>
                             <div id="diagram-error-container" class="text-xs text-red-400"></div>
                          </div>
-                         <div id="diagram-output" class="w-full h-full p-4 overflow-auto flex items-center justify-center">
+                         <div id="diagram-output" class="w-full h-full p-4 overflow-auto flex items-center justify-center bg-bg-main">
                             <!-- Диаграмма будет отрендерена здесь -->
                          </div>
                     </div>
@@ -1548,10 +1548,15 @@
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
         
-            // Инициализируем Mermaid
+            // Проверяем, есть ли уже Mermaid на странице, чтобы не было ошибок
+            if (typeof mermaid === 'undefined') {
+                output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена. Проверьте подключение в <head>.</p>';
+                return;
+            }
+        
             mermaid.initialize({
                 startOnLoad: false,
-                theme: 'dark', // или 'default', 'forest', 'neutral'
+                theme: 'dark',
                 securityLevel: 'loose',
                 fontFamily: 'Inter, sans-serif'
             });
@@ -1565,7 +1570,6 @@
                 }
         
                 try {
-                    // Пытаемся отрендерить диаграмму
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) {
@@ -1573,22 +1577,19 @@
                     }
                     errorContainer.textContent = '';
                 } catch (error) {
-                    // Если ошибка, показываем ее пользователю
-                    output.innerHTML = `<i data-lucide="alert-triangle" class="w-16 h-16 text-red-500"></i>`;
-                    errorContainer.textContent = 'Ошибка синтаксиса в коде диаграммы.';
+                    output.innerHTML = `<div class="text-center"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-2 text-sm text-red-400">Ошибка синтаксиса</p></div>`;
+                    errorContainer.textContent = 'Ошибка в коде диаграммы';
                     console.error(error);
                     lucide.createIcons();
                 }
             };
         
-            // Слушаем событие ввода и перерисовываем с небольшой задержкой
             let debounceTimer;
             input.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(renderDiagram, 300);
             });
         
-            // Первичный рендер при загрузке
             renderDiagram();
         }
     

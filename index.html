@@ -683,14 +683,14 @@
             const code = activeSession.code || '';
             return `
             <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
-                <div id="diagram-code-panel" class="flex flex-col min-h-0 overflow-hidden">
+                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color min-h-0 overflow-hidden">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
-                    <textarea id="diagram-input" class="w-full flex-grow bg-input p-4 resize-none focus:outline-none font-mono text-sm">${code}</textarea>
+                    <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm">${code}</textarea>
                 </div>
         
-                <div id="diagram-preview-panel" class="relative flex flex-col min-h-0 overflow-hidden">
+                <div id="diagram-preview-panel" class="relative flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full min-h-0 overflow-hidden">
                      <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
                         <h3 class="font-semibold text-lg">Результат</h3>
                         <div id="diagram-error-container" class="text-xs text-red-400"></div>
@@ -1567,15 +1567,17 @@
             let panzoomInstance = null;
         
             function initializeSplitter() {
-
-                if (splitInstance) return;
-
+                if (splitInstance) {
+                    splitInstance.destroy();
+                }
+                const isMobile = window.innerWidth < 1024;
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
-
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
                     gutterSize: 10,
+                    direction: isMobile ? 'vertical' : 'horizontal',
+                    cursor: isMobile ? 'row-resize' : 'col-resize',
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
                     }
@@ -1596,7 +1598,7 @@
             });
             previewPanel.appendChild(resetZoomBtn);
             lucide.createIcons({ nodes: [resetZoomBtn] });
-            
+        
             if (typeof mermaid === 'undefined') {
                 output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена.</p>';
                 return;
@@ -1609,6 +1611,7 @@
                     panzoomInstance.dispose();
                     panzoomInstance = null;
                 }
+        
                 const diagramCode = codeInput.value.trim();
                 if (!diagramCode) {
                     output.innerHTML = '<p class="text-text-secondary">Начните вводить код слева...</p>';
@@ -1616,21 +1619,34 @@
                     resetZoomBtn.style.display = 'none';
                     return;
                 }
+        
                 try {
+                    // <-- РЕШЕНИЕ №2: Сначала парсим, чтобы перехватить ошибку ДО рендеринга
                     await mermaid.parse(diagramCode);
+        
+                    // Если парсинг прошел успешно, рендерим
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
                     errorContainer.textContent = '';
+        
                     const svgElement = output.querySelector('svg');
                     if (svgElement) {
                         svgElement.style.cursor = 'grab';
                         panzoomInstance = panzoom(svgElement, { maxZoom: 5, minZoom: 0.1 });
                         resetZoomBtn.style.display = 'block';
                     }
+        
                 } catch (error) {
+                    // Теперь мы ловим ошибку от parse() и безопасно выводим ее
                     const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
-                    output.innerHTML = `<div class="text-center p-4 flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-4 text-lg font-bold">Ошибка в коде диаграммы</p><p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис.</p><pre class="mt-4 text-xs text-left bg-bg-input p-2 rounded-md w-full max-w-sm overflow-auto">${errorMessage}</pre></div>`;
+                    output.innerHTML = `
+                        <div class="text-center p-4 flex flex-col items-center justify-center h-full">
+                            <i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i>
+                            <p class="mt-4 text-lg font-bold">Ошибка в коде диаграммы</p>
+                            <p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис.</p>
+                            <pre class="mt-4 text-xs text-left bg-bg-input p-2 rounded-md w-full max-w-sm overflow-auto">${errorMessage}</pre>
+                        </div>`;
                     errorContainer.textContent = 'Ошибка синтаксиса';
                     resetZoomBtn.style.display = 'none';
                     lucide.createIcons({ nodes: [output] });
@@ -1646,16 +1662,16 @@
                     }, delay);
                 };
             };
-            
+        
             const saveDiagramCode = async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 await updateDoc(sessionRef, { code: codeInput.value, updatedAt: serverTimestamp() });
             };
-            
+        
             const debouncedSave = debounce(saveDiagramCode, 750);
             const debouncedRender = debounce(renderDiagram, 300);
-            
+        
             titleInput.addEventListener('change', async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1666,7 +1682,7 @@
                 debouncedSave();
                 debouncedRender();
             });
-            
+        
             renderDiagram();
         }
     

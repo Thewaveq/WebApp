@@ -196,23 +196,28 @@ details[open] > summary .details-arrow {
 }
 
 .prose blockquote { border-left-color: var(--accent); }
+
+.diagram-wrapper {
+    position: relative;
+    margin: 1.25em 0;
+}
+
 .code-block-actions {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
     display: flex;
-    gap: 0.25rem; /* Расстояние между кнопками */
+    gap: 0.25rem;
     z-index: 10;
-    opacity: 0; /* Скрыто по умолчанию */
+    opacity: 0;
     transition: opacity 0.2s;
 }
 
-/* Показываем кнопки при наведении на весь блок <pre> */
 .prose pre:hover .code-block-actions {
     opacity: 1;
 }
 
-/* Общий стиль для кнопок (используем ваш дизайн) */
+/* Общий стиль для кнопок */
 .code-action-btn {
     display: flex;
     align-items: center;
@@ -229,6 +234,36 @@ details[open] > summary .details-arrow {
 .code-action-btn:hover {
     background-color: var(--bg-input);
     color: var(--text-primary);
+}
+
+/* Кнопка переключения диаграммы (позиционируется относительно .diagram-wrapper) */
+.diagram-toggle-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 15; /* Выше чем .code-block-actions */
+}
+
+/* Контейнер для отрендеренной диаграммы */
+.mermaid-render-container {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100px;
+}
+
+.mermaid-render-container.hidden,
+.diagram-wrapper > pre.hidden {
+    display: none;
+}
+
+.mermaid-render-container svg {
+    max-width: 100%;
+    height: auto;
 }
 
 /* --- СТИЛИ ДЛЯ КОНТЕЙНЕРА ДИАГРАММЫ --- */

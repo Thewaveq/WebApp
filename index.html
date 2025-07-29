@@ -32,6 +32,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
+    <script src="https://unpkg.com/panzoom@9.4.3/dist/panzoom.min.js"></script>
     
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1561,10 +1562,11 @@
             const codeInput = document.getElementById('diagram-input');
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
+            const previewPanel = document.getElementById('diagram-preview-panel'); // Получаем панель предпросмотра
         
-            // Ключ для сохранения размеров в localStorage
             const storageKey = 'diagramSplitterSizes';
             let splitInstance = null;
+            let panzoomInstance = null; // Переменная для хранения экземпляра panzoom
         
             function initializeSplitter() {
                 if (splitInstance) {
@@ -1572,26 +1574,14 @@
                 }
         
                 const isMobile = window.innerWidth < 1024;
-        
-                // ---> ШАГ 1: Загружаем сохраненные размеры
-                let initialSizes;
-                const savedSizes = localStorage.getItem(storageKey);
-                if (savedSizes) {
-                    // Если размеры есть в хранилище, используем их
-                    initialSizes = JSON.parse(savedSizes);
-                } else {
-                    // Иначе используем стандартные 50/50
-                    initialSizes = [50, 50];
-                }
+                let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
         
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
-                    sizes: initialSizes, // Используем загруженные или стандартные размеры
-                    minSize: 100,
+                    sizes: initialSizes,
+                    minSize: 0, // <-- РЕШЕНИЕ №1: Позволяет полностью сворачивать панель
                     gutterSize: 10,
                     direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
-                    
-                    // ---> ШАГ 2: Сохраняем новую позицию при окончании перетаскивания
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
                     }
@@ -1599,6 +1589,21 @@
             }
         
             initializeSplitter();
+        
+            // Добавляем кнопку сброса зума в панель предпросмотра
+            const resetZoomBtn = document.createElement('button');
+            resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
+            resetZoomBtn.title = 'Сбросить масштаб и положение';
+            resetZoomBtn.className = "absolute top-3 right-3 z-10 p-2 rounded-full bg-bg-element hover:bg-accent transition-colors";
+            resetZoomBtn.addEventListener('click', () => {
+                if (panzoomInstance) {
+                    panzoomInstance.moveTo(0, 0);
+                    panzoomInstance.zoomAbs(0, 0, 1);
+                }
+            });
+            previewPanel.style.position = 'relative';
+            previewPanel.appendChild(resetZoomBtn);
+            lucide.createIcons({ nodes: [resetZoomBtn] });
         
             if (typeof mermaid === 'undefined') {
                 output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена.</p>';
@@ -1608,21 +1613,50 @@
             mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter, sans-serif' });
         
             const renderDiagram = async () => {
+                // Перед рендерингом уничтожаем старый экземпляр panzoom, если он есть
+                if (panzoomInstance) {
+                    panzoomInstance.dispose();
+                    panzoomInstance = null;
+                }
+        
                 const diagramCode = codeInput.value.trim();
                 if (!diagramCode) {
                     output.innerHTML = '<p class="text-text-secondary">Начните вводить код слева...</p>';
                     errorContainer.textContent = '';
+                    resetZoomBtn.style.display = 'none'; // Скрываем кнопку, если нет диаграммы
                     return;
                 }
+        
                 try {
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
                     errorContainer.textContent = '';
+        
+                    // <-- РЕШЕНИЕ №3: Инициализация panzoom на новой диаграмме
+                    const svgElement = output.querySelector('svg');
+                    if (svgElement) {
+                        svgElement.style.cursor = 'grab';
+                        panzoomInstance = panzoom(svgElement, {
+                            maxZoom: 5,
+                            minZoom: 0.1
+                        });
+                        resetZoomBtn.style.display = 'block'; // Показываем кнопку сброса
+                    }
+        
                 } catch (error) {
-                    output.innerHTML = `<div class="text-center"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-2 text-sm text-red-400">Ошибка синтаксиса</p></div>`;
-                    errorContainer.textContent = 'Ошибка в коде диаграммы';
-                    lucide.createIcons();
+                    // <-- РЕШЕНИЕ №2: Улучшенная обработка ошибок
+                    const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
+                    output.innerHTML = `
+                        <div class="text-center p-4 flex flex-col items-center justify-center h-full">
+                            <i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i>
+                            <p class="mt-4 text-lg font-bold">Ошибка в коде диаграммы</p>
+                            <p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис Mermaid.</p>
+                            <pre class="mt-4 text-xs text-left bg-bg-input p-2 rounded-md w-full max-w-sm overflow-auto">${errorMessage}</pre>
+                        </div>`;
+                    errorContainer.textContent = 'Ошибка синтаксиса';
+                    resetZoomBtn.style.display = 'none'; // Скрываем кнопку при ошибке
+                    lucide.createIcons({nodes: [output]});
                 }
             };
             
@@ -1643,6 +1677,7 @@
             };
         
             const debouncedSave = debounce(saveDiagramCode, 750);
+            const debouncedRender = debounce(renderDiagram, 300);
         
             titleInput.addEventListener('change', async () => {
                 if (!state.activeSessionId) return;
@@ -1652,7 +1687,7 @@
             
             codeInput.addEventListener('input', () => {
                 debouncedSave();
-                debounce(renderDiagram, 300)();
+                debouncedRender();
             });
         
             renderDiagram();

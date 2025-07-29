@@ -789,3 +789,8 @@ details[open] > summary .details-arrow {
         background: transparent;
     }
 }
+@media (min-width: 1024px) {
+    #diagram-input {
+        font-size: 18px; /* Вы можете изменить это значение, если 16px покажется мало или много */
+    }
+}

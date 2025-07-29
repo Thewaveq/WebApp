@@ -37,7 +37,6 @@
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script type="module" src="https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.production.min.js"></script>
     
     <!-- Стили вынесены в отдельный файл -->
     <link rel="stylesheet" href="styles.css">
@@ -206,7 +205,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { Excalidraw } from 'https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.production.min.js';
+        import { Excalidraw } from 'https://esm.sh/@excalidraw/excalidraw';
         
         // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
         const app = initializeApp(firebaseConfig);

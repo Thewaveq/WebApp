@@ -795,3 +795,19 @@ details[open] > summary .details-arrow {
 #diagram-code-panel {
     border: none !important;
 }
+
+/* --- СТИЛИ ДЛЯ УТОЛЩЕННОЙ ПОЛОСЫ РЕСАЙЗА НА МОБИЛЬНЫХ --- */
+/* 
+  Эти стили применяются к вертикальному разделителю (gutter), 
+  когда ему через JavaScript добавляется класс .gutter-touch-friendly
+*/
+.gutter.gutter-vertical.gutter-touch-friendly {
+    height: 24px !important; /* Значительно увеличиваем высоту для удобного захвата пальцем. !important нужен, чтобы перебить стили, которые библиотека Split.js ставит напрямую в HTML. */
+    background-color: #2d3748; /* Делаем фон чуть заметнее, чтобы было видно активную область. */
+    
+    /* Добавляем иконку-шеврон для визуальной подсказки */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18l6-6-6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    transform: rotate(90deg); /* Разворачиваем иконку для горизонтального вида */
+}

@@ -858,7 +858,6 @@
                 return messageWrapper;
             }
 
-            // ВАШ ОСТАЛЬНОЙ КОД ДЛЯ ОБЫЧНЫХ СООБЩЕНИЙ ОСТАЛСЯ БЕЗ ИЗМЕНЕНИЙ
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -889,8 +888,6 @@
             }
             
             const contentDiv = document.createElement('div');
-            //contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full'; 
-            //contentDiv.className = 'flex-grow prose max-w-none mt-2 w-full flow-root';
             contentDiv.className = 'prose max-w-none mt-2 w-full';
             let processedContent = String(msg.content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
@@ -1018,8 +1015,14 @@
             messageWrapper.querySelectorAll('pre code').forEach((block) => {
                 const preElement = block.parentElement;
                 if (preElement.querySelector('.copy-code-btn')) return;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'code-block-actions'; // Контейнер для кнопок
+                preElement.appendChild(buttonContainer);
+
                 const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-code-btn';
+                copyBtn.className = 'code-action-btn'; // Общий класс для стилизации
+                copyBtn.title = "Копировать код";
                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
                 copyBtn.addEventListener('click', () => {
                     navigator.clipboard.writeText(block.innerText);
@@ -1027,7 +1030,42 @@
                     setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
                     lucide.createIcons();
                 });
-                preElement.appendChild(copyBtn);
+                buttonContainer.appendChild(copyBtn);
+
+                if (block.classList.contains('language-mermaid')) {
+                    const diagramContainer = document.createElement('div');
+                    diagramContainer.className = 'mermaid-render-container hidden';
+                    preElement.after(diagramContainer);
+
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'code-action-btn';
+                    toggleBtn.title = 'Показать/скрыть диаграмму';
+                    toggleBtn.innerHTML = '<i data-lucide="git-fork" class="w-4 h-4"></i>';
+                    
+                    toggleBtn.addEventListener('click', async () => {
+                        const isHidden = diagramContainer.classList.toggle('hidden');
+                        preElement.classList.toggle('hidden', !isHidden);
+                        const icon = toggleBtn.querySelector('i');
+
+                        if (!isHidden && diagramContainer.innerHTML === '') {
+                            diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+                            try {
+                                const mermaidCode = block.innerText;
+                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), mermaidCode);
+                                diagramContainer.innerHTML = svg;
+                            } catch (err) {
+                                diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки диаграммы.</p>`;
+                                console.error("Ошибка рендеринга Mermaid:", err);
+                            }
+                        }
+                        
+                        icon.setAttribute('data-lucide', isHidden ? 'git-fork' : 'code');
+                        lucide.createIcons();
+                    });
+                    
+                    buttonContainer.appendChild(toggleBtn);
+                }
+
                 hljs.highlightElement(block);
             });
 

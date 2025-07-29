@@ -34,6 +34,10 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script type="module" src="https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.production.min.js"></script>
     
     <!-- Стили вынесены в отдельный файл -->
     <link rel="stylesheet" href="styles.css">
@@ -55,6 +59,9 @@
             </button>
              <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая папка заметок
+            </button>
+             <button id="new-diagram-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая схема
             </button>
         </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
@@ -86,6 +93,9 @@
             </button>
             <button data-tab="notepad" title="Заметки-карточки" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
                 <i data-lucide="notebook" class="w-5 h-5"></i>
+            </button>
+            <button data-tab="diagram" title="Схемы" class="main-nav-item p-3 rounded-md text-text-secondary hover:text-white hover:bg-bg-element transition-colors">
+                <i data-lucide="git-fork" class="w-5 h-5"></i>
             </button>
         
             <!-- Кнопка справа с автоматическим отступом слева -->
@@ -196,7 +206,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
+        import { Excalidraw } from 'https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.production.min.js';
+        
         // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
         const app = initializeApp(firebaseConfig);
         
@@ -213,8 +224,7 @@
         let generationAbortController = null;
         let notificationTimeout = null;
         let attachedFile = null;
-        let currentSpeechUtterance = null;
-        
+    
         let state = {
             activeTab: 'chat',
             activeSessionId: null,
@@ -249,6 +259,7 @@
         const editRoleModal = document.getElementById('edit-role-modal');
         const editRoleForm = document.getElementById('edit-role-form');
         const editRoleCancelBtn = document.getElementById('edit-role-cancel-btn');
+        const newDiagramBtn = document.getElementById('new-diagram-btn');
 
         let editPipelineModal;
         let editPipelineForm;
@@ -417,6 +428,14 @@
                         mainContent.innerHTML = getEmptyStateHTML('notepad');
                     }
                     break;
+                case 'diagram': // НОВЫЙ БЛОК
+                     if (activeSession) {
+                        mainContent.innerHTML = getDiagramViewHTML();
+                        renderDiagramView(activeSession);
+                    } else {
+                        mainContent.innerHTML = getEmptyStateHTML('diagram');
+                    }
+                    break;
                 case 'settings':
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
@@ -434,6 +453,7 @@
             });
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+            newDiagramBtn.classList.toggle('hidden', state.activeTab !== 'diagram');
         }
 
         function renderNotepadCards(session) {
@@ -543,10 +563,12 @@
             const iconMap = {
                 'chat': 'message-square',
                 'notepad': 'notebook'
+                'diagram': 'git-fork'
             };
             const textMap = {
                 'chat': 'Выберите чат или создайте новый',
-                'notepad': 'Выберите папку с заметками-карточками или создайте новую'
+                'notepad': 'Выберите папку с заметками-карточками или создайте новую',
+                'diagram': 'Выберите схему или создайте новую'
             };
             const icon = iconMap[type] || 'alert-circle';
             const text = textMap[type] || 'Выберите элемент';
@@ -763,6 +785,53 @@
                 </div>
             `;
         }
+
+        function getDiagramViewHTML() {
+            return `<div id="diagram-container" class="w-full h-full bg-bg-main"></div>`;
+        }
+        
+        function renderDiagramView(session) {
+            const diagramContainer = document.getElementById('diagram-container');
+            if (!diagramContainer) return;
+
+            const root = ReactDOM.createRoot(diagramContainer);
+
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        func.apply(this, args);
+                    }, delay);
+                };
+            };
+
+            const saveDiagramData = debounce(async (elements, appState) => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                
+                const minimalAppState = {
+                     viewBackgroundColor: appState.viewBackgroundColor,
+                     gridSize: appState.gridSize,
+                };
+
+                await updateDoc(sessionRef, {
+                    elements: elements,
+                    appState: minimalAppState,
+                    updatedAt: serverTimestamp()
+                });
+            }, 1000); 
+
+            root.render(React.createElement(Excalidraw, {
+                initialData: {
+                    elements: session.elements || [],
+                    appState: session.appState || {},
+                },
+                onChange: saveDiagramData,
+                langCode: "ru-RU",
+                theme: "dark",
+            }));
+        }
         
         function getCardHTML(card) {
             const title = card.title ? card.title.replace(/"/g, '"') : '';
@@ -957,68 +1026,14 @@
             actionsContainer.appendChild(moreOptionsBtn);
             actionsContainer.appendChild(dropdownMenu);
             actionsOuterContainer.appendChild(actionsContainer);
-            
             const leftActionsContainer = document.createElement('div');
             leftActionsContainer.className = 'absolute bottom-1 left-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
-            
             const fullscreenButton = document.createElement('button');
             fullscreenButton.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
             fullscreenButton.title = 'Открыть в полном окне';
             fullscreenButton.innerHTML = `<i data-lucide="maximize" class="w-4 h-4"></i>`;
             fullscreenButton.addEventListener('click', () => { showFullscreenMessage(msg.content); });
             leftActionsContainer.appendChild(fullscreenButton);
-
-            if (!isUser) {
-                const ttsButton = document.createElement('button');
-                ttsButton.className = 'tts-play-btn p-1 text-text-secondary hover:text-accent transition-colors';
-                ttsButton.title = 'Прослушать ответ';
-                ttsButton.innerHTML = `<i data-lucide="play-circle" class="w-4 h-4"></i>`;
-                
-                ttsButton.addEventListener('click', () => {
-                    const allTtsButtons = document.querySelectorAll('.tts-play-btn i');
-                    
-                    if (speechSynthesis.speaking) {
-                        speechSynthesis.cancel();
-                        if (currentSpeechUtterance && currentSpeechUtterance.text.includes(msg.content.substring(20, 80))) {
-                             currentSpeechUtterance = null;
-                             return;
-                        }
-                    }
-
-                    allTtsButtons.forEach(icon => {
-                        const btn = icon.closest('button');
-                        if (btn !== ttsButton) {
-                           icon.setAttribute('data-lucide', 'play-circle');
-                           lucide.createIcons({nodes: [btn]});
-                        }
-                    });
-                    
-                    const utterance = new SpeechSynthesisUtterance();
-                    const cleanContent = (msg.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '');
-                    utterance.text = cleanContent;
-                    utterance.lang = 'ru-RU';
-                    currentSpeechUtterance = utterance;
-
-                    utterance.onend = () => {
-                        ttsButton.innerHTML = `<i data-lucide="play-circle" class="w-4 h-4"></i>`;
-                        lucide.createIcons({ nodes: [ttsButton] });
-                        currentSpeechUtterance = null;
-                    };
-                    utterance.onerror = (event) => {
-                        console.error('Ошибка синтеза речи:', event.error);
-                        ttsButton.innerHTML = `<i data-lucide="play-circle" class="w-4 h-4"></i>`;
-                        lucide.createIcons({ nodes: [ttsButton] });
-                        currentSpeechUtterance = null;
-                    };
-
-                    speechSynthesis.speak(utterance);
-                    
-                    ttsButton.innerHTML = `<i data-lucide="stop-circle" class="w-4 h-4"></i>`;
-                    lucide.createIcons({ nodes: [ttsButton] });
-                });
-
-                leftActionsContainer.appendChild(ttsButton);
-            }
             
             messageWrapper.appendChild(headerDiv);
             messageWrapper.appendChild(contentDiv);
@@ -1572,7 +1587,6 @@
         
         async function handleChatSubmit(e) {
             e.preventDefault();
-            speechSynthesis.cancel();
             const input = document.getElementById('chat-input');
             const messageContent = input.value.trim();
             
@@ -2189,7 +2203,6 @@
             // --- НАВИГАЦИЯ И СОЗДАНИЕ ЭЛЕМЕНТОВ ---
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
-                    speechSynthesis.cancel();
                     state.activeTab = item.dataset.tab;
                     if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                         const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
@@ -2223,6 +2236,15 @@
                         createdAt: serverTimestamp(), 
                         updatedAt: serverTimestamp() 
                     };
+                } else if (type === 'diagram') {
+                    newSessionData = { 
+                        type: 'diagram', 
+                        title: 'Новая схема', 
+                        elements: [],
+                        appState: {},
+                        createdAt: serverTimestamp(), 
+                        updatedAt: serverTimestamp() 
+                    };
                 }
                 
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
@@ -2237,6 +2259,7 @@
         
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+            newDiagramBtn.addEventListener('click', () => createNewItem('diagram'));
 
             // --- УПРАВЛЕНИЕ БОКОВОЙ ПАНЕЛЬЮ ---
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
@@ -2301,7 +2324,6 @@
     
                 const handleRegeneration = (clickedBtn, messageIndex, sliceEnd) => {
                     if (state.loadingSessionId) return;
-                    speechSynthesis.cancel();
                     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
                     if (!activeSession || isNaN(messageIndex)) return;
                     requestConfirmationInMenu(clickedBtn, async () => {

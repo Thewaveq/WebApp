@@ -1012,43 +1012,48 @@
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
 
-            messageWrapper.querySelectorAll('pre code').forEach((block) => {
-                const preElement = block.parentElement;
-                
-                if (!preElement.querySelector('.copy-code-btn')) {
-                    const buttonContainer = preElement.querySelector('.code-block-actions') || document.createElement('div');
-                    if (!buttonContainer.classList.contains('code-block-actions')) {
-                         buttonContainer.className = 'code-block-actions';
-                         preElement.appendChild(buttonContainer);
-                    }
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'code-action-btn copy-code-btn';
-                    copyBtn.title = "Копировать код";
-                    copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                    copyBtn.addEventListener('click', () => {
-                        navigator.clipboard.writeText(block.innerText);
-                        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                        setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
-                        lucide.createIcons();
-                    });
-                    buttonContainer.appendChild(copyBtn);
-                }
-
-                if (block.classList.contains('language-mermaid') && !preElement.closest('.diagram-wrapper')) {
+            messageWrapper.querySelectorAll('pre').forEach((preElement) => {
+                 const codeBlock = preElement.querySelector('code');
+                 if (!codeBlock) return;
+                 
+                 // Логика для Mermaid
+                 if (codeBlock.classList.contains('language-mermaid') && !preElement.closest('.diagram-wrapper')) {
                     const diagramWrapper = document.createElement('div');
                     diagramWrapper.className = 'diagram-wrapper';
 
                     const diagramContainer = document.createElement('div');
                     diagramContainer.className = 'mermaid-render-container hidden';
 
+                    // --- ИСПРАВЛЕНИЕ: СОЗДАЕМ ОДИН КОНТЕЙНЕР ДЛЯ КНОПОК ---
+                    const buttonsContainer = document.createElement('div');
+                    buttonsContainer.className = 'diagram-actions-container';
+
+                    // Кнопка КОПИРОВАНИЯ для диаграммы
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'code-action-btn';
+                    copyBtn.title = 'Копировать код диаграммы';
+                    copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                    copyBtn.addEventListener('click', () => {
+                         navigator.clipboard.writeText(codeBlock.innerText);
+                         copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                         setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
+                         lucide.createIcons();
+                    });
+
+                    // Кнопка ПЕРЕКЛЮЧЕНИЯ
                     const toggleBtn = document.createElement('button');
-                    toggleBtn.className = 'code-action-btn diagram-toggle-btn';
+                    toggleBtn.className = 'code-action-btn';
                     toggleBtn.title = 'Показать/скрыть диаграмму';
                     toggleBtn.innerHTML = '<i data-lucide="git-fork" class="w-4 h-4"></i>';
-
+                    
+                    // Добавляем обе кнопки в их общий контейнер
+                    buttonsContainer.appendChild(copyBtn);
+                    buttonsContainer.appendChild(toggleBtn);
+                    
+                    // Собираем всё вместе
                     diagramWrapper.appendChild(preElement.cloneNode(true));
                     diagramWrapper.appendChild(diagramContainer);
-                    diagramWrapper.appendChild(toggleBtn);
+                    diagramWrapper.appendChild(buttonsContainer); // Добавляем контейнер с кнопками
                     
                     preElement.replaceWith(diagramWrapper);
 
@@ -1058,22 +1063,35 @@
                         codeToShow.classList.toggle('hidden', !isDiagramHidden);
 
                         if (!isDiagramHidden && diagramContainer.innerHTML === '') {
-                             diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+                            diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
                             try {
-                                const mermaidCode = codeToShow.querySelector('code').innerText;
-                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), mermaidCode);
+                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
                                 diagramContainer.innerHTML = svg;
                             } catch (err) {
                                 diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки диаграммы.</p>`;
-                                console.error("Ошибка рендеринга Mermaid:", err);
                             }
                         }
                         toggleBtn.querySelector('i').setAttribute('data-lucide', isDiagramHidden ? 'git-fork' : 'code');
                         lucide.createIcons({nodes: [toggleBtn]});
                     });
-                }
-
-                hljs.highlightElement(block);
+                 // Логика для обычных блоков кода (только кнопка копирования)
+                 } else if (!preElement.querySelector('.copy-code-btn')) {
+                     const buttonContainer = document.createElement('div');
+                     buttonContainer.className = 'code-block-actions';
+                     const copyBtn = document.createElement('button');
+                     copyBtn.className = 'code-action-btn copy-code-btn';
+                     copyBtn.title = "Копировать код";
+                     copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                     copyBtn.addEventListener('click', () => {
+                         navigator.clipboard.writeText(codeBlock.innerText);
+                         copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                         setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
+                         lucide.createIcons();
+                     });
+                     buttonContainer.appendChild(copyBtn);
+                     preElement.appendChild(buttonContainer);
+                 }
+                 hljs.highlightElement(codeBlock);
             });
 
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });

@@ -1563,15 +1563,16 @@
         
             const storageKey = 'diagramSplitterSizes';
             let splitInstance = null;
-            let panzoomInstance = null;
+            let currentLayout = ''; // Переменная для отслеживания текущего режима (mobile/desktop)
         
             // Вспомогательная функция для обновления стиля разделителя
             const updateGutterStyle = (sizes) => {
-                if (!splitInstance || !splitInstance.gutters[0]) return;
+                // Убеждаемся, что сплиттер и его разделитель существуют
+                if (!splitInstance || !splitInstance.gutters || !splitInstance.gutters[0]) return;
                 const gutter = splitInstance.gutters[0];
         
                 const isMobileLayout = window.innerWidth < 1024;
-                // Проверяем, свернута ли одна из панелей (размер почти равен 0)
+                // Проверяем, свернута ли одна из панелей (размер меньше 1%)
                 const isCollapsed = sizes[0] < 1 || sizes[1] < 1;
         
                 // Применяем класс, только если мы на мобильном И одна из панелей свернута
@@ -1582,17 +1583,8 @@
                 }
             };
         
-            const debounce = (func, delay) => {
-                let timeoutId;
-                return (...args) => {
-                    clearTimeout(timeoutId);
-                    timeoutId = setTimeout(() => {
-                        func.apply(this, args);
-                    }, delay);
-                };
-            };
-        
             function initializeSplitter() {
+                // Если сплиттер уже существует, уничтожаем его перед созданием нового
                 if (splitInstance) {
                     splitInstance.destroy();
                 }
@@ -1606,26 +1598,35 @@
                     gutterSize: 10,
                     direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
-                    // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Вызываем нашу функцию в onDrag и onDragEnd
-                    onDrag: updateGutterStyle,
+                    onDrag: updateGutterStyle, // Обновляем стиль во время перетаскивания
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
-                        // Обновляем стиль и после окончания перетаскивания
-                        updateGutterStyle(sizes);
+                        updateGutterStyle(sizes); // И после завершения
                     }
                 });
         
-                // Применяем стиль сразу при загрузке, на случай если окно уже было свернуто
-                updateGutterStyle(initialSizes);
+                // Применяем стиль сразу при инициализации
+                updateGutterStyle(splitInstance.getSizes());
             }
         
-            // Инициализируем при загрузке
-            initializeSplitter();
+            // ИСПРАВЛЕННАЯ ЛОГИКА:
+            // Создаем обработчик изменения размера окна, который не ломает сплиттер.
+            const handleResize = () => {
+                const newLayout = window.innerWidth < 1024 ? 'mobile' : 'desktop';
+                // Пересоздаем сплиттер ТОЛЬКО если мы пересекли границу 1024px
+                if (newLayout !== currentLayout) {
+                    currentLayout = newLayout;
+                    initializeSplitter();
+                }
+            };
+            
+            // Запускаем обработчик один раз, чтобы установить начальный layout
+            handleResize(); 
         
-            // ИСПРАВЛЕНИЕ: Пере-инициализируем сплиттер при изменении размера окна
-            // Это нужно, чтобы он корректно переключался между вертикальным и горизонтальным режимом
-            window.addEventListener('resize', debounce(initializeSplitter, 250));
+            // Вешаем слушатель на изменение размера окна
+            window.addEventListener('resize', handleResize);
         
+            // --- Остальной код функции остается без изменений ---
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';
@@ -1651,7 +1652,6 @@
                     panzoomInstance.dispose();
                     panzoomInstance = null;
                 }
-        
                 const diagramCode = codeInput.value.trim();
                 if (!diagramCode) {
                     output.innerHTML = '<p class="text-text-secondary">Начните вводить код слева...</p>';
@@ -1659,21 +1659,18 @@
                     resetZoomBtn.style.display = 'none';
                     return;
                 }
-        
                 try {
                     await mermaid.parse(diagramCode);
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
                     errorContainer.textContent = '';
-        
                     const svgElement = output.querySelector('svg');
                     if (svgElement) {
                         svgElement.style.cursor = 'grab';
                         panzoomInstance = panzoom(svgElement, { maxZoom: 5, minZoom: 0.1 });
                         resetZoomBtn.style.display = 'block';
                     }
-        
                 } catch (error) {
                     const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
                     output.innerHTML = `
@@ -1687,6 +1684,22 @@
                     resetZoomBtn.style.display = 'none';
                     lucide.createIcons({ nodes: [output] });
                 }
+            };
+        
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        func.apply(this, args);
+                    }, delay);
+                };
+            };
+        
+            const saveDiagramCode = async () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                await updateDoc(sessionRef, { code: codeInput.value, updatedAt: serverTimestamp() });
             };
         
             const debouncedSave = debounce(saveDiagramCode, 750);

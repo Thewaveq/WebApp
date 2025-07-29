@@ -796,11 +796,6 @@ details[open] > summary .details-arrow {
     border: none !important;
 }
 
-/* --- СТИЛИ ДЛЯ УТОЛЩЕННОЙ ПОЛОСЫ РЕСАЙЗА НА МОБИЛЬНЫХ --- */
-/* 
-  Эти стили применяются к вертикальному разделителю (gutter), 
-  когда ему через JavaScript добавляется класс .gutter-touch-friendly
-*/
 .gutter.gutter-vertical.gutter-touch-friendly {
     height: 24px !important; /* Значительно увеличиваем высоту для удобного захвата пальцем. !important нужен, чтобы перебить стили, которые библиотека Split.js ставит напрямую в HTML. */
     background-color: #2d3748; /* Делаем фон чуть заметнее, чтобы было видно активную область. */
@@ -810,4 +805,24 @@ details[open] > summary .details-arrow {
     background-repeat: no-repeat;
     background-position: center;
     transform: rotate(90deg); /* Разворачиваем иконку для горизонтального вида */
+}
+
+/* --- СТИЛИ ДЛЯ БОЛЬШОЙ РУКОЯТКИ РЕСАЙЗА НА МОБИЛЬНЫХ --- */
+#diagram-gutter-touch-handle {
+    position: absolute;
+    z-index: 20; /* Должен быть выше контента, но ниже модальных окон */
+    background-color: transparent; /* Рукоятка невидима */
+    cursor: row-resize;
+    /* Размеры рукоятки */
+    width: 100%;
+    height: 40px; /* Большая высота для удобного захвата пальцем */
+    /* Центрируем рукоятку относительно реального разделителя */
+    transform: translateY(-50%); 
+}
+
+/* На десктопе эта рукоятка нам не нужна, скрываем ее */
+@media (min-width: 1024px) {
+    #diagram-gutter-touch-handle {
+        display: none !important;
+    }
 }

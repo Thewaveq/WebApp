@@ -771,9 +771,10 @@ details[open] > summary .details-arrow {
 .gutter.gutter-horizontal {
     cursor: col-resize;
 }
+
 .gutter.gutter-vertical {
     cursor: row-resize;
-    position: relative;
+    position: relative; 
 }
 
 @media (max-width: 1023px) {

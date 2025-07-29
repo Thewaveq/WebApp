@@ -31,6 +31,8 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
+    
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -680,22 +682,21 @@
             const code = activeSession.code || '';
             return `
             <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
-                {/* --- Панель для ввода кода (адаптивная) --- */}
-                <div class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color">
+                <!-- Панель для ввода кода (добавлен id) -->
+                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
                     <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Введите код диаграммы здесь...">${code}</textarea>
                 </div>
         
-                {/* --- Панель для предпросмотра (адаптивная) --- */}
-                <div class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full">
+                <!-- Панель для предпросмотра (добавлен id) -->
+                <div id="diagram-preview-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full">
                      <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
                         <h3 class="font-semibold text-lg">Результат</h3>
                         <div id="diagram-error-container" class="text-xs text-red-400"></div>
                      </div>
                      <div id="diagram-output" class="w-full h-full p-4 overflow-auto flex items-center justify-center bg-bg-main">
-                        {/* Диаграмма будет отрендерена здесь */}
                      </div>
                 </div>
             </div>

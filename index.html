@@ -682,17 +682,17 @@
         function getDiagramsViewHTML(activeSession) {
             const code = activeSession.code || '';
             return `
-            <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
-                <!-- Панель для ввода кода (добавлен id) -->
-                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color">
+            <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full overflow-hidden">
+                <!-- Панель для ввода кода (добавлены классы min-w-0 min-h-0) -->
+                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color min-w-0 min-h-0">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
-                    <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Введите код диаграммы здесь...">${code}</textarea>
+                    <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm">${code}</textarea>
                 </div>
         
-                <!-- Панель для предпросмотра (добавлен id) -->
-                <div id="diagram-preview-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full">
+                <!-- Панель для предпросмотра (добавлены классы min-w-0 min-h-0) -->
+                <div id="diagram-preview-panel" class="relative flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full min-w-0 min-h-0">
                      <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
                         <h3 class="font-semibold text-lg">Результат</h3>
                         <div id="diagram-error-container" class="text-xs text-red-400"></div>
@@ -1562,23 +1562,21 @@
             const codeInput = document.getElementById('diagram-input');
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
-            const previewPanel = document.getElementById('diagram-preview-panel'); // Получаем панель предпросмотра
+            const previewPanel = document.getElementById('diagram-preview-panel');
         
             const storageKey = 'diagramSplitterSizes';
             let splitInstance = null;
-            let panzoomInstance = null; // Переменная для хранения экземпляра panzoom
+            let panzoomInstance = null;
         
             function initializeSplitter() {
                 if (splitInstance) {
                     splitInstance.destroy();
                 }
-        
                 const isMobile = window.innerWidth < 1024;
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
-        
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
-                    minSize: 0, // <-- РЕШЕНИЕ №1: Позволяет полностью сворачивать панель
+                    minSize: 0,
                     gutterSize: 10,
                     direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
@@ -1590,7 +1588,6 @@
         
             initializeSplitter();
         
-            // Добавляем кнопку сброса зума в панель предпросмотра
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';
@@ -1601,7 +1598,6 @@
                     panzoomInstance.zoomAbs(0, 0, 1);
                 }
             });
-            previewPanel.style.position = 'relative';
             previewPanel.appendChild(resetZoomBtn);
             lucide.createIcons({ nodes: [resetZoomBtn] });
         
@@ -1613,7 +1609,6 @@
             mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter, sans-serif' });
         
             const renderDiagram = async () => {
-                // Перед рендерингом уничтожаем старый экземпляр panzoom, если он есть
                 if (panzoomInstance) {
                     panzoomInstance.dispose();
                     panzoomInstance = null;
@@ -1623,40 +1618,40 @@
                 if (!diagramCode) {
                     output.innerHTML = '<p class="text-text-secondary">Начните вводить код слева...</p>';
                     errorContainer.textContent = '';
-                    resetZoomBtn.style.display = 'none'; // Скрываем кнопку, если нет диаграммы
+                    resetZoomBtn.style.display = 'none';
                     return;
                 }
         
                 try {
+                    // <-- РЕШЕНИЕ №2: Сначала парсим, чтобы перехватить ошибку ДО рендеринга
+                    await mermaid.parse(diagramCode);
+        
+                    // Если парсинг прошел успешно, рендерим
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
                     errorContainer.textContent = '';
         
-                    // <-- РЕШЕНИЕ №3: Инициализация panzoom на новой диаграмме
                     const svgElement = output.querySelector('svg');
                     if (svgElement) {
                         svgElement.style.cursor = 'grab';
-                        panzoomInstance = panzoom(svgElement, {
-                            maxZoom: 5,
-                            minZoom: 0.1
-                        });
-                        resetZoomBtn.style.display = 'block'; // Показываем кнопку сброса
+                        panzoomInstance = panzoom(svgElement, { maxZoom: 5, minZoom: 0.1 });
+                        resetZoomBtn.style.display = 'block';
                     }
         
                 } catch (error) {
-                    // <-- РЕШЕНИЕ №2: Улучшенная обработка ошибок
+                    // Теперь мы ловим ошибку от parse() и безопасно выводим ее
                     const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
                     output.innerHTML = `
                         <div class="text-center p-4 flex flex-col items-center justify-center h-full">
                             <i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i>
                             <p class="mt-4 text-lg font-bold">Ошибка в коде диаграммы</p>
-                            <p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис Mermaid.</p>
+                            <p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис.</p>
                             <pre class="mt-4 text-xs text-left bg-bg-input p-2 rounded-md w-full max-w-sm overflow-auto">${errorMessage}</pre>
                         </div>`;
                     errorContainer.textContent = 'Ошибка синтаксиса';
-                    resetZoomBtn.style.display = 'none'; // Скрываем кнопку при ошибке
-                    lucide.createIcons({nodes: [output]});
+                    resetZoomBtn.style.display = 'none';
+                    lucide.createIcons({ nodes: [output] });
                 }
             };
             

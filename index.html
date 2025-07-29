@@ -1016,7 +1016,6 @@
                  const codeBlock = preElement.querySelector('code');
                  if (!codeBlock) return;
                  
-                 // Логика для Mermaid
                  if (codeBlock.classList.contains('language-mermaid') && !preElement.closest('.diagram-wrapper')) {
                     const diagramWrapper = document.createElement('div');
                     diagramWrapper.className = 'diagram-wrapper';
@@ -1024,11 +1023,9 @@
                     const diagramContainer = document.createElement('div');
                     diagramContainer.className = 'mermaid-render-container';
 
-                    // --- ИСПРАВЛЕНИЕ: СОЗДАЕМ ОДИН КОНТЕЙНЕР ДЛЯ КНОПОК ---
                     const buttonsContainer = document.createElement('div');
                     buttonsContainer.className = 'diagram-actions-container';
 
-                    // Кнопка КОПИРОВАНИЯ для диаграммы
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'code-action-btn';
                     copyBtn.title = 'Копировать код диаграммы';
@@ -1040,28 +1037,24 @@
                          lucide.createIcons();
                     });
 
-                    // Кнопка ПЕРЕКЛЮЧЕНИЯ
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'code-action-btn';
                     toggleBtn.title = 'Показать/скрыть код';
                     toggleBtn.innerHTML = '<i data-lucide="code" class="w-4 h-4"></i>';
-                     
                     
-                    // Добавляем обе кнопки в их общий контейнер
                     buttonsContainer.appendChild(copyBtn);
                     buttonsContainer.appendChild(toggleBtn);
                     
-                    // Собираем всё вместе
                     const codePreElement = preElement.cloneNode(true);
                     codePreElement.classList.add('hidden');
+                    
                     diagramWrapper.appendChild(codePreElement);
-                     
                     diagramWrapper.appendChild(diagramContainer);
                     diagramWrapper.appendChild(buttonsContainer);
                     
                     preElement.replaceWith(diagramWrapper);
 
-                     (async () => {
+                    (async () => {
                         try {
                             const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
                             diagramContainer.innerHTML = svg;
@@ -1069,17 +1062,14 @@
                             diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки.</p>`;
                         }
                     })();
-                    
-                    // Новый обработчик, который просто переключает видимость
+
                     toggleBtn.addEventListener('click', () => {
                         const isCodeHidden = codePreElement.classList.toggle('hidden');
                         diagramContainer.classList.toggle('hidden', !isCodeHidden);
                         
-                        // Меняем иконку на кнопке
                         toggleBtn.querySelector('i').setAttribute('data-lucide', isCodeHidden ? 'code' : 'git-fork');
                         lucide.createIcons({nodes: [toggleBtn]});
                     });
-                 // Логика для обычных блоков кода (только кнопка копирования)
                  } else if (!preElement.querySelector('.copy-code-btn')) {
                      const buttonContainer = document.createElement('div');
                      buttonContainer.className = 'code-block-actions';
@@ -1095,8 +1085,9 @@
                      });
                      buttonContainer.appendChild(copyBtn);
                      preElement.appendChild(buttonContainer);
+
+                     hljs.highlightElement(codeBlock);
                  }
-                 hljs.highlightElement(codeBlock);
             });
 
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });

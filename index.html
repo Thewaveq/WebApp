@@ -204,13 +204,13 @@
         </div>
     </div>
     <script type="module">
-        document.addEventListener('DOMContentLoaded', () => {
-                // --- ИМПОРТЫ ---
-                console.log("--- НОВЫЙ СКРИПТ УСПЕШНО ЗАПУЩЕН ---");
-                import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-                import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-                import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // --- ИМПОРТЫ ---
+        console.log("--- НОВЫЙ СКРИПТ УСПЕШНО ЗАПУЩЕН ---");
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
+        document.addEventListener('DOMContentLoaded', () => {
                 const React = window.React;
                 const ReactDOM = window.ReactDOM;
                 const { Excalidraw } = window.Excalidraw; 

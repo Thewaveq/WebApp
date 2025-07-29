@@ -761,3 +761,37 @@ details[open] > summary .details-arrow {
     margin: 0.5rem 0;
     border: none;
 }
+
+/* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
+.gutter {
+    background-color: #37373d; /* Цвет, похожий на вашу border-color */
+    background-repeat: no-repeat;
+    background-position: 50%;
+}
+
+/* Вертикальный разделитель (для десктопа) */
+.gutter.gutter-horizontal {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjN2Y4MDhmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSI1IiByPSIxIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMSIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTkiIHI9IjEiLz48L3N2Zz4=');
+    cursor: col-resize;
+    width: 10px; /* Ширина области для перетаскивания */
+    border-left: 1px solid #37373d;
+    border-right: 1px solid #37373d;
+}
+
+/* Горизонтальный разделитель (для мобильных) */
+.gutter.gutter-vertical {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjN2Y4MDhmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNSIgY3k9IjEyIiByPSIxIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMSIvPjxjaXJjbGUgY3g9IjE5IiBjeT0iMTIiIHI9IjEiLz48L3N2Zz4=');
+    cursor: row-resize;
+    height: 10px; /* Высота области для перетаскивания */
+    border-top: 1px solid #37373d;
+    border-bottom: 1px solid #37373d;
+}
+
+.gutter:hover {
+    background-color: #4a4a52; /* Цвет при наведении */
+}
+
+/* Убираем лишние границы, которые мы задавали панелям ранее */
+#diagram-code-panel {
+    border: none !important;
+}

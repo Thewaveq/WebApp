@@ -682,9 +682,9 @@
         function getDiagramsViewHTML(activeSession) {
             const code = activeSession.code || '';
             return `
-            <div id="diagram-editor-container" class="relative flex flex-col lg:flex-row h-full w-full">
-                <div id="diagram-gutter-touch-handle" class="hidden"></div>
-                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color min-h-0 overflow-hidden">
+            <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
+                {/* Панель для ввода кода */}
+                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full min-h-0 overflow-hidden">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
@@ -1562,72 +1562,33 @@
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
             const previewPanel = document.getElementById('diagram-preview-panel');
-            
-            // Получаем новые элементы
-            const container = document.getElementById('diagram-editor-container');
-            const touchHandle = document.getElementById('diagram-gutter-touch-handle');
-
+        
             const storageKey = 'diagramSplitterSizes';
             let splitInstance = null;
-            let currentLayout = ''; // 'mobile' или 'desktop'
             let panzoomInstance = null;
-            
-            // Функция для позиционирования нашей большой рукоятки поверх реального разделителя
-            const positionTouchHandle = () => {
-                if (!splitInstance || !splitInstance.gutters[0] || !isMobileMode()) {
-                    touchHandle.classList.add('hidden');
-                    return;
-                }
-                const gutter = splitInstance.gutters[0];
-                const gutterRect = gutter.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
-                // Рассчитываем позицию рукоятки относительно родительского контейнера
-                const top = (gutterRect.top - containerRect.top) + (gutterRect.height / 2);
-                touchHandle.style.top = `${top}px`;
-                touchHandle.classList.remove('hidden');
-            };
-
-            const isMobileMode = () => window.innerWidth < 1024;
-            
+        
             function initializeSplitter() {
-                if (splitInstance) {
-                    splitInstance.destroy();
-                }
+                // Если сплиттер уже создан, ничего не делаем.
+                // Он будет создан только ОДИН раз. ЭТО ИСПРАВЛЯЕТ ВЬЮПОРТ И "ЗАЛИПАНИЕ" МЫШИ.
+                if (splitInstance) return;
 
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
 
+                // Библиотека сама определит направление из CSS. Это самая стабильная конфигурация.
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
                     gutterSize: 10,
-                    direction: isMobileMode() ? 'vertical' : 'horizontal',
-                    cursor: isMobileMode() ? 'row-resize' : 'col-resize',
-                    // Когда мы тащим разделитель, двигаем и нашу рукоятку
-                    onDrag: positionTouchHandle,
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
                     }
                 });
-
-                // После инициализации сразу позиционируем рукоятку
-                positionTouchHandle();
             }
-            
-            // Простая и надежная логика обновления при ресайзе
-            const handleResize = () => {
-                const newLayout = isMobileMode() ? 'mobile' : 'desktop';
-                // Пересоздаем сплиттер, ТОЛЬКО если мы пересекли границу
-                if (newLayout !== currentLayout) {
-                    currentLayout = newLayout;
-                    initializeSplitter();
-                }
-            };
-            
-            handleResize(); // Устанавливаем начальное состояние
-            window.addEventListener('resize', handleResize); // И следим за изменениями
-
-            // --- Остальной код функции без изменений ---
+        
+            // Инициализируем сплиттер один раз при загрузке.
+            initializeSplitter();
+        
+            // --- Остальной код функции, который работал правильно, остается без изменений ---
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';

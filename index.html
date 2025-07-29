@@ -431,8 +431,11 @@
                     break;
                 case 'diagram': // НОВЫЙ БЛОК
                      if (activeSession) {
-                        mainContent.innerHTML = getDiagramViewHTML();
-                        renderDiagramView(activeSession);
+                        mainContent.innerHTML = ''; 
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'relative w-full h-full'; // Обертка с относительным позиционированием
+                        mainContent.appendChild(wrapper);
+                        renderDiagramView(wrapper, activeSession);
                     } else {
                         mainContent.innerHTML = getEmptyStateHTML('diagram');
                     }
@@ -791,12 +794,22 @@
             return `<div id="diagram-container" class="w-full h-full bg-bg-main"></div>`;
         }
         
-        function renderDiagramView(session) {
-            const diagramContainer = document.getElementById('diagram-container');
-            if (!diagramContainer) return;
-
-            const root = ReactDOM.createRoot(diagramContainer);
-
+        function renderDiagramView(container, session) {
+            if (!container) return;
+        
+            // 1. Создаем узел, в который будет монтироваться Excalidraw
+            const excalidrawNode = document.createElement('div');
+            // 2. Стилями заставляем его абсолютно заполнить родительский контейнер
+            excalidrawNode.style.position = 'absolute';
+            excalidrawNode.style.top = '0';
+            excalidrawNode.style.left = '0';
+            excalidrawNode.style.width = '100%';
+            excalidrawNode.style.height = '100%';
+            container.appendChild(excalidrawNode);
+        
+            // 3. Монтируем React в этот новый узел
+            const root = ReactDOM.createRoot(excalidrawNode);
+        
             const debounce = (func, delay) => {
                 let timeoutId;
                 return (...args) => {
@@ -806,7 +819,7 @@
                     }, delay);
                 };
             };
-
+        
             const saveDiagramData = debounce(async (elements, appState) => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -815,14 +828,14 @@
                      viewBackgroundColor: appState.viewBackgroundColor,
                      gridSize: appState.gridSize,
                 };
-
+        
                 await updateDoc(sessionRef, {
                     elements: elements,
                     appState: minimalAppState,
                     updatedAt: serverTimestamp()
                 });
             }, 1000); 
-
+        
             root.render(React.createElement(Excalidraw, {
                 initialData: {
                     elements: session.elements || [],

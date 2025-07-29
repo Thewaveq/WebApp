@@ -682,13 +682,15 @@
         function getDiagramsViewHTML(activeSession) {
             const code = activeSession.code || '';
             return `
-            <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
+            <div id="diagram-editor-container" class="relative flex flex-col lg:flex-row h-full w-full">
+                <div id="diagram-gutter-touch-handle" class="hidden"></div>
                 <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color min-h-0 overflow-hidden">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
                     <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm">${code}</textarea>
                 </div>
+        
                 <div id="diagram-preview-panel" class="relative flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full min-h-0 overflow-hidden">
                      <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
                         <h3 class="font-semibold text-lg">Результат</h3>

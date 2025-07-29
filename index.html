@@ -210,27 +210,26 @@
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        document.addEventListener('DOMContentLoaded', () => {
-                const React = window.React;
-                const ReactDOM = window.ReactDOM;
-                const { Excalidraw } = window.Excalidraw; 
+        const React = window.React;
+        const ReactDOM = window.ReactDOM;
+        const { Excalidraw } = window.Excalidraw; 
+
+        // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
+        const app = initializeApp(firebaseConfig);
                 
-                // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
-                const app = initializeApp(firebaseConfig);
-                
-                // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             
-                let db = getFirestore(app);
-                let auth = getAuth(app);
-                let userId;
-                let unsubscribeSessions = () => {};
-                let unsubscribeProviders = () => {};
-                let unsubscribeRoles = () => {};
-                let unsubscribePipelines = () => {};
-                let generationAbortController = null;
-                let notificationTimeout = null;
-                let attachedFile = null;
+        let db = getFirestore(app);
+        let auth = getAuth(app);
+        let userId;
+        let unsubscribeSessions = () => {};
+        let unsubscribeProviders = () => {};
+        let unsubscribeRoles = () => {};
+        let unsubscribePipelines = () => {};
+        let generationAbortController = null;
+        let notificationTimeout = null;
+        let attachedFile = null;
             
                 let state = {
                     activeTab: 'chat',
@@ -271,7 +270,7 @@
                 let editPipelineModal;
                 let editPipelineForm;
                 let editPipelineCancelBtn;
-                
+        document.addEventListener('DOMContentLoaded', () => {
                 // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
                 function loadUserPreferences() {
                     const savedCompactMode = localStorage.getItem('chatViewCompact');

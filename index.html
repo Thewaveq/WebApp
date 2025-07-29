@@ -1016,14 +1016,13 @@
                  const codeBlock = preElement.querySelector('code');
                  if (!codeBlock) return;
                  
-                 // Логика для Mermaid
                  if (codeBlock.classList.contains('language-mermaid') && !preElement.closest('.diagram-wrapper')) {
                     const diagramWrapper = document.createElement('div');
                     diagramWrapper.className = 'diagram-wrapper';
                     
-                    const codeToShow = preElement.cloneNode(true); // Клон блока с кодом
+                    const codeToShow = preElement.cloneNode(true);
                     const diagramContainer = document.createElement('div');
-                    diagramContainer.className = 'mermaid-render-container hidden'; // Диаграмма изначально скрыта
+                    diagramContainer.className = 'mermaid-render-container hidden';
 
                     const buttonsContainer = document.createElement('div');
                     buttonsContainer.className = 'diagram-actions-container';
@@ -1053,47 +1052,42 @@
                     
                     preElement.replaceWith(diagramWrapper);
 
-                    // --- НОВАЯ БЕЗОПАСНАЯ ЛОГИКА ---
-                    // 1. Асинхронно проверяем синтаксис
                     (async () => {
                         try {
                             await mermaid.parse(codeBlock.innerText);
-                            // 2. Если ошибок нет - программно кликаем по кнопке
                             toggleBtn.click();
                         } catch (e) {
-                            // 3. Если есть ошибка - ничего не делаем, оставляем код как есть
                             console.warn('Mermaid syntax error found, not auto-rendering:', e.str || e.message);
+                            toggleBtn.disabled = true;
+                            toggleBtn.title = 'Невозможно отобразить: ошибка синтаксиса';
+                            const icon = toggleBtn.querySelector('i');
+                            icon.setAttribute('data-lucide', 'alert-circle');
+                            icon.classList.add('text-red-400');
+                            lucide.createIcons({nodes: [toggleBtn]});
                         }
                     })();
 
-                    // ОБНОВЛЕННЫЙ ОБРАБОТЧИК КЛИКА (с защитой от ошибок)
                     toggleBtn.addEventListener('click', async () => {
+                        if (diagramContainer.querySelector('.text-red-400')) return;
+
                         const isDiagramCurrentlyHidden = diagramContainer.classList.contains('hidden');
                         
-                        // Если мы собираемся показать диаграмму
-                        if (isDiagramCurrentlyHidden) {
-                            // И она еще не была отрендерена
-                            if (diagramContainer.innerHTML === '') {
-                                diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-                                try {
-                                    const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
-                                    diagramContainer.innerHTML = svg;
-                                } catch (err) {
-                                    // Безопасно показываем ошибку внутри блока
-                                    diagramContainer.innerHTML = `<div class="text-red-400 p-4 text-center"><b>Ошибка синтаксиса Mermaid</b><pre class="mt-2 text-xs text-left">${err.str || err.message}</pre></div>`;
-                                    // Не переключаем вид, если рендер не удался
-                                    return; 
-                                }
+                        if (isDiagramCurrentlyHidden && diagramContainer.innerHTML === '') {
+                            diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+                            try {
+                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
+                                diagramContainer.innerHTML = svg;
+                            } catch (err) {
+                                diagramContainer.innerHTML = `<div class="text-red-400 p-4 text-center"><b>Ошибка синтаксиса Mermaid</b><pre class="mt-2 text-xs text-left">${err.str || err.message}</pre></div>`;
+                                return;
                             }
                         }
                         
-                        // Переключаем видимость и иконку только после успешного рендера
                         diagramContainer.classList.toggle('hidden');
                         codeToShow.classList.toggle('hidden');
                         toggleBtn.querySelector('i').setAttribute('data-lucide', diagramContainer.classList.contains('hidden') ? 'git-fork' : 'code');
                         lucide.createIcons({nodes: [toggleBtn]});
                     });
-                 // Логика для обычных блоков кода (только кнопка копирования)
                  } else if (!preElement.querySelector('.copy-code-btn')) {
                      const buttonContainer = document.createElement('div');
                      buttonContainer.className = 'code-block-actions';

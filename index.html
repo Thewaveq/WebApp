@@ -1565,6 +1565,33 @@
             let splitInstance = null;
             let panzoomInstance = null;
         
+            // Вспомогательная функция для обновления стиля разделителя
+            const updateGutterStyle = (sizes) => {
+                if (!splitInstance || !splitInstance.gutters[0]) return;
+                const gutter = splitInstance.gutters[0];
+        
+                const isMobileLayout = window.innerWidth < 1024;
+                // Проверяем, свернута ли одна из панелей (размер почти равен 0)
+                const isCollapsed = sizes[0] < 1 || sizes[1] < 1;
+        
+                // Применяем класс, только если мы на мобильном И одна из панелей свернута
+                if (isMobileLayout && isCollapsed) {
+                    gutter.classList.add('gutter-touch-friendly');
+                } else {
+                    gutter.classList.remove('gutter-touch-friendly');
+                }
+            };
+        
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        func.apply(this, args);
+                    }, delay);
+                };
+            };
+        
             function initializeSplitter() {
                 if (splitInstance) {
                     splitInstance.destroy();
@@ -1573,45 +1600,32 @@
                 const isMobile = window.innerWidth < 1024;
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
         
-                // --- НОВАЯ ЛОГИКА ---
-                // Вспомогательная функция для обновления стиля полосы ресайза
-                const updateGutterStyle = (sizes) => {
-                    if (!splitInstance) return;
-                    const gutter = splitInstance.gutters[0];
-                    if (!gutter) return;
-        
-                    const isMobileLayout = window.innerWidth < 1024;
-                    // Проверяем, свернута ли одна из панелей (ее размер равен 0)
-                    const isCollapsed = sizes[0] === 0 || sizes[1] === 0;
-        
-                    // Применяем наш "толстый" класс, только если мы на мобильном И одна из панелей свернута
-                    if (isMobileLayout && isCollapsed) {
-                        gutter.classList.add('gutter-touch-friendly');
-                    } else {
-                        gutter.classList.remove('gutter-touch-friendly');
-                    }
-                };
-        
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
                     gutterSize: 10,
                     direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
-                    // Вызываем нашу функцию при каждом движении, чтобы стиль менялся динамически
+                    // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Вызываем нашу функцию в onDrag и onDragEnd
                     onDrag: updateGutterStyle,
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
+                        // Обновляем стиль и после окончания перетаскивания
+                        updateGutterStyle(sizes);
                     }
                 });
         
-                // Вызываем функцию один раз при инициализации, чтобы применить стиль сразу, если окно уже было свернуто
+                // Применяем стиль сразу при загрузке, на случай если окно уже было свернуто
                 updateGutterStyle(initialSizes);
             }
         
+            // Инициализируем при загрузке
             initializeSplitter();
         
-            // Остальной код функции остается без изменений...
+            // ИСПРАВЛЕНИЕ: Пере-инициализируем сплиттер при изменении размера окна
+            // Это нужно, чтобы он корректно переключался между вертикальным и горизонтальным режимом
+            window.addEventListener('resize', debounce(initializeSplitter, 250));
+        
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';
@@ -1673,22 +1687,6 @@
                     resetZoomBtn.style.display = 'none';
                     lucide.createIcons({ nodes: [output] });
                 }
-            };
-            
-            const debounce = (func, delay) => {
-                let timeoutId;
-                return (...args) => {
-                    clearTimeout(timeoutId);
-                    timeoutId = setTimeout(() => {
-                        func.apply(this, args);
-                    }, delay);
-                };
-            };
-        
-            const saveDiagramCode = async () => {
-                if (!state.activeSessionId) return;
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
-                await updateDoc(sessionRef, { code: codeInput.value, updatedAt: serverTimestamp() });
             };
         
             const debouncedSave = debounce(saveDiagramCode, 750);

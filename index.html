@@ -1562,35 +1562,43 @@
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
         
-            // Переменная для хранения экземпляра Split.js
+            // Ключ для сохранения размеров в localStorage
+            const storageKey = 'diagramSplitterSizes';
             let splitInstance = null;
         
-            // Функция для инициализации или пересоздания разделителя
             function initializeSplitter() {
-                // Уничтожаем старый экземпляр, если он есть
                 if (splitInstance) {
                     splitInstance.destroy();
                 }
         
-                const isMobile = window.innerWidth < 1024; // Наш брейкпоинт 'lg'
+                const isMobile = window.innerWidth < 1024;
+        
+                // ---> ШАГ 1: Загружаем сохраненные размеры
+                let initialSizes;
+                const savedSizes = localStorage.getItem(storageKey);
+                if (savedSizes) {
+                    // Если размеры есть в хранилище, используем их
+                    initialSizes = JSON.parse(savedSizes);
+                } else {
+                    // Иначе используем стандартные 50/50
+                    initialSizes = [50, 50];
+                }
         
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
-                    sizes: [50, 50],       // Начальные размеры 50% на 50%
-                    minSize: 100,          // Минимальный размер панели в пикселях
-                    gutterSize: 10,        // Размер разделителя
-                    direction: isMobile ? 'vertical' : 'horizontal', // Адаптивное направление
+                    sizes: initialSizes, // Используем загруженные или стандартные размеры
+                    minSize: 100,
+                    gutterSize: 10,
+                    direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
+                    
+                    // ---> ШАГ 2: Сохраняем новую позицию при окончании перетаскивания
+                    onDragEnd: function(sizes) {
+                        localStorage.setItem(storageKey, JSON.stringify(sizes));
+                    }
                 });
             }
         
-            // Инициализируем разделитель при первой загрузке
             initializeSplitter();
-        
-            // Пересоздаем разделитель при изменении размера окна
-            window.addEventListener('resize', initializeSplitter);
-        
-        
-            // --- ОСТАЛЬНАЯ ЛОГИКА ОСТАЕТСЯ ПРЕЖНЕЙ ---
         
             if (typeof mermaid === 'undefined') {
                 output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена.</p>';

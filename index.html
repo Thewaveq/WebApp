@@ -35,6 +35,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.production.min.js"></script>
+    
     <link rel="stylesheet" href="https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.min.css" />
     
     <!-- Стили вынесены в отдельный файл -->
@@ -201,13 +205,14 @@
     </div>
     <script type="module">
         // --- ИМПОРТЫ ---
+        console.log("--- НОВЫЙ СКРИПТ УСПЕШНО ЗАПУЩЕН ---");
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        import React from 'https://esm.sh/react';
-        import ReactDOM from 'https://esm.sh/react-dom/client';
-        import { Excalidraw } from 'https://esm.sh/@excalidraw/excalidraw';
+        const React = window.React;
+        const ReactDOM = window.ReactDOM;
+        const { Excalidraw } = window.Excalidraw; 
         
         // --- ИНИЦИАЛИЗАЦИЯ FIREBASE ---
         const app = initializeApp(firebaseConfig);

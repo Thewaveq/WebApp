@@ -679,23 +679,23 @@
         function getDiagramsViewHTML(activeSession) {
             const code = activeSession.code || '';
             return `
-            <div id="diagram-editor-container" class="flex h-full w-full">
-                <!-- Панель для ввода кода -->
-                <div class="flex flex-col w-1/2 h-full border-r border-border-color">
+            <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
+                {/* --- Панель для ввода кода (адаптивная) --- */}
+                <div class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full border-b lg:border-r lg:border-b-0 border-border-color">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
                     <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Введите код диаграммы здесь...">${code}</textarea>
                 </div>
         
-                <!-- Панель для предпросмотра -->
-                <div class="flex flex-col w-1/2 h-full">
+                {/* --- Панель для предпросмотра (адаптивная) --- */}
+                <div class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full">
                      <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
                         <h3 class="font-semibold text-lg">Результат</h3>
                         <div id="diagram-error-container" class="text-xs text-red-400"></div>
                      </div>
                      <div id="diagram-output" class="w-full h-full p-4 overflow-auto flex items-center justify-center bg-bg-main">
-                        <!-- Диаграмма будет отрендерена здесь -->
+                        {/* Диаграмма будет отрендерена здесь */}
                      </div>
                 </div>
             </div>
@@ -1576,11 +1576,16 @@
                     return;
                 }
                 try {
+                    // Успешный рендеринг
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
-                    errorContainer.textContent = '';
+                    
+                    // ---> ВОТ ИСПРАВЛЕНИЕ! Очищаем ошибку при успехе.
+                    errorContainer.textContent = ''; 
+        
                 } catch (error) {
+                    // Рендеринг с ошибкой
                     output.innerHTML = `<div class="text-center"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-2 text-sm text-red-400">Ошибка синтаксиса</p></div>`;
                     errorContainer.textContent = 'Ошибка в коде диаграммы';
                     lucide.createIcons();

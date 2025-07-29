@@ -575,32 +575,6 @@
                 }
             }
 
-            function getDiagramsViewHTML() {
-                return `
-                <div id="diagram-editor-container" class="flex h-full w-full">
-                    <!-- Панель для ввода кода -->
-                    <div class="flex flex-col w-1/2 h-full border-r border-border-color">
-                        <div class="p-3 border-b border-border-color flex-shrink-0">
-                            <h3 class="font-semibold text-lg">Код диаграммы (Mermaid)</h3>
-                            <p class="text-xs text-text-secondary">Опишите вашу схему, и она появится справа. <a href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" class="text-accent hover:underline">Документация</a></p>
-                        </div>
-                        <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Например:\n\ngraph TD;\n    A-->B;\n    A-->C;\n    B-->D;\n    C-->D;"></textarea>
-                    </div>
-            
-                    <!-- Панель для предпросмотра -->
-                    <div class="flex flex-col w-1/2 h-full">
-                         <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
-                            <h3 class="font-semibold text-lg">Результат</h3>
-                            <div id="diagram-error-container" class="text-xs text-red-400"></div>
-                         </div>
-                         <div id="diagram-output" class="w-full h-full p-4 overflow-auto flex items-center justify-center bg-bg-main">
-                            <!-- Диаграмма будет отрендерена здесь -->
-                         </div>
-                    </div>
-                </div>
-                `;
-            }
-
             // --- НОВЫЙ КОД: Опции для выбора пайплайна ---
             const pipelineOptions = (state.pipelines || []).map(p => `<option value="${p.id}" ${p.id === activeSession.pipelineId ? 'selected' : ''}>${p.name}</option>`).join('');
 
@@ -688,6 +662,32 @@
                     </form>
                 </div>
             </div>`; 
+        }
+
+        function getDiagramsViewHTML() {
+            return `
+            <div id="diagram-editor-container" class="flex h-full w-full">
+                <!-- Панель для ввода кода -->
+                <div class="flex flex-col w-1/2 h-full border-r border-border-color">
+                    <div class="p-3 border-b border-border-color flex-shrink-0">
+                        <h3 class="font-semibold text-lg">Код диаграммы (Mermaid)</h3>
+                        <p class="text-xs text-text-secondary">Опишите вашу схему, и она появится справа. <a href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" class="text-accent hover:underline">Документация</a></p>
+                    </div>
+                    <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Например:\n\ngraph TD;\n    A-->B;\n    A-->C;\n    B-->D;\n    C-->D;"></textarea>
+                </div>
+        
+                <!-- Панель для предпросмотра -->
+                <div class="flex flex-col w-1/2 h-full">
+                     <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
+                        <h3 class="font-semibold text-lg">Результат</h3>
+                        <div id="diagram-error-container" class="text-xs text-red-400"></div>
+                     </div>
+                     <div id="diagram-output" class="w-full h-full p-4 overflow-auto flex items-center justify-center bg-bg-main">
+                        <!-- Диаграмма будет отрендерена здесь -->
+                     </div>
+                </div>
+            </div>
+            `;
         }
         
         function showFullscreenMessage(content) {

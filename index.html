@@ -1562,73 +1562,72 @@
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
             const previewPanel = document.getElementById('diagram-preview-panel');
-        
+            
+            // Получаем новые элементы
+            const container = document.getElementById('diagram-editor-container');
+            const touchHandle = document.getElementById('diagram-gutter-touch-handle');
+
             const storageKey = 'diagramSplitterSizes';
             let splitInstance = null;
-            let currentLayout = ''; // Переменная для отслеживания текущего режима (mobile/desktop)
-        
-            // Вспомогательная функция для обновления стиля разделителя
-            const updateGutterStyle = (sizes) => {
-                // Убеждаемся, что сплиттер и его разделитель существуют
-                if (!splitInstance || !splitInstance.gutters || !splitInstance.gutters[0]) return;
-                const gutter = splitInstance.gutters[0];
-        
-                const isMobileLayout = window.innerWidth < 1024;
-                // Проверяем, свернута ли одна из панелей (размер меньше 1%)
-                const isCollapsed = sizes[0] < 1 || sizes[1] < 1;
-        
-                // Применяем класс, только если мы на мобильном И одна из панелей свернута
-                if (isMobileLayout && isCollapsed) {
-                    gutter.classList.add('gutter-touch-friendly');
-                } else {
-                    gutter.classList.remove('gutter-touch-friendly');
+            let currentLayout = ''; // 'mobile' или 'desktop'
+            let panzoomInstance = null;
+            
+            // Функция для позиционирования нашей большой рукоятки поверх реального разделителя
+            const positionTouchHandle = () => {
+                if (!splitInstance || !splitInstance.gutters[0] || !isMobileMode()) {
+                    touchHandle.classList.add('hidden');
+                    return;
                 }
+                const gutter = splitInstance.gutters[0];
+                const gutterRect = gutter.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                // Рассчитываем позицию рукоятки относительно родительского контейнера
+                const top = (gutterRect.top - containerRect.top) + (gutterRect.height / 2);
+                touchHandle.style.top = `${top}px`;
+                touchHandle.classList.remove('hidden');
             };
-        
+
+            const isMobileMode = () => window.innerWidth < 1024;
+            
             function initializeSplitter() {
-                // Если сплиттер уже существует, уничтожаем его перед созданием нового
                 if (splitInstance) {
                     splitInstance.destroy();
                 }
-        
-                const isMobile = window.innerWidth < 1024;
+
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
-        
+
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
                     gutterSize: 10,
-                    direction: isMobile ? 'vertical' : 'horizontal',
-                    cursor: isMobile ? 'row-resize' : 'col-resize',
-                    onDrag: updateGutterStyle, // Обновляем стиль во время перетаскивания
+                    direction: isMobileMode() ? 'vertical' : 'horizontal',
+                    cursor: isMobileMode() ? 'row-resize' : 'col-resize',
+                    // Когда мы тащим разделитель, двигаем и нашу рукоятку
+                    onDrag: positionTouchHandle,
                     onDragEnd: function(sizes) {
                         localStorage.setItem(storageKey, JSON.stringify(sizes));
-                        updateGutterStyle(sizes); // И после завершения
                     }
                 });
-        
-                // Применяем стиль сразу при инициализации
-                updateGutterStyle(splitInstance.getSizes());
+
+                // После инициализации сразу позиционируем рукоятку
+                positionTouchHandle();
             }
-        
-            // ИСПРАВЛЕННАЯ ЛОГИКА:
-            // Создаем обработчик изменения размера окна, который не ломает сплиттер.
+            
+            // Простая и надежная логика обновления при ресайзе
             const handleResize = () => {
-                const newLayout = window.innerWidth < 1024 ? 'mobile' : 'desktop';
-                // Пересоздаем сплиттер ТОЛЬКО если мы пересекли границу 1024px
+                const newLayout = isMobileMode() ? 'mobile' : 'desktop';
+                // Пересоздаем сплиттер, ТОЛЬКО если мы пересекли границу
                 if (newLayout !== currentLayout) {
                     currentLayout = newLayout;
                     initializeSplitter();
                 }
             };
             
-            // Запускаем обработчик один раз, чтобы установить начальный layout
-            handleResize(); 
-        
-            // Вешаем слушатель на изменение размера окна
-            window.addEventListener('resize', handleResize);
-        
-            // --- Остальной код функции остается без изменений ---
+            handleResize(); // Устанавливаем начальное состояние
+            window.addEventListener('resize', handleResize); // И следим за изменениями
+
+            // --- Остальной код функции без изменений ---
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';
@@ -1641,7 +1640,7 @@
             });
             previewPanel.appendChild(resetZoomBtn);
             lucide.createIcons({ nodes: [resetZoomBtn] });
-        
+            
             if (typeof mermaid === 'undefined') {
                 output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена.</p>';
                 return;
@@ -1675,19 +1674,13 @@
                     }
                 } catch (error) {
                     const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
-                    output.innerHTML = `
-                        <div class="text-center p-4 flex flex-col items-center justify-center h-full">
-                            <i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i>
-                            <p class="mt-4 text-lg font-bold">Ошибка в коде диаграммы</p>
-                            <p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис.</p>
-                            <pre class="mt-4 text-xs text-left bg-bg-input p-2 rounded-md w-full max-w-sm overflow-auto">${errorMessage}</pre>
-                        </div>`;
+                    output.innerHTML = `<div class="text-center p-4 flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-4 text-lg font-bold">Ошибка в коде диаграммы</p><p class="mt-1 text-sm text-text-secondary">Пожалуйста, проверьте синтаксис.</p><pre class="mt-4 text-xs text-left bg-bg-input p-2 rounded-md w-full max-w-sm overflow-auto">${errorMessage}</pre></div>`;
                     errorContainer.textContent = 'Ошибка синтаксиса';
                     resetZoomBtn.style.display = 'none';
                     lucide.createIcons({ nodes: [output] });
                 }
             };
-        
+            
             const debounce = (func, delay) => {
                 let timeoutId;
                 return (...args) => {
@@ -1697,16 +1690,16 @@
                     }, delay);
                 };
             };
-        
+            
             const saveDiagramCode = async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
                 await updateDoc(sessionRef, { code: codeInput.value, updatedAt: serverTimestamp() });
             };
-        
+            
             const debouncedSave = debounce(saveDiagramCode, 750);
             const debouncedRender = debounce(renderDiagram, 300);
-        
+            
             titleInput.addEventListener('change', async () => {
                 if (!state.activeSessionId) return;
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
@@ -1717,7 +1710,7 @@
                 debouncedSave();
                 debouncedRender();
             });
-        
+            
             renderDiagram();
         }
     

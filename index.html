@@ -683,14 +683,14 @@
             const code = activeSession.code || '';
             return `
             <div id="diagram-editor-container" class="flex flex-col lg:flex-row h-full w-full">
-                <div id="diagram-code-panel" class="flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full min-h-0 overflow-hidden">
+                <div id="diagram-code-panel" class="flex flex-col min-h-0 overflow-hidden">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
                         <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
                     <textarea id="diagram-input" class="w-full flex-grow bg-input p-4 resize-none focus:outline-none font-mono text-sm">${code}</textarea>
                 </div>
         
-                <div id="diagram-preview-panel" class="relative flex flex-col w-full h-1/2 lg:w-1/2 lg:h-full min-h-0 overflow-hidden">
+                <div id="diagram-preview-panel" class="relative flex flex-col min-h-0 overflow-hidden">
                      <div class="p-3 border-b border-border-color flex-shrink-0 flex justify-between items-center">
                         <h3 class="font-semibold text-lg">Результат</h3>
                         <div id="diagram-error-container" class="text-xs text-red-400"></div>
@@ -1567,13 +1567,11 @@
             let panzoomInstance = null;
         
             function initializeSplitter() {
-                // Если сплиттер уже создан, ничего не делаем.
-                // Он будет создан только ОДИН раз. ЭТО ИСПРАВЛЯЕТ ВЬЮПОРТ И "ЗАЛИПАНИЕ" МЫШИ.
+
                 if (splitInstance) return;
 
                 let initialSizes = localStorage.getItem(storageKey) ? JSON.parse(localStorage.getItem(storageKey)) : [50, 50];
 
-                // Библиотека сама определит направление из CSS. Это самая стабильная конфигурация.
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
@@ -1584,10 +1582,8 @@
                 });
             }
         
-            // Инициализируем сплиттер один раз при загрузке.
             initializeSplitter();
         
-            // --- Остальной код функции, который работал правильно, остается без изменений ---
             const resetZoomBtn = document.createElement('button');
             resetZoomBtn.innerHTML = '<i data-lucide="zoom-out" class="w-4 h-4"></i>';
             resetZoomBtn.title = 'Сбросить масштаб и положение';

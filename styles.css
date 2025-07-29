@@ -202,22 +202,32 @@ details[open] > summary .details-arrow {
     margin: 1.25em 0;
 }
 
+/* Контейнер для кнопок в ОБЫЧНОМ блоке кода */
 .code-block-actions {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
-    display: flex;
-    gap: 0.25rem;
     z-index: 10;
     opacity: 0;
     transition: opacity 0.2s;
 }
 
+/* Показываем кнопки при наведении на <pre> */
 .prose pre:hover .code-block-actions {
     opacity: 1;
 }
 
-/* Общий стиль для кнопок */
+/* Контейнер для кнопок в блоке с ДИАГРАММОЙ */
+.diagram-actions-container {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 15;
+    display: flex;
+    gap: 0.25rem; /* Расстояние между кнопками */
+}
+
+/* Общий стиль для всех кнопок в блоках кода */
 .code-action-btn {
     display: flex;
     align-items: center;
@@ -234,14 +244,6 @@ details[open] > summary .details-arrow {
 .code-action-btn:hover {
     background-color: var(--bg-input);
     color: var(--text-primary);
-}
-
-/* Кнопка переключения диаграммы (позиционируется относительно .diagram-wrapper) */
-.diagram-toggle-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    z-index: 15; /* Выше чем .code-block-actions */
 }
 
 /* Контейнер для отрендеренной диаграммы */
@@ -261,32 +263,6 @@ details[open] > summary .details-arrow {
     display: none;
 }
 
-.mermaid-render-container svg {
-    max-width: 100%;
-    height: auto;
-}
-
-/* --- СТИЛИ ДЛЯ КОНТЕЙНЕРА ДИАГРАММЫ --- */
-
-/* Контейнер для отрендеренной диаграммы */
-.mermaid-render-container {
-    background-color: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
-    padding: 1rem;
-    margin: 1.25em 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100px; /* Чтобы индикатор загрузки не сжимался */
-}
-
-/* Класс для скрытия контейнера */
-.mermaid-render-container.hidden {
-    display: none;
-}
-
-/* Делаем SVG-диаграмму адаптивной */
 .mermaid-render-container svg {
     max-width: 100%;
     height: auto;

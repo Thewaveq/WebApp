@@ -1562,6 +1562,36 @@
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
         
+            // Переменная для хранения экземпляра Split.js
+            let splitInstance = null;
+        
+            // Функция для инициализации или пересоздания разделителя
+            function initializeSplitter() {
+                // Уничтожаем старый экземпляр, если он есть
+                if (splitInstance) {
+                    splitInstance.destroy();
+                }
+        
+                const isMobile = window.innerWidth < 1024; // Наш брейкпоинт 'lg'
+        
+                splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
+                    sizes: [50, 50],       // Начальные размеры 50% на 50%
+                    minSize: 100,          // Минимальный размер панели в пикселях
+                    gutterSize: 10,        // Размер разделителя
+                    direction: isMobile ? 'vertical' : 'horizontal', // Адаптивное направление
+                    cursor: isMobile ? 'row-resize' : 'col-resize',
+                });
+            }
+        
+            // Инициализируем разделитель при первой загрузке
+            initializeSplitter();
+        
+            // Пересоздаем разделитель при изменении размера окна
+            window.addEventListener('resize', initializeSplitter);
+        
+        
+            // --- ОСТАЛЬНАЯ ЛОГИКА ОСТАЕТСЯ ПРЕЖНЕЙ ---
+        
             if (typeof mermaid === 'undefined') {
                 output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена.</p>';
                 return;
@@ -1577,16 +1607,11 @@
                     return;
                 }
                 try {
-                    // Успешный рендеринг
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
-                    
-                    // ---> ВОТ ИСПРАВЛЕНИЕ! Очищаем ошибку при успехе.
-                    errorContainer.textContent = ''; 
-        
+                    errorContainer.textContent = '';
                 } catch (error) {
-                    // Рендеринг с ошибкой
                     output.innerHTML = `<div class="text-center"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-2 text-sm text-red-400">Ошибка синтаксиса</p></div>`;
                     errorContainer.textContent = 'Ошибка в коде диаграммы';
                     lucide.createIcons();

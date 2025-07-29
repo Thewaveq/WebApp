@@ -1020,15 +1020,14 @@
                  if (codeBlock.classList.contains('language-mermaid') && !preElement.closest('.diagram-wrapper')) {
                     const diagramWrapper = document.createElement('div');
                     diagramWrapper.className = 'diagram-wrapper';
-
+                    
+                    const codeToShow = preElement.cloneNode(true); // Клон блока с кодом
                     const diagramContainer = document.createElement('div');
-                    diagramContainer.className = 'mermaid-render-container hidden';
+                    diagramContainer.className = 'mermaid-render-container hidden'; // Диаграмма изначально скрыта
 
-                    // --- ИСПРАВЛЕНИЕ: СОЗДАЕМ ОДИН КОНТЕЙНЕР ДЛЯ КНОПОК ---
                     const buttonsContainer = document.createElement('div');
                     buttonsContainer.className = 'diagram-actions-container';
 
-                    // Кнопка КОПИРОВАНИЯ для диаграммы
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'code-action-btn';
                     copyBtn.title = 'Копировать код диаграммы';
@@ -1040,41 +1039,60 @@
                          lucide.createIcons();
                     });
 
-                    // Кнопка ПЕРЕКЛЮЧЕНИЯ
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'code-action-btn';
                     toggleBtn.title = 'Показать/скрыть диаграмму';
                     toggleBtn.innerHTML = '<i data-lucide="git-fork" class="w-4 h-4"></i>';
                     
-                    // Добавляем обе кнопки в их общий контейнер
                     buttonsContainer.appendChild(copyBtn);
                     buttonsContainer.appendChild(toggleBtn);
                     
-                    // Собираем всё вместе
-                    diagramWrapper.appendChild(preElement.cloneNode(true));
+                    diagramWrapper.appendChild(codeToShow);
                     diagramWrapper.appendChild(diagramContainer);
-                    diagramWrapper.appendChild(buttonsContainer); // Добавляем контейнер с кнопками
+                    diagramWrapper.appendChild(buttonsContainer);
                     
                     preElement.replaceWith(diagramWrapper);
 
-                    toggleBtn.addEventListener('click', async () => {
-                        const codeToShow = diagramWrapper.querySelector('pre');
-                        const isDiagramHidden = diagramContainer.classList.toggle('hidden');
-                        codeToShow.classList.toggle('hidden', !isDiagramHidden);
+                    // --- НОВАЯ БЕЗОПАСНАЯ ЛОГИКА ---
+                    // 1. Асинхронно проверяем синтаксис
+                    (async () => {
+                        try {
+                            await mermaid.parse(codeBlock.innerText);
+                            // 2. Если ошибок нет - программно кликаем по кнопке
+                            toggleBtn.click();
+                        } catch (e) {
+                            // 3. Если есть ошибка - ничего не делаем, оставляем код как есть
+                            console.warn('Mermaid syntax error found, not auto-rendering:', e.str || e.message);
+                        }
+                    })();
 
-                        if (!isDiagramHidden && diagramContainer.innerHTML === '') {
-                            diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-                            try {
-                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
-                                diagramContainer.innerHTML = svg;
-                            } catch (err) {
-                                diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки диаграммы.</p>`;
+                    // ОБНОВЛЕННЫЙ ОБРАБОТЧИК КЛИКА (с защитой от ошибок)
+                    toggleBtn.addEventListener('click', async () => {
+                        const isDiagramCurrentlyHidden = diagramContainer.classList.contains('hidden');
+                        
+                        // Если мы собираемся показать диаграмму
+                        if (isDiagramCurrentlyHidden) {
+                            // И она еще не была отрендерена
+                            if (diagramContainer.innerHTML === '') {
+                                diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+                                try {
+                                    const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
+                                    diagramContainer.innerHTML = svg;
+                                } catch (err) {
+                                    // Безопасно показываем ошибку внутри блока
+                                    diagramContainer.innerHTML = `<div class="text-red-400 p-4 text-center"><b>Ошибка синтаксиса Mermaid</b><pre class="mt-2 text-xs text-left">${err.str || err.message}</pre></div>`;
+                                    // Не переключаем вид, если рендер не удался
+                                    return; 
+                                }
                             }
                         }
-                        toggleBtn.querySelector('i').setAttribute('data-lucide', isDiagramHidden ? 'git-fork' : 'code');
+                        
+                        // Переключаем видимость и иконку только после успешного рендера
+                        diagramContainer.classList.toggle('hidden');
+                        codeToShow.classList.toggle('hidden');
+                        toggleBtn.querySelector('i').setAttribute('data-lucide', diagramContainer.classList.contains('hidden') ? 'git-fork' : 'code');
                         lucide.createIcons({nodes: [toggleBtn]});
                     });
-                    toggleBtn.click();
                  // Логика для обычных блоков кода (только кнопка копирования)
                  } else if (!preElement.querySelector('.copy-code-btn')) {
                      const buttonContainer = document.createElement('div');

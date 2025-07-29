@@ -1061,12 +1061,14 @@
                     
                     preElement.replaceWith(diagramWrapper);
 
-                    try {
-                        const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
-                        diagramContainer.innerHTML = svg;
-                    } catch (err) {
-                        diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки.</p>`;
-                    }
+                     (async () => {
+                        try {
+                            const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
+                            diagramContainer.innerHTML = svg;
+                        } catch (err) {
+                            diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки.</p>`;
+                        }
+                    })();
                     
                     // Новый обработчик, который просто переключает видимость
                     toggleBtn.addEventListener('click', () => {

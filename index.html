@@ -1022,7 +1022,7 @@
                     diagramWrapper.className = 'diagram-wrapper';
 
                     const diagramContainer = document.createElement('div');
-                    diagramContainer.className = 'mermaid-render-container hidden';
+                    diagramContainer.className = 'mermaid-render-container';
 
                     // --- ИСПРАВЛЕНИЕ: СОЗДАЕМ ОДИН КОНТЕЙНЕР ДЛЯ КНОПОК ---
                     const buttonsContainer = document.createElement('div');
@@ -1043,35 +1043,38 @@
                     // Кнопка ПЕРЕКЛЮЧЕНИЯ
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'code-action-btn';
-                    toggleBtn.title = 'Показать/скрыть диаграмму';
-                    toggleBtn.innerHTML = '<i data-lucide="git-fork" class="w-4 h-4"></i>';
+                    toggleBtn.title = 'Показать/скрыть код';
+                    toggleBtn.innerHTML = '<i data-lucide="code" class="w-4 h-4"></i>';
+                     
                     
                     // Добавляем обе кнопки в их общий контейнер
                     buttonsContainer.appendChild(copyBtn);
                     buttonsContainer.appendChild(toggleBtn);
                     
                     // Собираем всё вместе
-                    diagramWrapper.appendChild(preElement.cloneNode(true));
+                    const codePreElement = preElement.cloneNode(true);
+                    codePreElement.classList.add('hidden');
+                    diagramWrapper.appendChild(codePreElement);
+                     
                     diagramWrapper.appendChild(diagramContainer);
-                    diagramWrapper.appendChild(buttonsContainer); // Добавляем контейнер с кнопками
+                    diagramWrapper.appendChild(buttonsContainer);
                     
                     preElement.replaceWith(diagramWrapper);
 
-                    toggleBtn.addEventListener('click', async () => {
-                        const codeToShow = diagramWrapper.querySelector('pre');
-                        const isDiagramHidden = diagramContainer.classList.toggle('hidden');
-                        codeToShow.classList.toggle('hidden', !isDiagramHidden);
-
-                        if (!isDiagramHidden && diagramContainer.innerHTML === '') {
-                            diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-                            try {
-                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
-                                diagramContainer.innerHTML = svg;
-                            } catch (err) {
-                                diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки диаграммы.</p>`;
-                            }
-                        }
-                        toggleBtn.querySelector('i').setAttribute('data-lucide', isDiagramHidden ? 'git-fork' : 'code');
+                    try {
+                        const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
+                        diagramContainer.innerHTML = svg;
+                    } catch (err) {
+                        diagramContainer.innerHTML = `<p class="text-red-400 p-4 text-center">Ошибка отрисовки.</p>`;
+                    }
+                    
+                    // Новый обработчик, который просто переключает видимость
+                    toggleBtn.addEventListener('click', () => {
+                        const isCodeHidden = codePreElement.classList.toggle('hidden');
+                        diagramContainer.classList.toggle('hidden', !isCodeHidden);
+                        
+                        // Меняем иконку на кнопке
+                        toggleBtn.querySelector('i').setAttribute('data-lucide', isCodeHidden ? 'code' : 'git-fork');
                         lucide.createIcons({nodes: [toggleBtn]});
                     });
                  // Логика для обычных блоков кода (только кнопка копирования)

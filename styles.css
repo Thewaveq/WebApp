@@ -196,7 +196,6 @@ details[open] > summary .details-arrow {
 }
 
 .prose blockquote { border-left-color: var(--accent); }
-
 .code-block-actions {
     position: absolute;
     top: 0.5rem;
@@ -232,6 +231,8 @@ details[open] > summary .details-arrow {
     color: var(--text-primary);
 }
 
+/* --- СТИЛИ ДЛЯ КОНТЕЙНЕРА ДИАГРАММЫ --- */
+
 /* Контейнер для отрендеренной диаграммы */
 .mermaid-render-container {
     background-color: rgba(0, 0, 0, 0.2);
@@ -255,6 +256,7 @@ details[open] > summary .details-arrow {
     max-width: 100%;
     height: auto;
 }
+
 
 /* --- СТИЛИ ДЛЯ БЛОКА <think> --- */
 .prose details {

@@ -58,6 +58,9 @@
              <button id="new-note-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
                 <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая папка заметок
             </button>
+            <button id="new-diagram-btn" class="w-full flex items-center justify-center bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded transition-colors hidden">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Новая диаграмма
+            </button>
         </div>
         <nav id="sidebar-list" class="flex-grow overflow-y-auto p-2">
         </nav>
@@ -242,6 +245,7 @@
         const mainNavItems = document.querySelectorAll('.main-nav-item');
         const newChatBtn = document.getElementById('new-chat-btn');
         const newNoteBtn = document.getElementById('new-note-btn');
+        const newDiagramBtn = document.getElementById('new-diagram-btn');
         const confirmModal = document.getElementById('confirm-modal');
         const confirmModalText = document.getElementById('confirm-modal-text');
         const confirmModalYesBtn = document.getElementById('confirm-modal-yes');
@@ -327,7 +331,8 @@
             } else if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
                  const typeTextMap = {
                      chat: 'чатов',
-                     notepad: 'папок с заметками'
+                     notepad: 'папок с заметками',
+                     diagrams: 'диаграмм' 
                  };
                  sidebarList.innerHTML = `<div class="text-center text-sm text-gray-500 p-4">Нет ${typeTextMap[state.activeTab] || 'элементов'}.</div>`;
             } else {
@@ -420,9 +425,13 @@
                     }
                     break;
                 case 'diagrams':
-                    mainContent.innerHTML = getDiagramsViewHTML();
-                    setupDiagramsViewEventListeners();
-                    break;     
+                     if (activeSession) {
+                        mainContent.innerHTML = getDiagramsViewHTML(activeSession);
+                        setupDiagramsViewEventListeners();
+                    } else {
+                        mainContent.innerHTML = getEmptyStateHTML('diagrams');
+                    }
+                    break;  
                 case 'settings':
                     mainContent.innerHTML = getSettingsViewHTML();
                     renderProviders();
@@ -440,6 +449,7 @@
             });
             newChatBtn.classList.toggle('hidden', state.activeTab !== 'chat');
             newNoteBtn.classList.toggle('hidden', state.activeTab !== 'notepad');
+            newDiagramBtn.classList.toggle('hidden', state.activeTab !== 'diagrams');
         }
 
         function renderNotepadCards(session) {
@@ -548,11 +558,13 @@
         function getEmptyStateHTML(type) {
             const iconMap = {
                 'chat': 'message-square',
-                'notepad': 'notebook'
+                'notepad': 'notebook',
+                'diagrams': 'git-fork'
             };
             const textMap = {
                 'chat': 'Выберите чат или создайте новый',
-                'notepad': 'Выберите папку с заметками-карточками или создайте новую'
+                'notepad': 'Выберите папку с заметками-карточками или создайте новую',
+                'diagrams': 'Выберите диаграмму или создайте новую'
             };
             const icon = iconMap[type] || 'alert-circle';
             const text = textMap[type] || 'Выберите элемент';
@@ -664,16 +676,16 @@
             </div>`; 
         }
 
-        function getDiagramsViewHTML() {
+        function getDiagramsViewHTML(activeSession) {
+            const code = activeSession.code || '';
             return `
             <div id="diagram-editor-container" class="flex h-full w-full">
                 <!-- Панель для ввода кода -->
                 <div class="flex flex-col w-1/2 h-full border-r border-border-color">
                     <div class="p-3 border-b border-border-color flex-shrink-0">
-                        <h3 class="font-semibold text-lg">Код диаграммы (Mermaid)</h3>
-                        <p class="text-xs text-text-secondary">Опишите вашу схему, и она появится справа. <a href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" class="text-accent hover:underline">Документация</a></p>
+                        <input type="text" id="diagram-title-input" class="w-full bg-transparent font-bold text-lg focus:outline-none" value="${activeSession.title || ''}" placeholder="Название диаграммы">
                     </div>
-                    <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Например:\n\ngraph TD;\n    A-->B;\n    A-->C;\n    B-->D;\n    C-->D;"></textarea>
+                    <textarea id="diagram-input" class="w-full h-full bg-input p-4 resize-none focus:outline-none font-mono text-sm" placeholder="Введите код диаграммы здесь...">${code}</textarea>
                 </div>
         
                 <!-- Панель для предпросмотра -->
@@ -1544,50 +1556,64 @@
         }
 
         function setupDiagramsViewEventListeners() {
-            const input = document.getElementById('diagram-input');
+            const titleInput = document.getElementById('diagram-title-input');
+            const codeInput = document.getElementById('diagram-input');
             const output = document.getElementById('diagram-output');
             const errorContainer = document.getElementById('diagram-error-container');
         
-            // Проверяем, есть ли уже Mermaid на странице, чтобы не было ошибок
             if (typeof mermaid === 'undefined') {
-                output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена. Проверьте подключение в <head>.</p>';
+                output.innerHTML = '<p class="text-red-400">Ошибка: Библиотека Mermaid.js не загружена.</p>';
                 return;
             }
         
-            mermaid.initialize({
-                startOnLoad: false,
-                theme: 'dark',
-                securityLevel: 'loose',
-                fontFamily: 'Inter, sans-serif'
-            });
+            mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter, sans-serif' });
         
             const renderDiagram = async () => {
-                const diagramCode = input.value.trim();
+                const diagramCode = codeInput.value.trim();
                 if (!diagramCode) {
                     output.innerHTML = '<p class="text-text-secondary">Начните вводить код слева...</p>';
                     errorContainer.textContent = '';
                     return;
                 }
-        
                 try {
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
-                    if (bindFunctions) {
-                        bindFunctions(output);
-                    }
+                    if (bindFunctions) bindFunctions(output);
                     errorContainer.textContent = '';
                 } catch (error) {
                     output.innerHTML = `<div class="text-center"><i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto"></i><p class="mt-2 text-sm text-red-400">Ошибка синтаксиса</p></div>`;
                     errorContainer.textContent = 'Ошибка в коде диаграммы';
-                    console.error(error);
                     lucide.createIcons();
                 }
             };
+            
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        func.apply(this, args);
+                    }, delay);
+                };
+            };
         
-            let debounceTimer;
-            input.addEventListener('input', () => {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(renderDiagram, 300);
+            const saveDiagramCode = async () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                await updateDoc(sessionRef, { code: codeInput.value, updatedAt: serverTimestamp() });
+            };
+        
+            const debouncedSave = debounce(saveDiagramCode, 750);
+        
+            titleInput.addEventListener('change', async () => {
+                if (!state.activeSessionId) return;
+                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
+                await updateDoc(sessionRef, { title: titleInput.value, updatedAt: serverTimestamp() });
+            });
+            
+            codeInput.addEventListener('input', () => {
+                debouncedSave();
+                debounce(renderDiagram, 300)();
             });
         
             renderDiagram();
@@ -2242,27 +2268,37 @@
                     }
                     newSessionData = { type: 'chat', title: 'Новый чат', messages: [], providerId, modelName, roleId: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
                 } else if (type === 'notepad') {
-                    newSessionData = { 
-                        type: 'notepad', 
-                        title: 'Новая папка', 
+                    newSessionData = {
+                        type: 'notepad',
+                        title: 'Новая папка',
                         cards: [],
-                        createdAt: serverTimestamp(), 
-                        updatedAt: serverTimestamp() 
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    };
+                // ДОБАВЛЕН БЛОК ДЛЯ ДИАГРАММ
+                } else if (type === 'diagrams') {
+                    newSessionData = {
+                        type: 'diagrams',
+                        title: 'Новая диаграмма',
+                        code: 'graph TD;\n    A-->B;\n    A-->C;\n    B-->D;\n    C-->D;', // Пример кода по умолчанию
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
                     };
                 }
-                
+            
                 const newSessionRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), newSessionData);
                 state.activeSessionId = newSessionRef.id;
-                
+            
                 render();
-                if (window.innerWidth < 1024) { 
-                    sidebar.classList.remove('open'); 
-                    sidebarBackdrop.classList.remove('active'); 
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.remove('open');
+                    sidebarBackdrop.classList.remove('active');
                 }
             };
         
             newChatBtn.addEventListener('click', () => createNewItem('chat'));
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
+            newDiagramBtn.addEventListener('click', () => createNewItem('diagrams'));
 
             // --- УПРАВЛЕНИЕ БОКОВОЙ ПАНЕЛЬЮ ---
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {

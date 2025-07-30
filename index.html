@@ -1844,8 +1844,9 @@
                 const savedAccentRGB = localStorage.getItem('userAccentRGB') || DEFAULT_ACCENT_RGB;
                 colorPicker.value = rgbStringToHex(savedAccentRGB);
 
-                colorPicker.addEventListener('coloris:pick', event => {
-                    const newRgbString = hexToRgbString(event.detail.color);
+                colorPicker.addEventListener('input', event => {
+                    const newHexColor = event.target.value;
+                    const newRgbString = hexToRgbString(newHexColor);
                     document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
                     localStorage.setItem('userAccentRGB', newRgbString);
                 });

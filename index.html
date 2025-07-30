@@ -42,14 +42,6 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
     <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
-    <script>
-        Coloris.configure({
-            themeMode: 'dark',
-            theme: 'large',
-            alpha: false,
-            swatches: ['#409eff', '#26d07c', '#ff4d4d', '#f7d351', '#8e44ad', '#ffffff']
-        });
-    </script>
     
     <!-- Стили вынесены в отдельный файл -->
     <link rel="stylesheet" href="styles.css">
@@ -1219,7 +1211,7 @@
                             <label for="accent-color-picker" class="font-semibold text-text-primary block mb-2">Акцентный цвет</label>
                             <p class="text-sm text-text-secondary mb-3">Этот цвет будет использоваться для кнопок, иконок и легкого окрашивания фона интерфейса.</p>
                             <div class="flex items-center gap-4">
-                                <input type="text" id="accent-color-picker" data-coloris value="#409eff">
+                                <input type="text" id="accent-color-picker" value="#409eff">
                                 <button id="reset-color-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Сбросить</button>
                             </div>
                         </div>
@@ -1824,6 +1816,16 @@
         function setupSettingsViewEventListeners() {
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
             document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
+
+            if (document.getElementById('accent-color-picker')) {
+                Coloris({
+                    el: '#accent-color-picker', // Указываем, какой элемент инициализировать
+                    themeMode: 'dark',
+                    theme: 'large',
+                    alpha: false,
+                    swatches: ['#409eff', '#26d07c', '#ff4d4d', '#f7d351', '#8e44ad', '#ffffff']
+                });
+            }
 
             const colorPicker = document.getElementById('accent-color-picker');
             const resetColorBtn = document.getElementById('reset-color-btn');

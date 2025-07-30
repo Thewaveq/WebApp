@@ -840,7 +840,7 @@ details[open] > summary .details-arrow {
 
 /* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
 .gutter {
-    background-color: #37373d;
+    background-color: transparent; /* <-- ЭТО ДЕЛАЕТ ЛИНИИ НЕВИДИМЫМИ */
     background-repeat: no-repeat;
     background-position: 50%;
 }

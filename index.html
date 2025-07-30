@@ -939,20 +939,17 @@
             });
             
             dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
-                .addEventListener('click', function() { 
+                .addEventListener('click', function() {
                     const buttonElement = this;
 
                     navigator.clipboard.writeText(msg.content).then(() => {
-                        const textEl = buttonElement.querySelector('span');
-                        if (!textEl) return;
+                        const originalHTML = buttonElement.innerHTML;
 
-                        const originalText = textEl.textContent;
-
-                        textEl.textContent = 'Скопировано!';
+                        buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mx-auto"><polyline points="20 6 9 17 5 12"></polyline></svg>`;
 
                         setTimeout(() => {
                             if (document.body.contains(buttonElement)) {
-                                textEl.textContent = originalText;
+                                buttonElement.innerHTML = originalHTML;
                             }
                         }, 2000);
                     }).catch(err => console.error('Не удалось скопировать текст:', err));

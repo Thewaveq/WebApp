@@ -266,16 +266,35 @@
         let editPipelineCancelBtn;
         
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
-        function loadUserPreferences() {
+         function loadUserPreferences() {
             const savedCompactMode = localStorage.getItem('chatViewCompact');
             if (savedCompactMode !== null) {
                 state.isChatWidthCompact = (savedCompactMode === 'true');
             }
-
+        
             const savedNotepadCompactMode = localStorage.getItem('notepadViewCompact');
             if (savedNotepadCompactMode !== null) {
                 state.isNotepadWidthCompact = (savedNotepadCompactMode === 'true');
             }
+        
+            const savedAccentRGB = localStorage.getItem('userAccentRGB');
+            if (savedAccentRGB) {
+                document.documentElement.style.setProperty('--user-accent-rgb', savedAccentRGB);
+            }
+        }
+
+        // НАСТРОЙКА ЦВЕТА
+        function rgbStringToHex(rgbString) {
+            const [r, g, b] = rgbString.split(',').map(Number);
+            const toHex = c => ('0' + c.toString(16)).slice(-2);
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        function hexToRgbString(hex) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `${r}, ${g}, ${b}`;
         }
     
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
@@ -1177,6 +1196,24 @@
         
         function getSettingsViewHTML() {
             return `<div class="p-4 sm:p-6 space-y-4">
+                <!-- Настройа цвета -->
+                <details class="bg-bg-sidebar rounded-lg border border-border-color transition-shadow hover:shadow-lg" open>
+                    <summary class="p-4 cursor-pointer font-bold text-xl flex justify-between items-center hover:bg-bg-element rounded-t-lg">
+                        <span class="flex items-center"><i data-lucide="palette" class="w-6 h-6 mr-3 text-accent"></i>Персонализация</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform details-arrow"></i>
+                    </summary>
+                    <div class="p-4 border-t border-border-color space-y-4">
+                        <div>
+                            <label for="accent-color-picker" class="font-semibold text-text-primary block mb-2">Акцентный цвет</label>
+                            <p class="text-sm text-text-secondary mb-3">Этот цвет будет использоваться для кнопок, иконок и легкого окрашивания фона интерфейса.</p>
+                            <div class="flex items-center gap-4">
+                                <input type="color" id="accent-color-picker" class="p-1 h-10 w-16 block bg-bg-element border border-border-color cursor-pointer rounded-lg" value="#409eff">
+                                <button id="reset-color-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Сбросить</button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+                
                 <!-- Аккордеон для Провайдеров -->
                 <details class="bg-bg-sidebar rounded-lg border border-border-color transition-shadow hover:shadow-lg">
                     <summary class="p-4 cursor-pointer font-bold text-xl flex justify-between items-center hover:bg-bg-element rounded-t-lg">
@@ -1765,6 +1802,34 @@
         function setupSettingsViewEventListeners() { 
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
             document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
+
+            const colorPicker = document.getElementById('accent-color-picker');
+            const resetColorBtn = document.getElementById('reset-color-btn');
+
+            if (colorPicker) {
+                const DEFAULT_ACCENT_RGB = '64, 158, 255';
+
+                const currentAccentRGB = getComputedStyle(document.documentElement)
+                    .getPropertyValue('--user-accent-rgb').trim() || DEFAULT_ACCENT_RGB;
+                colorPicker.value = rgbStringToHex(currentAccentRGB);
+
+                colorPicker.addEventListener('input', (event) => {
+                    const newHexValue = event.target.value;
+                    const newRgbString = hexToRgbString(newHexValue);
+                    
+                    document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
+                    
+                    localStorage.setItem('userAccentRGB', newRgbString);
+                });
+
+                resetColorBtn.addEventListener('click', () => {
+                    document.documentElement.style.setProperty('--user-accent-rgb', DEFAULT_ACCENT_RGB);
+                    
+                    colorPicker.value = rgbStringToHex(DEFAULT_ACCENT_RGB);
+                    
+                    localStorage.removeItem('userAccentRGB');
+                });
+            }
         }
         
         async function handleChatSubmit(e) {

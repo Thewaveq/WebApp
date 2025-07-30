@@ -935,3 +935,27 @@ details[open] > summary .details-arrow {
         font-size: 18px; /* Вы можете изменить это значение, если 16px покажется мало или много */
     }
 }
+
+/* --- УЛУЧШЕННЫЙ СТИЛЬ ДЛЯ ВЫБОРА ЦВЕТА --- */
+#accent-color-picker {
+    -webkit-appearance: none; /* для Safari/Chrome */
+    -moz-appearance: none;    /* для Firefox */
+    appearance: none;         /* Стандартное свойство */
+
+    background-color: transparent; /* Фон делаем прозрачным, чтобы видеть внутренний квадрат с цветом */
+    padding: 4px;                  /* Небольшой внутренний отступ, чтобы цвет не прилипал к рамке */
+    border: 1px solid var(--border-color); /* Применяем ВАШУ стандартную серую рамку */
+    
+    box-shadow: none;
+    outline: none;
+}
+
+#accent-color-picker::-webkit-color-swatch {
+    border-radius: 0.25rem; /* Слегка скругляем углы у самого цвета */
+    border: none;           /* Убираем любую рамку у внутреннего квадратика */
+}
+
+#accent-color-picker::-moz-color-swatch { /* То же самое для Firefox */
+    border-radius: 0.25rem;
+    border: none;
+}

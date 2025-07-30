@@ -973,3 +973,19 @@ details[open] > summary .details-arrow {
 .hover\:bg-accent-hover:hover {
     filter: brightness(calc(100% + var(--accent-brightness-strength, 20%)));
 }
+
+.clr-code {
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+/* 2. При фокусе (когда вы на него нажимаете) применяем акцентный цвет */
+.clr-code:focus {
+    /* Меняем цвет рамки на ваш кастомный */
+    border-color: rgb(var(--user-accent-rgb));
+
+    /* Добавляем эффект "свечения", как у других полей, используя тень */
+    box-shadow: 0 0 0 2px rgba(var(--user-accent-rgb), 0.4);
+
+    /* Обязательно убираем стандартную синюю обводку браузера */
+    outline: none;
+}

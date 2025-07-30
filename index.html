@@ -267,19 +267,20 @@
         
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
          function loadUserPreferences() {
+            // Загрузка настроек ширины
             const savedCompactMode = localStorage.getItem('chatViewCompact');
-            if (savedCompactMode !== null) {
-                state.isChatWidthCompact = (savedCompactMode === 'true');
-            }
-        
+            if (savedCompactMode !== null) state.isChatWidthCompact = (savedCompactMode === 'true');
             const savedNotepadCompactMode = localStorage.getItem('notepadViewCompact');
-            if (savedNotepadCompactMode !== null) {
-                state.isNotepadWidthCompact = (savedNotepadCompactMode === 'true');
-            }
+            if (savedNotepadCompactMode !== null) state.isNotepadWidthCompact = (savedNotepadCompactMode === 'true');
         
             const savedAccentRGB = localStorage.getItem('userAccentRGB');
             if (savedAccentRGB) {
                 document.documentElement.style.setProperty('--user-accent-rgb', savedAccentRGB);
+            }
+
+            const savedBrightness = localStorage.getItem('userAccentBrightness');
+            if (savedBrightness) {
+                document.documentElement.style.setProperty('--accent-brightness-strength', `${savedBrightness}%`);
             }
         }
 
@@ -1202,13 +1203,23 @@
                         <span class="flex items-center"><i data-lucide="palette" class="w-6 h-6 mr-3 text-accent"></i>Персонализация</span>
                         <i data-lucide="chevron-down" class="w-5 h-5 transition-transform details-arrow"></i>
                     </summary>
-                    <div class="p-4 border-t border-border-color space-y-4">
+                    <div class="p-4 border-t border-border-color space-y-6">
                         <div>
                             <label for="accent-color-picker" class="font-semibold text-text-primary block mb-2">Акцентный цвет</label>
                             <p class="text-sm text-text-secondary mb-3">Этот цвет будет использоваться для кнопок, иконок и легкого окрашивания фона интерфейса.</p>
                             <div class="flex items-center gap-4">
                                 <input type="color" id="accent-color-picker" class="p-1 h-10 w-16 block bg-bg-element border border-border-color cursor-pointer rounded-lg" value="#409eff">
                                 <button id="reset-color-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Сбросить</button>
+                            </div>
+                        </div>
+
+                        <!-- === СЛАЙДЕР ЯРКОСТИ === -->
+                        <div>
+                            <label for="accent-brightness-slider" class="font-semibold text-text-primary block mb-2">Яркость кнопок и акцентов</label>
+                            <p class="text-sm text-text-secondary mb-3">Если выбран тёмный цвет, увеличьте яркость для лучшего контраста.</p>
+                            <div class="flex items-center gap-4">
+                               <input type="range" id="accent-brightness-slider" min="0" max="50" step="1" class="w-full h-2 bg-bg-input rounded-lg appearance-none cursor-pointer">
+                               <span id="brightness-value-display" class="font-mono text-sm text-text-secondary w-12 text-center">20%</span>
                             </div>
                         </div>
                     </div>
@@ -1805,29 +1816,46 @@
 
             const colorPicker = document.getElementById('accent-color-picker');
             const resetColorBtn = document.getElementById('reset-color-btn');
+            const brightnessSlider = document.getElementById('accent-brightness-slider');
+            const brightnessDisplay = document.getElementById('brightness-value-display');
+
+            const DEFAULT_ACCENT_RGB = '13, 30, 48';
+            const DEFAULT_BRIGHTNESS = '10';
 
             if (colorPicker) {
-                const DEFAULT_ACCENT_RGB = '64, 158, 255';
-
-                const currentAccentRGB = getComputedStyle(document.documentElement)
-                    .getPropertyValue('--user-accent-rgb').trim() || DEFAULT_ACCENT_RGB;
+                const currentAccentRGB = getComputedStyle(document.documentElement).getPropertyValue('--user-accent-rgb').trim() || DEFAULT_ACCENT_RGB;
                 colorPicker.value = rgbStringToHex(currentAccentRGB);
 
                 colorPicker.addEventListener('input', (event) => {
-                    const newHexValue = event.target.value;
-                    const newRgbString = hexToRgbString(newHexValue);
-                    
+                    const newRgbString = hexToRgbString(event.target.value);
                     document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
-                    
                     localStorage.setItem('userAccentRGB', newRgbString);
                 });
+            }
 
+            if (brightnessSlider && brightnessDisplay) {
+                const currentBrightness = (localStorage.getItem('userAccentBrightness') || DEFAULT_BRIGHTNESS);
+                brightnessSlider.value = currentBrightness;
+                brightnessDisplay.textContent = `${currentBrightness}%`;
+
+                brightnessSlider.addEventListener('input', (event) => {
+                    const newBrightness = event.target.value;
+                    document.documentElement.style.setProperty('--accent-brightness-strength', `${newBrightness}%`);
+                    brightnessDisplay.textContent = `${newBrightness}%`;
+                    localStorage.setItem('userAccentBrightness', newBrightness);
+});
+            }
+
+            if (resetColorBtn) {
                 resetColorBtn.addEventListener('click', () => {
                     document.documentElement.style.setProperty('--user-accent-rgb', DEFAULT_ACCENT_RGB);
-                    
-                    colorPicker.value = rgbStringToHex(DEFAULT_ACCENT_RGB);
-                    
+                    if (colorPicker) colorPicker.value = rgbStringToHex(DEFAULT_ACCENT_RGB);
                     localStorage.removeItem('userAccentRGB');
+                    
+                    document.documentElement.style.setProperty('--accent-brightness-strength', `${DEFAULT_BRIGHTNESS}%`);
+                    if (brightnessSlider) brightnessSlider.value = DEFAULT_BRIGHTNESS;
+                    if (brightnessDisplay) brightnessDisplay.textContent = `${DEFAULT_BRIGHTNESS}%`;
+                    localStorage.removeItem('userAccentBrightness');
                 });
             }
         }

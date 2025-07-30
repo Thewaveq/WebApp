@@ -1,14 +1,14 @@
 /* styles.css */
 :root {
-    --bg-main: #282c34;       /* Фон стал светлее и чуть холоднее */
-    --bg-sidebar: #333842;   /* Панели теперь заметно светлее фона для лучшего отделения */
-    --bg-element: #3a4049;   /* Элементы внутри панелей (сообщения, карточки) тоже стали светлее */
+    --bg-main: #1e1e1e;       /* Основной фон чата/контента — остаётся тёмным */
+    --bg-sidebar: #2a2d35;   /* Боковая панель — стала заметно светлее для контраста */
+    --bg-element: #2f323a;   /* Элементы (сообщения, карточки) — тоже светлее фона */
     --bg-input: #3c3c3c;
     --text-primary: #f5f5f5;
-    --text-secondary: #a1a1aa; /* Вторичный текст стал светлее для лучшей читаемости */
-    --accent: #3b82f6;         /* Более мягкий и современный синий */
-    --accent-hover: #2563eb;   /* Соответствующий цвет для наведения */
-    --border-color: transparent; /* Убираем видимые обводки по всему интерфейсу */
+    --text-secondary: #9a9a9a;
+    --accent: #3b82f6;       /* Более современный синий */
+    --accent-hover: #2563eb;
+    --border-color: transparent; /* Убираем видимые обводки */
     --danger: #e53e3e;
     --danger-hover: #c53030;
 }
@@ -505,8 +505,7 @@ details[open] > summary .details-arrow {
 #add-new-card-btn {
     border-style: dashed;
     border-width: 2px;
-    /* Явно задаем цвет, так как глобальный --border-color теперь прозрачный */
-    border-color: rgba(161, 161, 170, 0.4); /* Полупрозрачный цвет на основе --text-secondary */
+    border-color: rgba(154, 154, 154, 0.4); /* Задаем конкретный полупрозрачный цвет для рамки */
     color: var(--text-secondary);
     transition: all 0.2s;
 }
@@ -841,8 +840,7 @@ details[open] > summary .details-arrow {
 
 /* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
 .gutter {
-    /* Фон разделителя теперь соответствует самому темному фону, делая его менее заметным */
-    background-color: var(--bg-main);
+    background-color: var(--bg-sidebar); /* Цвет разделителя теперь как у сайдбара */
     background-repeat: no-repeat;
     background-position: 50%;
 }

@@ -348,19 +348,17 @@ details[open] > summary .details-arrow {
 /* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar {
     background-color: var(--bg-sidebar);
-    /* Полностью убираем обводку и тень */
-    border-right-width: 0;
+    /*
+      Вот он, финальный удар. !important приказывает убрать рамку,
+      игнорируя упрямый класс `border-r` из HTML.
+    */
+    border-right-width: 0 !important;
     box-shadow: none;
-    
-    /* Остальные стили из вашего файла... */
-    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out;
-    width: 280px;
-    flex-shrink: 0;
 }
 main > nav {
     background-color: var(--bg-sidebar);
-    /* Полностью убираем обводку и тень */
-    border-bottom-width: 0;
+    /* То же самое для верхней панели и класса `border-b` */
+    border-bottom-width: 0 !important;
     box-shadow: none;
 }
 

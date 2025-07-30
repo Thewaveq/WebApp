@@ -938,26 +938,34 @@
                 showInAppNotification('Скопировано!', `Сообщение добавлено в папку "${quickNotesTitle}"`, sessionId);
             });
             
-            dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст')).addEventListener('click', (e) => {
-                navigator.clipboard.writeText(msg.content).then(() => {
-                    const btn = e.currentTarget;
-                    const iconEl = btn.querySelector('i');
-                    const textEl = btn.querySelector('span');
-                    const originalText = textEl.textContent;
-            
-                    // Меняем иконку на галочку и текст на "Скопировано!"
-                    iconEl.setAttribute('data-lucide', 'check');
-                    textEl.textContent = 'Скопировано!';
-                    lucide.createIcons({ nodes: [btn] });
-            
-                    // Через 2 секунды возвращаем кнопку в исходное состояние
-                    setTimeout(() => {
-                        iconEl.setAttribute('data-lucide', 'clipboard');
-                        textEl.textContent = originalText;
-                        lucide.createIcons({ nodes: [btn] });
-                    }, 2000);
-                }).catch(err => console.error('Не удалось скопировать текст:', err));
-            });
+            dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
+                .addEventListener('click', function() { // Используем function, чтобы `this` указывало на кнопку
+                    const buttonElement = this;
+                    navigator.clipboard.writeText(msg.content).then(() => {
+                        const iconEl = buttonElement.querySelector('i');
+                        const textEl = buttonElement.querySelector('span');
+                        if (!iconEl || !textEl) return;
+
+                        const originalText = textEl.textContent;
+                        // Сохраняем data-lucide атрибут, а не сам элемент
+                        const originalIconName = iconEl.getAttribute('data-lucide');
+
+                        // Меняем иконку и текст
+                        iconEl.setAttribute('data-lucide', 'check');
+                        textEl.textContent = 'Скопировано!';
+                        lucide.createIcons({ nodes: [buttonElement] });
+
+                        // Возвращаем в исходное состояние через 2 секунды
+                        setTimeout(() => {
+                            // Проверяем, что кнопка все еще существует в DOM
+                            if (document.body.contains(buttonElement)) {
+                                iconEl.setAttribute('data-lucide', originalIconName);
+                                textEl.textContent = originalText;
+                                lucide.createIcons({ nodes: [buttonElement] });
+                            }
+                        }, 2000);
+                    }).catch(err => console.error('Не удалось скопировать текст:', err));
+                });
             
             const separator = document.createElement('hr');
             separator.className = 'dropdown-menu-separator';

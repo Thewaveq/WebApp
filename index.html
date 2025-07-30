@@ -316,10 +316,7 @@
                     const item = document.createElement('div');
                     const isActive = session.id === state.activeSessionId;
 
-                    const activeClasses = 'border border-accent bg-accent/10'; 
-                    const inactiveClasses = 'border border-transparent';
-                    
-                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-all duration-200 hover:bg-bg-element ${isActive ? activeClasses : inactiveClasses}`;
+                    item.className = `sidebar-item flex justify-between items-center p-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${isActive ? 'active' : ''}`;
                     
                     item.innerHTML = `
                         <span class="truncate pr-2">${session.title || 'Без названия'}</span>

@@ -3,7 +3,7 @@
     /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
 
     /* 1. АКЦЕНТНЫЙ ЦВЕТ ПОЛЬЗОВАТЕЛЯ (в формате R, G, B) */
-    --user-accent-rgb: 64, 158, 255; 
+    --user-accent-rgb: 0, 0, 0; 
 
     /* 2. СИЛА ОКРАШИВАНИЯ ФОНА (в процентах) */
     --accent-mix-strength: 15%;
@@ -22,7 +22,7 @@
     --base-dark-500: hsl(0, 0%, 28%);
 
     /* Фоны, как и раньше, слегка окрашиваются */
-    --bg-main:      color-mix(in srgb, var(--base-dark-900), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
+    --bg-main:      color-mix(in srgb, color-mix(in srgb, var(--base-dark-900), rgb(var(--user-accent-rgb)) var(--accent-mix-strength)), black 5%);
     --bg-sidebar:   color-mix(in srgb, var(--base-dark-800), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-element:   color-mix(in srgb, var(--base-dark-700), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-input:     color-mix(in srgb, var(--base-dark-600), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
@@ -954,7 +954,7 @@ details[open] > summary .details-arrow {
 
 /* 2. Задаем ширину ТОЛЬКО текстовому полю. Контейнер подстроится под него. */
 .clr-field input[type=text] {
-    width: 150px; /* <<-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ. Ширина задается здесь, а не контейнеру. */
+    width: 140px; /* <<-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ. Ширина задается здесь, а не контейнеру. */
     height: 100%;
     background: transparent;
     border: none;

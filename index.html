@@ -939,7 +939,7 @@
             });
             
             dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
-                .addEventListener('click', function() { // Используем function, чтобы `this` указывало на кнопку
+                .addEventListener('click', function() {
                     const buttonElement = this;
                     navigator.clipboard.writeText(msg.content).then(() => {
                         const iconEl = buttonElement.querySelector('i');
@@ -947,21 +947,17 @@
                         if (!iconEl || !textEl) return;
 
                         const originalText = textEl.textContent;
-                        // Сохраняем data-lucide атрибут, а не сам элемент
                         const originalIconName = iconEl.getAttribute('data-lucide');
 
-                        // Меняем иконку и текст
                         iconEl.setAttribute('data-lucide', 'check');
                         textEl.textContent = 'Скопировано!';
-                        lucide.createIcons({ nodes: [buttonElement] });
+                        lucide.createIcons();
 
-                        // Возвращаем в исходное состояние через 2 секунды
                         setTimeout(() => {
-                            // Проверяем, что кнопка все еще существует в DOM
                             if (document.body.contains(buttonElement)) {
                                 iconEl.setAttribute('data-lucide', originalIconName);
                                 textEl.textContent = originalText;
-                                lucide.createIcons({ nodes: [buttonElement] });
+                                lucide.createIcons();
                             }
                         }, 2000);
                     }).catch(err => console.error('Не удалось скопировать текст:', err));

@@ -42,6 +42,14 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
     <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+    <script>
+        Coloris.configure({
+            themeMode: 'dark',
+            theme: 'large',
+            alpha: false,
+            swatches: ['#409eff', '#26d07c', '#ff4d4d', '#f7d351', '#8e44ad', '#ffffff']
+        });
+    </script>
     
     <!-- Стили вынесены в отдельный файл -->
     <link rel="stylesheet" href="styles.css">
@@ -1822,14 +1830,15 @@
             const brightnessSlider = document.getElementById('accent-brightness-slider');
             const brightnessDisplay = document.getElementById('brightness-value-display');
 
-            const DEFAULT_ACCENT_RGB = '64, 158, 255'; // Стандартный синий цвет
+            const DEFAULT_ACCENT_RGB = '64, 158, 255'; // Стандартный синий
             const DEFAULT_BRIGHTNESS = '20';
 
             if (colorPicker) {
+                // 1. Устанавливаем начальное значение из localStorage
                 const savedAccentRGB = localStorage.getItem('userAccentRGB') || DEFAULT_ACCENT_RGB;
                 colorPicker.value = rgbStringToHex(savedAccentRGB);
 
-                // *** ИЗМЕНЕНИЕ: Используем стандартное и надежное событие 'change' ***
+                // 2. Вешаем надежный обработчик события 'change'
                 colorPicker.addEventListener('change', (event) => {
                     const newRgbString = hexToRgbString(event.target.value);
                     document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
@@ -1852,20 +1861,22 @@
 
             if (resetColorBtn) {
                 resetColorBtn.addEventListener('click', () => {
-                    const defaultHex = rgbStringToHex(DEFAULT_ACCENT_RGB);
-                    
+                    // Сбрасываем CSS и localStorage
                     document.documentElement.style.setProperty('--user-accent-rgb', DEFAULT_ACCENT_RGB);
                     localStorage.setItem('userAccentRGB', DEFAULT_ACCENT_RGB);
                     
+                    // Обновляем значение в самом поле ввода
                     if (colorPicker) {
-                        colorPicker.value = defaultHex;
+                        colorPicker.value = rgbStringToHex(DEFAULT_ACCENT_RGB);
+                        // Имитируем событие, чтобы Coloris обновил свой цветной квадратик
                         colorPicker.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
+                    // То же самое для яркости
                     document.documentElement.style.setProperty('--accent-brightness-strength', `${DEFAULT_BRIGHTNESS}%`);
+                    localStorage.setItem('userAccentBrightness', DEFAULT_BRIGHTNESS);
                     if (brightnessSlider) brightnessSlider.value = DEFAULT_BRIGHTNESS;
                     if (brightnessDisplay) brightnessDisplay.textContent = `${DEFAULT_BRIGHTNESS}%`;
-                    localStorage.setItem('userAccentBrightness', DEFAULT_BRIGHTNESS);
                 });
             }
         }
@@ -3022,13 +3033,6 @@
             editPipelineModal = document.getElementById('edit-pipeline-modal');
             editPipelineForm = document.getElementById('edit-pipeline-form');
             editPipelineCancelBtn = document.getElementById('edit-pipeline-cancel-btn');
-
-            Coloris.configure({
-                themeMode: 'dark',
-                theme: 'large',
-                alpha: false,
-                swatches: ['#409eff', '#26d07c', '#ff4d4d', '#f7d351', '#8e44ad', '#ffffff']
-            });
 
             loadUserPreferences();
             try {

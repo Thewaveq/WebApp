@@ -421,12 +421,21 @@ details[open] > summary .details-arrow {
 
 /* --- СТИЛИ ДЛЯ ПЛАВНОГО ИСЧЕЗНОВЕНИЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar > * {
-    transition: opacity 0.15s ease-out;
+    opacity: 1;
+    /* Контент будет появляться плавно за 0.2 секунды... */
+    transition: opacity 0.2s ease-in-out; 
+    /* ...НО С ЗАДЕРЖКОЙ в 0.1 секунды. Он подождет, пока сайдбар немного развернется. */
+    transition-delay: 0.1s; 
 }
 
 @media (min-width: 1024px) {
     #sidebar.collapsed > * {
         opacity: 0;
+        pointer-events: none; /* Добавим, чтобы нельзя было кликнуть на невидимые элементы */
+        /* Контент будет исчезать БЫСТРЕЕ, за 0.15 секунды... */
+        transition: opacity 0.15s ease-in-out;
+        /* ...И БЕЗ ЗАДЕРЖКИ. Исчезновение начнется сразу. */
+        transition-delay: 0s; 
     }
 }
 

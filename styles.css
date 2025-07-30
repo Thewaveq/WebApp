@@ -1,32 +1,40 @@
 /* styles.css */
 :root {
-    /* === ВАШ ГЛАВНЫЙ ПУЛЬТ УПРАВЛЕНИЯ ЦВЕТОМ === */
+    /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
+
+    /* 1. АКЦЕНТНЫЙ ЦВЕТ ПОЛЬЗОВАТЕЛЯ (в формате R, G, B) */
+    /* Сюда вы будете подставлять цвет из настроек. 
+       Например, для красного (#ff0000) это будет "255, 0, 0". */
+    --user-accent-rgb: 64, 158, 255; /* По умолчанию - приятный синий */
+
+    /* 2. СИЛА ОКРАШИВАНИЯ ФОНА (в процентах) */
+    /* Насколько сильно цвет пользователя повлияет на тёмные тона.
+       10%-20% - это лёгкий оттенок. 40% - уже заметное окрашивание. */
+    --accent-mix-strength: 15%;
+
+
+    /* === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ (можно не трогать) === */
     
-    /* 1. ОТТЕНОК (0-360): 
-       210 - холодный, синеватый (как сейчас)
-       35  - теплый, сепия
-       140 - мятный, зеленый
-       280 - фиолетовый */
-    --base-hue: 210; 
+    /* Сначала мы определяем "чистый холст" - палитру нейтральных серых.
+       Это наша гарантия, что интерфейс никогда "не сломается". */
+    --base-dark-900: hsl(0, 0%, 12%); /* Самый темный */
+    --base-dark-800: hsl(0, 0%, 15%); /* Чуть светлее */
+    --base-dark-700: hsl(0, 0%, 20%);
+    --base-dark-600: hsl(0, 0%, 25%);
+    --base-dark-500: hsl(0, 0%, 28%);
 
-    /* 2. НАСЫЩЕННОСТЬ (0%-100%):
-       Чем меньше, тем ближе к серому. 
-       Для серьезного стиля лучше держать в районе 5%-15%. */
-    --base-saturation: 10%;
+    /* Теперь магия: мы "подмешиваем" цвет пользователя к нашей серой основе. */
+    --bg-main:      color-mix(in srgb, var(--base-dark-900), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
+    --bg-sidebar:   color-mix(in srgb, var(--base-dark-800), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
+    --bg-element:   color-mix(in srgb, var(--base-dark-700), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
+    --bg-input:     color-mix(in srgb, var(--base-dark-600), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
+    --border-color: color-mix(in srgb, var(--base-dark-500), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
 
+    /* Главный акцентный цвет мы берем напрямую от пользователя. */
+    --accent:       rgb(var(--user-accent-rgb));
+    --accent-hover: color-mix(in srgb, rgb(var(--user-accent-rgb)), white 10%); /* Делаем его чуть светлее при наведении */
 
-    /* --- Цвета интерфейса (генерируются автоматически из настроек выше) --- */
-    --bg-main:        hsl(var(--base-hue), var(--base-saturation), 12%); /* Самый темный */
-    --bg-sidebar:     hsl(var(--base-hue), var(--base-saturation), 15%); /* Чуть светлее */
-    --bg-element:     hsl(var(--base-hue), var(--base-saturation), 20%);
-    --bg-input:       hsl(var(--base-hue), var(--base-saturation), 25%);
-    --border-color:   hsl(var(--base-hue), var(--base-saturation), 28%);
-
-    /* --- Акцентный цвет (тоже использует ваш оттенок, но с высокой насыщенностью) --- */
-    --accent:         hsl(var(--base-hue), 80%, 50%);
-    --accent-hover:   hsl(var(--base-hue), 80%, 55%);
-
-    /* --- Остальные цвета оставляем статичными для надежности --- */
+    /* Статичные цвета */
     --text-primary: #f5f5f5;
     --text-secondary: #888888;
     --danger: #e53e3e;

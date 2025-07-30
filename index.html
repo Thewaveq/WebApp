@@ -1819,7 +1819,7 @@
             const brightnessSlider = document.getElementById('accent-brightness-slider');
             const brightnessDisplay = document.getElementById('brightness-value-display');
 
-            const DEFAULT_ACCENT_RGB = '13, 30, 48';
+            const DEFAULT_ACCENT_RGB = '64, 158, 255';
             const DEFAULT_BRIGHTNESS = '20';
 
             if (colorPicker) {
@@ -1850,12 +1850,12 @@
                 resetColorBtn.addEventListener('click', () => {
                     document.documentElement.style.setProperty('--user-accent-rgb', DEFAULT_ACCENT_RGB);
                     if (colorPicker) colorPicker.value = rgbStringToHex(DEFAULT_ACCENT_RGB);
-                    localStorage.removeItem('userAccentRGB');
+                    localStorage.setItem('userAccentRGB', DEFAULT_ACCENT_RGB);
                     
                     document.documentElement.style.setProperty('--accent-brightness-strength', `${DEFAULT_BRIGHTNESS}%`);
                     if (brightnessSlider) brightnessSlider.value = DEFAULT_BRIGHTNESS;
                     if (brightnessDisplay) brightnessDisplay.textContent = `${DEFAULT_BRIGHTNESS}%`;
-                    localStorage.removeItem('userAccentBrightness');
+                    localStorage.setItem('userAccentBrightness', DEFAULT_BRIGHTNESS);
                 });
             }
         }

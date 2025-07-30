@@ -1,14 +1,14 @@
 /* styles.css */
 :root {
-    --bg-main: #121212;       /* <-- ЗНАЧИТЕЛЬНО БОЛЕЕ ТЕМНЫЙ ФОН */
-    --bg-sidebar: #1e1e1e;   /* <-- Цвет сайдбара, теперь он светлее фона */
-    --bg-element: #2d2d2d;   /* <-- Цвет элементов, еще светлее */
-    --bg-input: #3c3c3c;     /* <-- Цвет полей ввода, самый светлый из фонов */
+    --bg-main: #1e1e1e;       /* Темный фон для основной части */
+    --bg-sidebar: #252526;   /* Фон для сайдбара и верхней панели (светлее) */
+    --bg-element: #333333;
+    --bg-input: #3c3c3c;
     --text-primary: #f5f5f5;
-    --text-secondary: #a0a0a0; /* Слегка осветлил для лучшего контраста */
+    --text-secondary: #888888;
     --accent: #0e639c;
     --accent-hover: #1177bb;
-    --border-color: #3a3a3c; /* Подогнал цвет обводки под новую гамму */
+    --border-color: #4a4a4a; /* Переменная остается для других элементов, мы ее не трогаем */
     --danger: #e53e3e;
     --danger-hover: #c53030;
 }
@@ -343,9 +343,7 @@ details[open] > summary .details-arrow {
 
 /* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar {
-    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out, border-width 0.1s ease-in-out;
-    width: 280px;
-    flex-shrink: 0;
+    border-right: none !important;
 }
 
 @media (max-width: 1023px) {
@@ -454,11 +452,8 @@ details[open] > summary .details-arrow {
     border-color: var(--accent-hover);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-.note-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
+header {
+    border-bottom: none !important;
 }
 .note-card-title {
     background-color: transparent;
@@ -840,7 +835,7 @@ details[open] > summary .details-arrow {
 
 /* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
 .gutter {
-    background-color: transparent; /* <-- ЭТО ДЕЛАЕТ ЛИНИИ НЕВИДИМЫМИ */
+    background-color: #37373d;
     background-repeat: no-repeat;
     background-position: 50%;
 }

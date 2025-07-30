@@ -1817,9 +1817,10 @@
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
             document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
 
+            // Инициализируем Coloris для нашего элемента
             if (document.getElementById('accent-color-picker')) {
                 Coloris({
-                    el: '#accent-color-picker', // Указываем, какой элемент инициализировать
+                    el: '#accent-color-picker',
                     themeMode: 'dark',
                     theme: 'large',
                     alpha: false,
@@ -1832,15 +1833,15 @@
             const brightnessSlider = document.getElementById('accent-brightness-slider');
             const brightnessDisplay = document.getElementById('brightness-value-display');
 
-            const DEFAULT_ACCENT_RGB = '0, 0, 0'; // Стандартный
+            const DEFAULT_ACCENT_RGB = '0, 0, 0'; // Стандартный синий
             const DEFAULT_BRIGHTNESS = '20';
 
             if (colorPicker) {
-                // 1. Устанавливаем начальное значение из localStorage
                 const savedAccentRGB = localStorage.getItem('userAccentRGB') || DEFAULT_ACCENT_RGB;
                 colorPicker.value = rgbStringToHex(savedAccentRGB);
 
-                // 2. Вешаем надежный обработчик события 'change'
+                colorPicker.dispatchEvent(new Event('input', { bubbles: true }));
+
                 colorPicker.addEventListener('change', (event) => {
                     const newRgbString = hexToRgbString(event.target.value);
                     document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
@@ -1863,18 +1864,14 @@
 
             if (resetColorBtn) {
                 resetColorBtn.addEventListener('click', () => {
-                    // Сбрасываем CSS и localStorage
                     document.documentElement.style.setProperty('--user-accent-rgb', DEFAULT_ACCENT_RGB);
                     localStorage.setItem('userAccentRGB', DEFAULT_ACCENT_RGB);
                     
-                    // Обновляем значение в самом поле ввода
                     if (colorPicker) {
                         colorPicker.value = rgbStringToHex(DEFAULT_ACCENT_RGB);
-                        // Имитируем событие, чтобы Coloris обновил свой цветной квадратик
                         colorPicker.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
-                    // То же самое для яркости
                     document.documentElement.style.setProperty('--accent-brightness-strength', `${DEFAULT_BRIGHTNESS}%`);
                     localStorage.setItem('userAccentBrightness', DEFAULT_BRIGHTNESS);
                     if (brightnessSlider) brightnessSlider.value = DEFAULT_BRIGHTNESS;

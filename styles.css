@@ -1,14 +1,14 @@
 /* styles.css */
 :root {
-    --bg-main: #1e1e1e;       /* Темный фон для основной части */
-    --bg-sidebar: #252526;   /* Фон для сайдбара и верхней панели (светлее) */
-    --bg-element: #333333;
-    --bg-input: #3c3c3c;
-    --text-primary: #f5f5f5;
+    --bg-main: #121212;      /* Основной фон сделан темнее для контраста */
+    --bg-sidebar: #1E1E1E;   /* Фон для сайдбара и верхней панели, теперь он светлее основного */
+    --bg-element: #2A2A2A;   /* Фон для кнопок и других элементов */
+    --bg-input: #333333;     /* Фон для полей ввода */
+    --text-primary: #EAEAEA; /* Слегка смягченный белый для текста */
     --text-secondary: #888888;
-    --accent: #0e639c;
-    --accent-hover: #1177bb;
-    --border-color: #4a4a4a; /* Переменная остается для других элементов, мы ее не трогаем */
+    --accent: #0A84FF;       /* Более яркий, современный синий */
+    --accent-hover: #389BFF;
+    --border-color: #363636; /* Цвет для оставшихся границ (например, в карточках) */
     --danger: #e53e3e;
     --danger-hover: #c53030;
 }
@@ -343,7 +343,17 @@ details[open] > summary .details-arrow {
 
 /* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar {
-    border-right: none !important;
+    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out, border-width 0.1s ease-in-out;
+    width: 280px;
+    flex-shrink: 0;
+    /* Полностью убираем обводку справа */
+    border-right-width: 0;
+}
+main > nav {
+    /* Задаем панели тот же фон, что и у сайдбара для единства */
+    background-color: var(--bg-sidebar);
+    /* Полностью убираем обводку снизу */
+    border-bottom-width: 0;
 }
 
 @media (max-width: 1023px) {
@@ -452,8 +462,11 @@ details[open] > summary .details-arrow {
     border-color: var(--accent-hover);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-header {
-    border-bottom: none !important;
+.note-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
 }
 .note-card-title {
     background-color: transparent;
@@ -835,7 +848,8 @@ header {
 
 /* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
 .gutter {
-    background-color: #37373d;
+    /* Меняем цвет разделителя, чтобы он соответствовал новому фону */
+    background-color: var(--bg-main);
     background-repeat: no-repeat;
     background-position: 50%;
 }

@@ -39,6 +39,9 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
+    <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
     
     <!-- Стили вынесены в отдельный файл -->
     <link rel="stylesheet" href="styles.css">
@@ -1858,6 +1861,14 @@
                     localStorage.setItem('userAccentBrightness', DEFAULT_BRIGHTNESS);
                 });
             }
+            Coloris.init();
+            Coloris({
+                el: '#accent-color-picker',
+                themeMode: 'dark',
+                theme: 'large',
+                alpha: false,
+                swatches: ['#409eff','#26d07c','#ff4d4d','#f7d351','#8e44ad','#ffffff']
+            });
         }
         
         async function handleChatSubmit(e) {
@@ -3051,6 +3062,7 @@
                 console.error("Firebase initialization failed:", error);
                 mainContent.innerHTML = `<div class="p-4 text-red-400"><strong>Ошибка инициализации Firebase:</strong> ${error.message}.</div>`;
             }
+            
         }
         
         init();

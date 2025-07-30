@@ -941,36 +941,19 @@
             dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
                 .addEventListener('click', function() { 
                     const buttonElement = this;
-                    navigator.clipboard.writeText(msg.content).then(() => {
-                        const iconEl = buttonElement.querySelector('i');
-                        const textEl = buttonElement.querySelector('span');
 
-                        if (!iconEl || !textEl) return;
+                    navigator.clipboard.writeText(msg.content).then(() => {
+                        const textEl = buttonElement.querySelector('span');
+                        if (!textEl) return;
 
                         const originalText = textEl.textContent;
-                        const originalIconName = iconEl.getAttribute('data-lucide');
-                        const originalIconClasses = iconEl.className;
 
                         textEl.textContent = 'Скопировано!';
-                        iconEl.setAttribute('data-lucide', 'check');
-                        lucide.createIcons({ nodes: [buttonElement] });
 
                         setTimeout(() => {
-                            if (!document.body.contains(buttonElement)) return;
-                            
-                            const currentIconSVG = buttonElement.querySelector('svg');
-                            if (!currentIconSVG) return;
-
-                            const newIconI = document.createElement('i');
-                            newIconI.className = originalIconClasses;
-                            newIconI.setAttribute('data-lucide', originalIconName);
-
-                            currentIconSVG.replaceWith(newIconI);
-                            
-                            textEl.textContent = originalText;
-
-                            lucide.createIcons({ nodes: [buttonElement] });
-
+                            if (document.body.contains(buttonElement)) {
+                                textEl.textContent = originalText;
+                            }
                         }, 2000);
                     }).catch(err => console.error('Не удалось скопировать текст:', err));
                 });

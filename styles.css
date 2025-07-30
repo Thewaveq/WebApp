@@ -77,9 +77,16 @@ input::placeholder, textarea::placeholder {
 .sidebar-item { 
     background-color: var(--bg-element);
     margin-bottom: 2px;
+    border: 1px solid transparent;
+    transition: background-color 0.2s, border-color 0.2s;
 }
-.sidebar-item.active { background-color: var(--accent); color: white; }
-.sidebar-item:hover { background-color: var(--bg-input); } /* При наведении фон станет чуть светлее */
+.sidebar-item.active { 
+    border-color: var(--border-color);
+}
+.sidebar-item:hover { 
+    background-color: var(--bg-input); 
+}
+
 .main-nav-item.active { background-color: var(--accent); color: white; }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-sidebar); }

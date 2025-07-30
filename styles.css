@@ -964,21 +964,7 @@ details[open] > summary .details-arrow {
     border-radius: 0 0.25rem 0.25rem 0; /* Скругляем только правые углы */
 }
 
-
-/*
- * ПРОБЛЕМА 2: Заставляем работать ползунок яркости.
- */
-
-/* 1. Задаем базовый цвет для элементов с классом .bg-accent */
-.bg-accent {
-    background-color: rgb(var(--user-accent-rgb, 64, 158, 255));
-}
-
-/* 2. ПРИМЕНЯЕМ переменную яркости ко всем нужным элементам. */
-/*    Это правило заставит яркость меняться. */
 .bg-accent,
 .hover\:bg-accent-hover:hover {
-    /* Фильтр яркости. 100% = без изменений. */
-    /* Мы добавляем значение из ползунка к базовым 100%. */
-    filter: brightness(calc(100% + var(--accent-brightness-strength, 0%)));
+    filter: brightness(calc(100% + var(--accent-brightness-strength, 20%)));
 }

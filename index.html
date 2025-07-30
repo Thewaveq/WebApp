@@ -1816,42 +1816,32 @@
         function setupSettingsViewEventListeners() {
             document.getElementById('add-new-provider-btn')?.addEventListener('click', handleAddProvider);
             document.getElementById('add-new-role-btn')?.addEventListener('click', handleAddRole);
-            document.getElementById('add-new-pipeline-btn')?.addEventListener('click', handleAddPipeline);
-        
+
             const colorPicker = document.getElementById('accent-color-picker');
             const resetColorBtn = document.getElementById('reset-color-btn');
             const brightnessSlider = document.getElementById('accent-brightness-slider');
             const brightnessDisplay = document.getElementById('brightness-value-display');
-        
+
             const DEFAULT_ACCENT_RGB = '64, 158, 255'; // Стандартный синий цвет
             const DEFAULT_BRIGHTNESS = '20';
-        
-            // 1. Инициализация Coloris (происходит в init, но важно помнить)
-            Coloris.configure({
-                themeMode: 'dark',
-                theme: 'large',
-                alpha: false,
-                swatches: ['#409eff', '#26d07c', '#ff4d4d', '#f7d351', '#8e44ad', '#ffffff']
-            });
-        
+
             if (colorPicker) {
                 const savedAccentRGB = localStorage.getItem('userAccentRGB') || DEFAULT_ACCENT_RGB;
                 colorPicker.value = rgbStringToHex(savedAccentRGB);
-        
-                // *** ИСПРАВЛЕНИЕ: Используем специальное событие 'coloris:pick' ***
-                colorPicker.addEventListener('coloris:pick', event => {
-                    // Получаем цвет из специального поля 'detail.color'
-                    const newRgbString = hexToRgbString(event.detail.color);
+
+                // *** ИЗМЕНЕНИЕ: Используем стандартное и надежное событие 'change' ***
+                colorPicker.addEventListener('change', (event) => {
+                    const newRgbString = hexToRgbString(event.target.value);
                     document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
                     localStorage.setItem('userAccentRGB', newRgbString);
                 });
             }
-        
+
             if (brightnessSlider && brightnessDisplay) {
                 const currentBrightness = (localStorage.getItem('userAccentBrightness') || DEFAULT_BRIGHTNESS);
                 brightnessSlider.value = currentBrightness;
                 brightnessDisplay.textContent = `${currentBrightness}%`;
-        
+
                 brightnessSlider.addEventListener('input', (event) => {
                     const newBrightness = event.target.value;
                     document.documentElement.style.setProperty('--accent-brightness-strength', `${newBrightness}%`);
@@ -1859,7 +1849,7 @@
                     localStorage.setItem('userAccentBrightness', newBrightness);
                 });
             }
-        
+
             if (resetColorBtn) {
                 resetColorBtn.addEventListener('click', () => {
                     const defaultHex = rgbStringToHex(DEFAULT_ACCENT_RGB);
@@ -1869,10 +1859,9 @@
                     
                     if (colorPicker) {
                         colorPicker.value = defaultHex;
-                        // *** ИСПРАВЛЕНИЕ: "Сообщаем" Coloris об изменении значения ***
                         colorPicker.dispatchEvent(new Event('input', { bubbles: true }));
                     }
-        
+
                     document.documentElement.style.setProperty('--accent-brightness-strength', `${DEFAULT_BRIGHTNESS}%`);
                     if (brightnessSlider) brightnessSlider.value = DEFAULT_BRIGHTNESS;
                     if (brightnessDisplay) brightnessDisplay.textContent = `${DEFAULT_BRIGHTNESS}%`;
@@ -3033,6 +3022,13 @@
             editPipelineModal = document.getElementById('edit-pipeline-modal');
             editPipelineForm = document.getElementById('edit-pipeline-form');
             editPipelineCancelBtn = document.getElementById('edit-pipeline-cancel-btn');
+
+            Coloris.configure({
+                themeMode: 'dark',
+                theme: 'large',
+                alpha: false,
+                swatches: ['#409eff', '#26d07c', '#ff4d4d', '#f7d351', '#8e44ad', '#ffffff']
+            });
 
             loadUserPreferences();
             try {

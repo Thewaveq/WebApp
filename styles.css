@@ -945,11 +945,16 @@ details[open] > summary .details-arrow {
     background-color: #1a202c; /* Темный фон */
     border: 1px solid #4A5568;  /* Рамка */
     border-radius: 0.375rem;     /* Скругление */
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+.clr-field:focus-within {
+    border-color: rgb(var(--user-accent-rgb));
+    box-shadow: 0 0 0 2px rgba(var(--user-accent-rgb), 0.4);
 }
 
 /* 2. Задаем ширину ТОЛЬКО текстовому полю. Контейнер подстроится под него. */
 .clr-field input[type=text] {
-    width: 110px; /* <<-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ. Ширина задается здесь, а не контейнеру. */
+    width: 150px; /* <<-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ. Ширина задается здесь, а не контейнеру. */
     height: 100%;
     background: transparent;
     border: none;

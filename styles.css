@@ -74,22 +74,25 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
 }
 
-.sidebar-item { 
-    background-color: var(--bg-element);      /* Стандартная фоновая заливка */
-    border: 1px solid var(--border-color);    /* Стандартная серая рамка */
+.sidebar-item {
+    background-color: var(--bg-element);
+    border: 1px solid var(--border-color);
     margin-bottom: 2px;
-    font-weight: normal; /* Обычная жирность для неактивных */
+    font-weight: normal;
+    color: var(--text-primary);
     transition: background-color 0.2s, border-color 0.2s, font-weight 0.2s;
 }
-.sidebar-item.active { 
-    /* Фон НЕ МЕНЯЕМ, он остается таким же, как у неактивных */
-    border-color: var(--accent);    /* А вот РАМКА становится акцентной, как вы и хотели */
-    font-weight: bold;              /* Дополнительно делаем шрифт жирным для лучшего выделения */
-    color: var(--text-primary);     /* Убедимся, что цвет текста не меняется на белый */
+
+/* НОВЫЙ СТИЛЬ: Стиль для ВЫБРАННОГО чата (теперь выглядит как старый ховер) */
+.sidebar-item.active {
+    background-color: var(--bg-input);      /* Более светлый фон */
+    border-color: var(--text-secondary);  /* Более заметная серая рамка */
+    font-weight: bold;                    /* Жирный шрифт для выделения */
 }
-.sidebar-item:not(.active):hover { 
-    background-color: var(--bg-input);  /* При наведении слегка меняем фон */
-    border-color: var(--text-secondary); /* И делаем рамку чуть заметнее */
+
+/* НОВЫЙ СТИЛЬ: Стиль при НАВЕДЕНИИ на неактивный чат (теперь еще более легкий эффект) */
+.sidebar-item:not(.active):hover {
+    background-color: var(--bg-input); /* Просто делаем фон чуть светлее, без изменения рамки */
 }
 
 .main-nav-item.active { background-color: var(--accent); color: white; }

@@ -2475,16 +2475,10 @@
         }
     
         function setupGlobalEventListeners() {
-            // --- НАВИГАЦИЯ И СОЗДАНИЕ ЭЛЕМЕНТОВ ---
             mainNavItems.forEach(item => {
                 item.addEventListener('click', () => {
                     state.activeTab = item.dataset.tab;
-                    if (state.activeTab === 'chat' || state.activeTab === 'notepad') {
-                        const firstSessionOfType = state.sessions.find(s => s.type === state.activeTab);
-                        state.activeSessionId = firstSessionOfType ? firstSessionOfType.id : null;
-                    } else {
-                        state.activeSessionId = null;
-                    }
+                    state.activeSessionId = null;
                     render();
                 });
             });

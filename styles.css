@@ -75,18 +75,21 @@ input::placeholder, textarea::placeholder {
 }
 
 .sidebar-item { 
-    background-color: var(--bg-element);      /* Возвращаем фоновую заливку по умолчанию */
-    border: 1px solid var(--border-color);    /* Добавляем стандартную серую рамку */
+    background-color: var(--bg-element);      /* Стандартная фоновая заливка */
+    border: 1px solid var(--border-color);    /* Стандартная серая рамка */
     margin-bottom: 2px;
-    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    font-weight: normal; /* Обычная жирность для неактивных */
+    transition: background-color 0.2s, border-color 0.2s, font-weight 0.2s;
 }
 .sidebar-item.active { 
-    background-color: var(--accent);      /* Заливка акцентным цветом */
-    border-color: var(--accent);          /* Рамка тоже становится акцентной */
-    color: white;                         /* Белый текст для контраста */
+    /* Фон НЕ МЕНЯЕМ, он остается таким же, как у неактивных */
+    border-color: var(--accent);    /* А вот РАМКА становится акцентной, как вы и хотели */
+    font-weight: bold;              /* Дополнительно делаем шрифт жирным для лучшего выделения */
+    color: var(--text-primary);     /* Убедимся, что цвет текста не меняется на белый */
 }
 .sidebar-item:not(.active):hover { 
-    background-color: var(--bg-input);    /* Фон становится чуть светлее, чтобы не мешать активному элементу */
+    background-color: var(--bg-input);  /* При наведении слегка меняем фон */
+    border-color: var(--text-secondary); /* И делаем рамку чуть заметнее */
 }
 
 .main-nav-item.active { background-color: var(--accent); color: white; }

@@ -935,3 +935,17 @@ details[open] > summary .details-arrow {
         font-size: 18px; /* Вы можете изменить это значение, если 16px покажется мало или много */
     }
 }
+
+/* --- УЛУЧШЕННЫЙ СТИЛЬ ДЛЯ ВЫБОРА ЦВЕТА --- */
+#accent-color-picker {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    background-color: transparent;
+    padding: 4px;
+    border: 1px solid var(--border-color); 
+    
+    box-shadow: none;
+    outline: none;
+}

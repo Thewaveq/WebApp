@@ -75,16 +75,18 @@ input::placeholder, textarea::placeholder {
 }
 
 .sidebar-item { 
-    background-color: var(--bg-element);
+    background-color: transparent;
+    border: 1px solid var(--border-color);
     margin-bottom: 2px;
-    border: 1px solid transparent;
-    transition: background-color 0.2s, border-color 0.2s;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 .sidebar-item.active { 
-    border-color: var(--border-color);
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: white;
 }
-.sidebar-item:hover { 
-    background-color: var(--bg-input); 
+.sidebar-item:not(.active):hover { 
+    background-color: var(--bg-input);
 }
 
 .main-nav-item.active { background-color: var(--accent); color: white; }

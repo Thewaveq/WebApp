@@ -1861,13 +1861,20 @@
                     localStorage.setItem('userAccentBrightness', DEFAULT_BRIGHTNESS);
                 });
             }
-            Coloris.init();
+
             Coloris({
                 el: '#accent-color-picker',
                 themeMode: 'dark',
                 theme: 'large',
-                alpha: false,
-                swatches: ['#409eff','#26d07c','#ff4d4d','#f7d351','#8e44ad','#ffffff']
+                alpha: false, // Отключаем прозрачность, она нам не нужна для акцентного цвета
+                swatches: [
+                    '#409eff',
+                    '#26d07c',
+                    '#ff4d4d',
+                    '#f7d351',
+                    '#8e44ad',
+                    '#ffffff'
+                ]
             });
         }
         

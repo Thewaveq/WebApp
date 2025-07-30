@@ -37,7 +37,9 @@ input::placeholder, textarea::placeholder {
 .bg-input {
     background-color: var(--bg-input);
 }
-
+.bg-bg-sidebar {
+    background-color: var(--bg-sidebar);
+}
 .text-text-secondary {
     color: var(--text-secondary);
 }

@@ -380,8 +380,8 @@ details[open] > summary .details-arrow {
 }
 
 .modal-content {
-    /* "Стеклянные" стили */
-    background-color: rgba(37, 37, 38, 0.8);
+    /* "Стеклянные" стили, теперь унифицированные с полем ввода */
+    background-color: rgba(20, 20, 20, 0.65); /* Используем более темный и прозрачный фон */
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -389,8 +389,8 @@ details[open] > summary .details-arrow {
     /* Стили для макета и размера */
     display: flex;
     flex-direction: column;
-    max-height: 90vh; /* Крайне важно для ограничения высоты */
-    padding: 2rem;
+    max-height: 90vh;
+    padding: 1rem; /* Оставляем уменьшенный отступ */
     border-radius: 0.5rem;
     width: 90%;
     max-width: 400px;

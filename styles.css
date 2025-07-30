@@ -75,18 +75,18 @@ input::placeholder, textarea::placeholder {
 }
 
 .sidebar-item { 
-    background-color: transparent;
-    border: 1px solid var(--border-color);
+    background-color: var(--bg-element);      /* Возвращаем фоновую заливку по умолчанию */
+    border: 1px solid var(--border-color);    /* Добавляем стандартную серую рамку */
     margin-bottom: 2px;
     transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 .sidebar-item.active { 
-    background-color: var(--accent);
-    border-color: var(--accent);
-    color: white;
+    background-color: var(--accent);      /* Заливка акцентным цветом */
+    border-color: var(--accent);          /* Рамка тоже становится акцентной */
+    color: white;                         /* Белый текст для контраста */
 }
 .sidebar-item:not(.active):hover { 
-    background-color: var(--bg-input);
+    background-color: var(--bg-input);    /* Фон становится чуть светлее, чтобы не мешать активному элементу */
 }
 
 .main-nav-item.active { background-color: var(--accent); color: white; }

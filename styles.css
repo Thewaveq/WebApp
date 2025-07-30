@@ -1,4 +1,4 @@
-/* styles.css */
+м/* styles.css */
 :root {
     /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
 
@@ -934,18 +934,4 @@ details[open] > summary .details-arrow {
     #diagram-input {
         font-size: 18px; /* Вы можете изменить это значение, если 16px покажется мало или много */
     }
-}
-
-/* --- УЛУЧШЕННЫЙ СТИЛЬ ДЛЯ ВЫБОРА ЦВЕТА --- */
-#accent-color-picker {
-    -webkit-appearance: none; /* для Safari/Chrome */
-    -moz-appearance: none;    /* для Firefox */
-    appearance: none;         /* Стандартное свойство */
-
-    background-color: transparent; /* Фон делаем прозрачным, чтобы видеть внутренний квадрат с цветом */
-    padding: 4px;                  /* Небольшой внутренний отступ, чтобы цвет не прилипал к рамке */
-    border: 1px solid var(--border-color); /* Применяем ВАШУ стандартную серую рамку */
-    
-    box-shadow: none;
-    outline: none;
 }

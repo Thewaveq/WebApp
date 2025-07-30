@@ -151,28 +151,21 @@ details[open] > summary .details-arrow {
 
 .prose h1, .prose h2, .prose h3 {
     color: white;
-    /* Убираем линию */
     border-bottom: none;
-    /* Добавляем немного воздуха снизу */
-    padding-bottom: 0.25em;
 }
 .prose a { color: var(--accent-hover); }
 
 /* --- СТИЛИ ДЛЯ БЛОКА КОДА --- */
 .prose pre {
-    background-color: rgba(0, 0, 0, 0.4); 
-    /*background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)); */
+    background-color: rgba(0, 0, 0, 0.4);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-
-    border: 1px solid rgba(255, 255, 255, 0.08);
-
+    /* Убираем рамку */
+    border: none;
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5),
                 inset 0 0 30px rgba(0, 0, 0, 0.25);
-    
-    padding: 0.5rem; 
-
-    border-radius: 0.75rem; 
+    padding: 0.5rem;
+    border-radius: 0.75rem;
     position: relative;
     margin-top: 1.25em;
     margin-bottom: 1.25em;
@@ -291,7 +284,8 @@ details[open] > summary .details-arrow {
 .prose details {
     display: flow-root;
     background-color: var(--bg-element);
-    border: 1px solid var(--border-color);
+    /* Убираем рамку */
+    border: none;
     border-radius: 0.5rem;
     margin: 1.25em 0;
     padding: 0.5rem 1rem;
@@ -309,7 +303,8 @@ details[open] > summary .details-arrow {
 .prose details > div {
     padding-top: 0.75rem;
     margin-top: 0.5rem;
-    border-top: 1px solid var(--border-color);
+    /* Убираем верхнюю границу */
+    border-top: none;
     opacity: 0.8;
 }
 
@@ -636,32 +631,21 @@ details[open] > summary .details-arrow {
 
 /* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
 #chat-input {
-    /* 1. Устанавливаем более темный и полупрозрачный фон */
-    /* Используем почти черный цвет (20, 20, 20) с 60% непрозрачности */
     background-color: rgba(20, 20, 20, 0.6);
-
-    /* 2. Добавляем эффект размытия фона (блюр) */
-    /* Это создаст эффект "матового стекла" на элементах позади поля ввода */
-    -webkit-backdrop-filter: blur(12px); /* Префикс для поддержки Safari */
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
 
-    /* 3. Настраиваем рамку, чтобы она лучше сочеталась с новым стилем */
-    /* Тонкая, полупрозрачная белая рамка для выделения краев */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Убираем постоянную рамку, делая ее прозрачной */
+    border: 1px solid transparent;
 
-    /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
     box-shadow: none;
     outline: none;
-    
-    /* 5. Добавляем плавный переход для рамки и тени при фокусе */
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 /* 6. Стиль при фокусе на поле ввода */
 #chat-input:focus {
-    /* При выделении поля рамка будет становиться ярче, используя ваш акцентный цвет */
-    border-color: rgba(14, 99, 156, 0.8); /* Используем --accent цвет с прозрачностью */
-    /* Добавляем внешнюю тень для эффекта "кольца" */
+    border-color: rgba(14, 99, 156, 0.8);
     box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.5);
 }
 
@@ -787,8 +771,8 @@ details[open] > summary .details-arrow {
     background-color: rgba(37, 37, 38, 0.85);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-
-    border: 1px solid var(--border-color);
+    /* Убираем рамку */
+    border: none;
     border-radius: 0.5rem;
     box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     padding: 0.5rem;
@@ -799,7 +783,7 @@ details[open] > summary .details-arrow {
 }
 
 /* Класс для скрытия меню */
-.message-actions-dropdown.hidden {
+.dropdown-menu-separator {
     display: none;
 }
 

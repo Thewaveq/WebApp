@@ -980,12 +980,12 @@ details[open] > summary .details-arrow {
 
 /* 2. При фокусе (когда вы на него нажимаете) применяем акцентный цвет */
 .clr-code:focus {
-    /* Меняем цвет рамки на ваш кастомный */
-    border-color: rgb(var(--user-accent-rgb));
+    /* Применяем наш цвет рамки и говорим, что он САМЫЙ ВАЖНЫЙ */
+    border-color: rgb(var(--user-accent-rgb)) !important;
 
-    /* Добавляем эффект "свечения", как у других полей, используя тень */
-    box-shadow: 0 0 0 2px rgba(var(--user-accent-rgb), 0.4);
+    /* Применяем нашу тень "свечения" и говорим, что она САМАЯ ВАЖНАЯ */
+    box-shadow: 0 0 0 2px rgba(var(--user-accent-rgb), 0.4) !important;
 
-    /* Обязательно убираем стандартную синюю обводку браузера */
-    outline: none;
+    /* Убираем стандартную синюю обводку браузера, если она есть */
+    outline: none !important;
 }

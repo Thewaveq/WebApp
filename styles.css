@@ -1,16 +1,20 @@
 /* styles.css */
 :root {
-    --bg-main: #121212;                     /* Основной фон стал темнее */
-    --bg-sidebar: #1E1E1E;                  /* Фон для сайдбара и верхней панели */
-    --bg-element: #2A2A2A;
-    --bg-input: #333333;
-    --text-primary: #EAEAEA;
-    --text-secondary: #888888;
-    --accent: #0A84FF;                      /* Более яркий и современный синий */
-    --accent-hover: #389BFF;
-    --shadow-color: rgba(0, 0, 0, 0.4);     /* Цвет тени для разделения */
-    --danger: #e53e3e;
-    --danger-hover: #c53030;
+    /*
+    Новая, более сбалансированная и профессиональная палитра.
+    Основана на холодных сине-серых тонах для гармоничного вида.
+    */
+    --bg-main: #1A1D21;       /* Глубокий, но не чисто черный, фон с холодным оттенком */
+    --bg-sidebar: #23272C;   /* Панели. Заметно, но плавно светлее фона, из той же гаммы */
+    --bg-element: #30353B;   /* Элементы интерфейса (кнопки, карточки) */
+    --bg-input: #3C424A;     /* Поля ввода */
+    --text-primary: #DCE1E8; /* Основной текст. Мягкий, не режущий глаз белый с холодным подтоном */
+    --text-secondary: #818A96;/* Второстепенный текст */
+    --accent: #3B82F6;       /* Спокойный и современный синий акцент */
+    --accent-hover: #60A5FA; /* Его версия для наведения */
+    --border-color: #4A5058; /* Цвет для редких рамок (не для основного лейаута) */
+    --danger: #EF4444;       /* Опасность (красный) */
+    --danger-hover: #DC2626;
 }
 html, body {
     height: 100%;
@@ -344,27 +348,20 @@ details[open] > summary .details-arrow {
 /* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
 #sidebar {
     background-color: var(--bg-sidebar);
-    /* Полностью убираем рамку */
+    /* Полностью убираем обводку и тень */
     border-right-width: 0;
-    /* Добавляем тень справа для визуального отделения от контента */
-    box-shadow: 4px 0px 12px -2px var(--shadow-color);
-    /* z-index нужен, чтобы тень корректно накладывалась на основной контент */
-    z-index: 1;
-    position: relative;
-    /* Остальные стили из вашего файла */
+    box-shadow: none;
+    
+    /* Остальные стили из вашего файла... */
     transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out;
     width: 280px;
     flex-shrink: 0;
 }
 main > nav {
     background-color: var(--bg-sidebar);
-    /* Полностью убираем рамку */
+    /* Полностью убираем обводку и тень */
     border-bottom-width: 0;
-    /* Добавляем тень снизу для отделения от контента */
-    box-shadow: 0px 4px 12px -2px var(--shadow-color);
-    /* z-index выше, чем у сайдбара, чтобы тень была поверх него в углу */
-    z-index: 2;
-    position: relative;
+    box-shadow: none;
 }
 
 @media (max-width: 1023px) {

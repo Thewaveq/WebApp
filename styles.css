@@ -3,36 +3,34 @@
     /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
 
     /* 1. АКЦЕНТНЫЙ ЦВЕТ ПОЛЬЗОВАТЕЛЯ (в формате R, G, B) */
-    /* Сюда вы будете подставлять цвет из настроек. 
-       Например, для красного (#ff0000) это будет "255, 0, 0". */
-    --user-accent-rgb: 64, 158, 255; /* По умолчанию - приятный синий */
+    --user-accent-rgb: 64, 158, 255; 
 
     /* 2. СИЛА ОКРАШИВАНИЯ ФОНА (в процентах) */
-    /* Насколько сильно цвет пользователя повлияет на тёмные тона.
-       10%-20% - это лёгкий оттенок. 40% - уже заметное окрашивание. */
     --accent-mix-strength: 15%;
 
+    /* 3. НОВОЕ: ЯРКОСТЬ КНОПОК И ЭЛЕМЕНТОВ (в процентах) */
+    /* Насколько сильно осветлять акцентный цвет для кнопок. 
+       0% - цвет как есть, 30% - заметно ярче. */
+    --accent-brightness-strength: 20%;
 
-    /* === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ (можно не трогать) === */
-    
-    /* Сначала мы определяем "чистый холст" - палитру нейтральных серых.
-       Это наша гарантия, что интерфейс никогда "не сломается". */
-    --base-dark-900: hsl(0, 0%, 12%); /* Самый темный */
-    --base-dark-800: hsl(0, 0%, 15%); /* Чуть светлее */
+
+    /* === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ (генерируются автоматически) === */
+    --base-dark-900: hsl(0, 0%, 12%);
+    --base-dark-800: hsl(0, 0%, 15%);
     --base-dark-700: hsl(0, 0%, 20%);
     --base-dark-600: hsl(0, 0%, 25%);
     --base-dark-500: hsl(0, 0%, 28%);
 
-    /* Теперь магия: мы "подмешиваем" цвет пользователя к нашей серой основе. */
+    /* Фоны, как и раньше, слегка окрашиваются */
     --bg-main:      color-mix(in srgb, var(--base-dark-900), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-sidebar:   color-mix(in srgb, var(--base-dark-800), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-element:   color-mix(in srgb, var(--base-dark-700), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-input:     color-mix(in srgb, var(--base-dark-600), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --border-color: color-mix(in srgb, var(--base-dark-500), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
 
-    /* Главный акцентный цвет мы берем напрямую от пользователя. */
-    --accent:       rgb(var(--user-accent-rgb));
-    --accent-hover: color-mix(in srgb, rgb(var(--user-accent-rgb)), white 10%); /* Делаем его чуть светлее при наведении */
+    /* ИЗМЕНЕНО: Акцентный цвет теперь тоже результат смешивания для контроля яркости */
+    --accent:       color-mix(in srgb, rgb(var(--user-accent-rgb)), white var(--accent-brightness-strength));
+    --accent-hover: color-mix(in srgb, var(--accent), white 10%); /* При наведении делаем его еще на 10% светлее */
 
     /* Статичные цвета */
     --text-primary: #f5f5f5;

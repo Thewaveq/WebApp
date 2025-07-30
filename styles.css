@@ -28,6 +28,10 @@ body {
     }
 }
 
+.bg-panel {
+    background-color: var(--bg-sidebar);
+}
+
 input, textarea, select {
     color: var(--text-primary);
 }

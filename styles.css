@@ -949,13 +949,3 @@ details[open] > summary .details-arrow {
     box-shadow: none;
     outline: none;
 }
-
-#accent-color-picker::-webkit-color-swatch {
-    border-radius: 0.25rem; /* Слегка скругляем углы у самого цвета */
-    border: none;           /* Убираем любую рамку у внутреннего квадратика */
-}
-
-#accent-color-picker::-moz-color-swatch { /* То же самое для Firefox */
-    border-radius: 0.25rem;
-    border: none;
-}

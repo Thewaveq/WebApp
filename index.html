@@ -944,9 +944,13 @@
                     const iconEl = btn.querySelector('i');
                     const textEl = btn.querySelector('span');
                     const originalText = textEl.textContent;
+            
+                    // Меняем иконку на галочку и текст на "Скопировано!"
                     iconEl.setAttribute('data-lucide', 'check');
                     textEl.textContent = 'Скопировано!';
                     lucide.createIcons({ nodes: [btn] });
+            
+                    // Через 2 секунды возвращаем кнопку в исходное состояние
                     setTimeout(() => {
                         iconEl.setAttribute('data-lucide', 'clipboard');
                         textEl.textContent = originalText;

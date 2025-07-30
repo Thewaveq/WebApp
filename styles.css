@@ -1,24 +1,17 @@
-/* styles.css - V2 (Restored Functionality + Modern Look) */
+/* styles.css */
 :root {
-    /* Новая, более мягкая и воздушная палитра */
-    --bg-main: #1c1c1f; /* Глубокий, но не абсолютно черный фон */
-    --bg-sidebar: #232428; /* Слегка отличающийся фон для боковой панели и элементов */
-    --bg-element: #2b2d31; /* Основной цвет для интерактивных элементов */
-    --bg-input: #313338; /* Фон для полей ввода */
-    --bg-hover: #35373b;   /* Цвет элемента при наведении */
-    
-    --text-primary: #f0f1f2; /* Слегка приглушенный белый для основного текста */
-    --text-secondary: #949ba4; /* Мягкий серый для второстепенного текста */
-    
-    --accent: #5865f2; /* Яркий, но приятный для глаз сине-фиолетовый акцент */
-    --accent-hover: #4e5ae8; /* Более насыщенный акцент при наведении */
-
-    --border-color: rgba(255, 255, 255, 0.08); /* Едва заметная граница/разделитель */
-    
-    --danger: #f23f42;
-    --danger-hover: #d83639;
+    --bg-main: #202124; /* Был #1e1e1e */
+    --bg-sidebar: #28292d; /* Был #252526 */
+    --bg-element: #313236; /* Был #333333 */
+    --bg-input: #3c3d40;   /* Был #3c3c3c */
+    --text-primary: #f0f1f1; /* Был #f5f5f5 */
+    --text-secondary: #909296; /* Был #888888 */
+    --accent: #0e639c;
+    --accent-hover: #1177bb;
+    --border-color: #4a4a4a; /* Оставим пока без изменений, но ослабим использование */
+    --danger: #e53e3e;
+    --danger-hover: #c53030;
 }
-
 html, body {
     height: 100%;
 }
@@ -26,14 +19,12 @@ body {
     font-family: 'Inter', sans-serif;
     background-color: var(--bg-main);
     color: var(--text-primary);
-    font-weight: 300; /* Более легкое начертание для воздушности */
+    font-weight: 100;
     font-size: 18px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 @media (max-width: 1023px) {
     body {
-        font-size: 16px;
+        font-size: 15px;
     }
 }
 
@@ -51,65 +42,82 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
 }
 
-/* Стили сайдбара обновлены, но не сломаны */
 .sidebar-item { 
-    background-color: transparent;
+    background-color: var(--bg-element);
     margin-bottom: 2px;
-    border-radius: 6px;
-    transition: background-color 0.2s, color 0.2s;
 }
-.sidebar-item.active { background-color: var(--accent); color: white; font-weight: 500;}
-.sidebar-item:hover:not(.active) { background-color: var(--bg-hover); }
-
-/* Main-nav-item сохранен для совместимости */
+.sidebar-item.active { background-color: var(--accent); color: white; }
+.sidebar-item:hover { background-color: var(--bg-input); } /* При наведении фон станет чуть светлее */
 .main-nav-item.active { background-color: var(--accent); color: white; }
-
-/* Скроллбар в новом стиле */
-::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
-::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: #555; }
-
-/* Анимация индикатора печати сохранена */
+::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #666; }
 .typing-indicator span { height: 8px; width: 8px; background-color: var(--accent); border-radius: 50%; display: inline-block; animation: bounce 1.4s infinite ease-in-out both; }
 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
 @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
-/* Эффект затухания сохранен без изменений */
-#notepad-scroll-container, #chat-messages {
+/* --- СТИЛЬ ДЛЯ ЭФФЕКТА ЗАТУХАНИЯ ПРИ ПРОКРУТКЕ (УВЕЛИЧЕННЫЙ) --- */
+#notepad-scroll-container {
     -webkit-mask-image: linear-gradient(to bottom, 
         transparent, 
         black 50px, 
-        black calc(100% - 40px), 
+        black calc(100% - 30px), 
         transparent
     );
     mask-image: linear-gradient(to bottom, 
         transparent, 
         black 50px, 
-        black calc(100% - 40px), 
+        black calc(100% - 30px), 
         transparent
     );
 }
 
-/* Стили для кнопок чата обновлены */
+#chat-messages {
+    /* --- НАСТРОЙКИ (меняйте эти значения) --- */
+    --top-fade: 50px;       /* <-- Длина верхнего затухания */
+    --bottom-fade: 40px;    /* <-- Длина нижнего затухания */
+    --form-height: 70px;    /* <-- Высота формы внизу (пустое пространство) */
+
+    /* --- МАСКА (этот код можно не трогать) --- */
+    -webkit-mask-image: linear-gradient(to bottom,
+        /* 1. Верхнее затухание */
+        transparent,
+        black var(--top-fade),
+
+        /* 2. Сплошная область до начала нижнего затухания */
+        black calc(100% - var(--form-height) - var(--bottom-fade)),
+
+        /* 3. Нижнее затухание (заканчивается ровно над формой) */
+        transparent calc(100% - var(--form-height))
+    );
+    mask-image: linear-gradient(to bottom,
+        transparent,
+        black var(--top-fade),
+        black calc(100% - var(--form-height) - var(--bottom-fade)),
+        transparent calc(100% - var(--form-height))
+    );
+}
+
+/* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {
-    background-color: rgba(43, 45, 49, 0.7);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    background-color: rgba(37, 37, 38, 0.5); /* Полупрозрачный фон */
+    -webkit-backdrop-filter: blur(8px); /* Эффект "матового стекла" */
+    backdrop-filter: blur(8px); /* Эффект "матового стекла" */
     color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Тонкая светлая рамка */
+    border-radius: 0.375rem; /* rounded-md */
+    padding: 0.5rem; /* p-2 */
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 .chat-action-btn:hover {
-    background-color: rgba(53, 55, 59, 0.9);
+    background-color: rgba(51, 51, 51, 0.75); /* Фон чуть светлее при наведении */
     color: var(--text-primary);
-    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 .chat-action-btn.active {
     background-color: var(--accent);
@@ -117,205 +125,760 @@ input::placeholder, textarea::placeholder {
     color: white;
 }
 
-/* Аккордеон сохранен без изменений */
-details > summary { list-style: none; cursor: pointer; }
-details > summary::-webkit-details-marker { display: none; }
-details .details-arrow { transition: transform 0.3s ease-out; }
-details[open] > summary .details-arrow { transform: rotate(180deg); }
+/* --- СТИЛИ ДЛЯ АККОРДЕОНА В НАСТРОЙКАХ --- */
+details > summary {
+    list-style: none;
+    cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+    display: none;
+}
 
-/* Стили Markdown обновлены */
+details .details-arrow {
+    transition: transform 0.3s ease-out;
+}
+
+details[open] > summary .details-arrow {
+    transform: rotate(180deg);
+}
+
+/* --- СТИЛИ ДЛЯ Markdown-контента --- */
 .prose { 
     color: var(--text-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
-    line-height: 1.7;
 }
-.prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; margin-bottom: 0.8em; }
-.prose a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
-.prose a:hover { color: var(--accent-hover); text-decoration: underline; }
 
+.prose h1, .prose h2, .prose h3 {
+    color: white;
+    /* Убираем линию */
+    border-bottom: none;
+    /* Добавляем немного воздуха снизу */
+    padding-bottom: 0.25em;
+}
+.prose a { color: var(--accent-hover); }
+
+/* --- СТИЛИ ДЛЯ БЛОКА КОДА --- */
 .prose pre {
-    background-color: rgba(0, 0, 0, 0.3); 
+    background-color: rgba(0, 0, 0, 0.4); 
+    /*background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)); */
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    border: 1px solid var(--border-color);
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
-    padding: 1rem; 
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5),
+                inset 0 0 30px rgba(0, 0, 0, 0.25);
+    
+    padding: 0.5rem; 
+
     border-radius: 0.75rem; 
     position: relative;
-    margin: 1.5em 0;
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
     white-space: pre;
     overflow-x: auto;
     font-size: 0.9em;
     line-height: 1.6;
 }
+
 .prose code { 
-    background-color: rgba(88, 101, 242, 0.15);
-    color: var(--accent);
-    border: 1px solid rgba(88, 101, 242, 0.2);
-    padding: 0.2rem 0.5rem; 
-    border-radius: 5px;     
+    background-color: rgba(14, 99, 156, 0.15);
+    color: var(--accent-hover);
+    border: 1px solid rgba(14, 99, 156, 0.3);
+    padding: 0.1rem 0.8rem; 
+    border-radius: 0.3rem;     
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.875em;
+    font-size: 0.85em;
 }
+
 .prose pre code { 
-    background-color: transparent; padding: 0; border-radius: 0; 
-    border: none; color: inherit; font-size: inherit;
+    background-color: transparent; 
+    padding: 0; 
+    border-radius: 0; 
+    border: none;
+    color: inherit;
+    font-size: inherit;
 }
-.prose blockquote { border-left: 3px solid var(--accent); padding-left: 1.5em; color: var(--text-secondary); margin-left: 0; }
-.diagram-wrapper, .code-block-actions, .diagram-actions-container, .code-action-btn, .mermaid-render-container {
-    /* Все эти функциональные стили сохранены без изменений */
-    position: relative; margin: 1.25em 0;
+
+.prose blockquote {
+    /* Заменяем границу на отступ, чтобы сохранить выделение */
+    border-left: 3px solid var(--accent);
+    padding-left: 1.25em; /* Немного увеличим отступ слева */
+    margin-left: 0;
 }
-.code-block-actions { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10; opacity: 0; transition: opacity 0.2s; }
-.prose pre:hover .code-block-actions { opacity: 1; }
-.diagram-actions-container { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 15; display: flex; gap: 0.25rem; }
-.code-action-btn { display: flex; align-items: center; justify-content: center; background-color: var(--bg-element); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 0.3rem; padding: 0.25rem; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
-.code-action-btn:hover { background-color: var(--bg-input); color: var(--text-primary); }
-.code-action-btn:disabled, .code-action-btn:disabled:hover { background-color: var(--bg-element); opacity: 0.5; cursor: not-allowed; }
-.mermaid-render-container { background-color: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; display: flex; justify-content: center; align-items: center; min-height: 100px; }
-.mermaid-render-container.hidden, .diagram-wrapper > pre.hidden { display: none; }
-.mermaid-render-container svg { max-width: 100%; height: auto; }
 
-/* Стили для <think> сохранены */
-.prose details { display: flow-root; background-color: var(--bg-element); border: 1px solid var(--border-color); border-radius: 0.5rem; margin: 1.25em 0; padding: 0.5rem 1rem; }
-.prose details summary { cursor: pointer; font-weight: 600; color: var(--text-secondary); outline: none; transition: color 0.2s; }
-.prose details summary:hover { color: var(--text-primary); }
-.prose details > div { padding-top: 0.75rem; margin-top: 0.5rem; border-top: 1px solid var(--border-color); opacity: 0.8; }
+.diagram-wrapper {
+    position: relative;
+    margin: 1.25em 0;
+}
 
-/* Фоны сообщений сохранены */
-.user-message-bg { background-color: transparent; /* Убираем фон, чтобы главный фон был виден */ }
-.assistant-message-bg { background-color: var(--bg-sidebar); }
+/* Контейнер для кнопок в ОБЫЧНОМ блоке кода */
+.code-block-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
 
-/* Модальные окна: обновлен вид, сохранена структура */
-.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.75); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 50; }
-.modal-content {
-    background-color: var(--bg-element); /* Слегка темнее основного фона */
+/* Показываем кнопки при наведении на <pre> */
+.prose pre:hover .code-block-actions {
+    opacity: 1;
+}
+
+/* Контейнер для кнопок в блоке с ДИАГРАММОЙ */
+.diagram-actions-container {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 15;
+    display: flex;
+    gap: 0.25rem; /* Расстояние между кнопками */
+}
+
+/* Общий стиль для всех кнопок в блоках кода */
+.code-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-element);
+    color: var(--text-secondary);
     border: 1px solid var(--border-color);
-    display: flex; flex-direction: column; max-height: 90vh;
-    padding: 2rem;
-    border-radius: 12px; /* Более скругленные углы */
-    width: 90%; max-width: 450px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    border-radius: 0.3rem;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
 }
 
-/* Сайдбар: все функциональные стили сохранены */
-#sidebar { transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out, border-width 0.1s ease-in-out; width: 280px; flex-shrink: 0; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color);}
-@media (max-width: 1023px) { #sidebar { position: fixed; left: 0; top: 0; height: 100%; z-index: 40; transform: translateX(-100%); } #sidebar.open { transform: translateX(0); } }
-@media (min-width: 1024px) { #sidebar.collapsed { width: 0; padding-left: 0; padding-right: 0; overflow: hidden; border-right-width: 0; } }
-#sidebar > * { transition: opacity 0.15s ease-out; }
-@media (min-width: 1024px) { #sidebar.collapsed > * { opacity: 0; } }
-#sidebar-backdrop { transition: opacity 0.3s ease-in-out; }
-#sidebar-backdrop:not(.active) { opacity: 0; pointer-events: none; }
-#sidebar-backdrop.active { opacity: 1; }
+.code-action-btn:hover {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+}
 
-/* Сворачиваемая панель: без изменений */
-.collapsible-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease-out; }
-.collapsible-panel.expanded { grid-template-rows: 1fr; }
-.collapsible-panel > div { overflow: hidden; }
-#chat-settings-icon.expanded { transform: rotate(180deg); }
+.code-action-btn:disabled,
+.code-action-btn:disabled:hover {
+    background-color: var(--bg-element); 
+    opacity: 0.5;                        
+    cursor: not-allowed;                 
+}
 
-/* Placeholder и компактный режим: без изменений */
-.message-placeholder { min-height: 70px; width: 100%; }
-.message-container { max-width: 100%; margin-left: auto; margin-right: auto; transition: max-width 0.4s ease-in-out; }
-.chat-view-compact .message-container { max-width: 896px; }
-#chat-width-toggle { transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out; }
-#chat-width-toggle.active { background-color: var(--accent); color: white; }
+/* Контейнер для отрендеренной диаграммы */
+.mermaid-render-container {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100px;
+}
 
-/* Карточки заметок: обновлен вид, сохранена структура */
+.mermaid-render-container.hidden,
+.diagram-wrapper > pre.hidden {
+    display: none;
+}
+
+.mermaid-render-container svg {
+    max-width: 100%;
+    height: auto;
+}
+
+
+/* --- СТИЛИ ДЛЯ БЛОКА <think> --- */
+.prose details {
+    display: flow-root;
+    background-color: var(--bg-element);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin: 1.25em 0;
+    padding: 0.5rem 1rem;
+}
+.prose details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-secondary);
+    outline: none;
+    transition: color 0.2s;
+}
+.prose details summary:hover {
+    color: var(--text-primary);
+}
+.prose details > div {
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    opacity: 0.8;
+}
+
+/* --- СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
+.user-message-bg {
+    background-color: var(--bg-element);
+}
+.assistant-message-bg {
+    background-color: var(--bg-sidebar);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+
+.modal-content {
+    /* "Стеклянные" стили */
+    background-color: rgba(37, 37, 38, 0.8);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Стили для макета и размера */
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* Крайне важно для ограничения высоты */
+    padding: 2rem;
+    border-radius: 0.5rem;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+/* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
+#sidebar {
+    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out, border-width 0.1s ease-in-out;
+    width: 280px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+    #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100%;
+        z-index: 40;
+        transform: translateX(-100%);
+    }
+    #sidebar.open {
+        transform: translateX(0);
+    }
+}
+
+@media (min-width: 1024px) {
+    #sidebar.collapsed {
+        width: 0;
+        padding-left: 0;
+        padding-right: 0;
+        overflow: hidden;
+        border-right-width: 0;
+    }
+}
+
+/* --- СТИЛИ ДЛЯ ПЛАВНОГО ИСЧЕЗНОВЕНИЯ КОНТЕНТА В САЙДБАРЕ --- */
+#sidebar > * {
+    transition: opacity 0.15s ease-out;
+}
+
+@media (min-width: 1024px) {
+    #sidebar.collapsed > * {
+        opacity: 0;
+    }
+}
+
+/* --- СТИЛИ ДЛЯ АНИМАЦИИ ФОНА САЙДБАРА --- */
+#sidebar-backdrop {
+
+    transition: opacity 0.3s ease-in-out;
+}
+
+#sidebar-backdrop:not(.active) {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#sidebar-backdrop.active {
+    opacity: 1;
+}
+
+/* --- СТИЛИ ДЛЯ СВОРАЧИВАЕМОЙ ПАНЕЛИ --- */
+.collapsible-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out;
+}
+.collapsible-panel.expanded {
+    grid-template-rows: 1fr;
+}
+.collapsible-panel > div {
+    overflow: hidden;
+}
+#chat-settings-icon.expanded {
+    transform: rotate(180deg);
+}
+/* --- СТИЛЬ ДЛЯ ЗАПОЛНИТЕЛЯ СООБЩЕНИЯ --- */
+.message-placeholder {
+    min-height: 70px;
+    width: 100%;
+}
+
+/* --- СТИЛИ ДЛЯ КОМПАКТНОГО РЕЖИМА ЧАТА --- */
+.message-container {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    transition: max-width 0.4s ease-in-out;
+}
+
+.chat-view-compact .message-container {
+    max-width: 896px;
+}
+
+#chat-width-toggle {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+#chat-width-toggle.active {
+    background-color: var(--accent);
+    color: white;
+}
+
+/* --- СТИЛИ ДЛЯ КАРТОЧЕК ЗАМЕТОК --- */
 .note-card {
     background-color: var(--bg-sidebar);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.25rem;
+    border-radius: 0.5rem;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+    transition: box-shadow 0.2s, border-color 0.2s;
 }
-.note-card:hover { border-color: rgba(255, 255, 255, 0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.2); transform: translateY(-3px); }
-.note-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-.note-card-title { background-color: transparent; border: none; font-weight: 600; font-size: 1.125rem; padding: 0; margin: 0; border-radius: 0.25rem; width: 100%; color: var(--text-primary); }
-.note-card-title:focus { outline: none; background-color: var(--bg-input); box-shadow: 0 0 0 2px var(--accent); padding: 0.25rem 0.5rem; }
-.note-card-content { background-color: transparent; border-radius: 0; padding: 0; width: 100%; min-height: 100px; resize: vertical; flex-grow: 1; border: none; color: var(--text-secondary); }
-.note-card-content:focus { outline: none; box-shadow: none; color: var(--text-primary); }
-.note-card-delete-btn { color: var(--text-secondary); transition: color 0.2s, background-color 0.2s; padding: 0.25rem; border-radius: 9999px; }
-.note-card-delete-btn:hover { color: var(--danger); background-color: rgba(229, 62, 62, 0.1); }
-#add-new-card-btn { border-style: dashed; border-width: 2px; border-color: var(--border-color); color: var(--text-secondary); transition: all 0.2s; }
-#add-new-card-btn:hover { border-color: var(--accent); color: var(--accent); background-color: var(--bg-element); }
-#note-cards-grid { max-width: 100%; margin-left: auto; margin-right: auto; transition: max-width 0.4s ease-in-out; }
-#notepad-scroll-container.notepad-view-compact #note-cards-grid { max-width: 896px; }
-#notepad-width-toggle.active { background-color: var(--accent); color: white; }
-
-/* Уведомления: без критичных изменений */
-@keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px 0px rgba(88, 101, 242, 0.5); } 50% { box-shadow: 0 0 10px 3px var(--accent); } }
-#in-app-notification > div { position: relative; background-color: var(--bg-sidebar); border: 1px solid var(--accent); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); border-radius: 0.75rem; margin: 1rem; padding: 1rem; animation: pulse-glow 2.5s infinite ease-in-out; }
-#in-app-notification-title { color: var(--text-primary); font-weight: 600; }
-#in-app-notification-body { color: var(--text-secondary); }
-#in-app-notification-close { color: var(--text-secondary); transition: color 0.2s, background-color 0.2s; border-radius: 9999px; padding: 0.25rem; position: relative; z-index: 2; }
-#in-app-notification-close:hover { color: var(--text-primary); background-color: var(--bg-element); }
-
-.border-border-color { border-color: var(--border-color); } /* Сохранено для совместимости */
-
-/* Кнопки редактирования: без изменений */
-.cancel-edit-btn, .save-edit-btn { padding: 4px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: background-color 0.2s ease-in-out; }
-.cancel-edit-btn { background-color: var(--bg-input); color: var(--text-primary); }
-.cancel-edit-btn:hover { background-color: var(--bg-element); }
-.save-edit-btn { background-color: var(--accent); color: white; }
-.save-edit-btn:hover { background-color: var(--accent-hover); }
-
-/* Поле ввода: сохранен glassmorphism, улучшен фокус */
-#chat-input {
-    background-color: rgba(30, 30, 31, 0.7);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+.note-card:hover {
+    border-color: var(--accent-hover);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.note-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+.note-card-title {
+    background-color: transparent;
+    border: none;
+    font-weight: bold;
+    font-size: 1.125rem;
+    padding: 0.25rem 0.5rem;
+    margin-left: -0.5rem;
+    border-radius: 0.25rem;
+    width: 100%;
+    color: var(--text-primary);
+}
+.note-card-title:focus {
+    outline: none;
+    background-color: var(--bg-input);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+.note-card-content {
+    background-color: var(--bg-element);
+    border-radius: 0.3rem;
+    padding: 0.75rem;
+    width: 100%;
+    min-height: 100px;
+    resize: vertical;
+    flex-grow: 1;
     border: 1px solid var(--border-color);
-    box-shadow: none; outline: none;
+    color: var(--text-secondary);
+}
+.note-card-content:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+    color: var(--text-primary);
+}
+.note-card-delete-btn {
+    color: var(--text-secondary);
+    transition: color 0.2s;
+    padding: 0.25rem;
+    border-radius: 9999px;
+}
+.note-card-delete-btn:hover {
+    color: var(--danger);
+    background-color: rgba(229, 62, 62, 0.1);
+}
+#add-new-card-btn {
+    border-style: dashed;
+    border-width: 2px;
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+#add-new-card-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background-color: var(--bg-element);
+}
+
+#note-cards-grid {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    transition: max-width 0.4s ease-in-out; 
+}
+
+#notepad-scroll-container.notepad-view-compact #note-cards-grid {
+    max-width: 896px;
+}
+
+#notepad-width-toggle.active {
+    background-color: var(--accent);
+    color: white;
+}
+
+/* --- Стили для In-App Уведомления с эффектом свечения --- */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
+    }
+    50% {
+
+        box-shadow: 0 0 10px 3px var(--accent), 0 0 7px 2px var(--accent);
+    }
+    100% {
+        box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
+    }
+}
+
+
+#in-app-notification > div {
+
+    position: relative; 
+    
+    background-color: var(--bg-sidebar);
+    
+
+    border: none;
+    
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    
+    border-radius: 0.75rem;
+    margin: 1rem;
+    padding: 1rem;
+    
+    animation: pulse-glow 2.5s infinite ease-in-out;
+}
+
+#in-app-notification-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#in-app-notification-body {
+    color: var(--text-secondary);
+}
+
+#in-app-notification-close {
+    color: var(--text-secondary);
+    transition: color 0.2s, background-color 0.2s;
+    border-radius: 9999px;
+    padding: 0.25rem;
+    
+    position: relative;
+    z-index: 2;
+}
+
+#in-app-notification-close:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-element);
+}
+
+/* FIX: Ensure custom border color class applies correctly */
+.border-border-color {
+    border-color: var(--border-color);
+}
+
+/* --- Стили для кнопок редактирования сообщения --- */
+.cancel-edit-btn,
+.save-edit-btn {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.cancel-edit-btn {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.cancel-edit-btn:hover {
+    background-color: var(--bg-element);
+}
+
+.save-edit-btn {
+    background-color: var(--accent);
+    color: white;
+}
+
+.save-edit-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
+#chat-input {
+    /* 1. Устанавливаем более темный и полупрозрачный фон */
+    /* Используем почти черный цвет (20, 20, 20) с 60% непрозрачности */
+    background-color: rgba(20, 20, 20, 0.6);
+
+    /* 2. Добавляем эффект размытия фона (блюр) */
+    /* Это создаст эффект "матового стекла" на элементах позади поля ввода */
+    -webkit-backdrop-filter: blur(12px); /* Префикс для поддержки Safari */
+    backdrop-filter: blur(12px);
+
+    /* 3. Настраиваем рамку, чтобы она лучше сочеталась с новым стилем */
+    /* Тонкая, полупрозрачная белая рамка для выделения краев */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
+    box-shadow: none;
+    outline: none;
+    
+    /* 5. Добавляем плавный переход для рамки и тени при фокусе */
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
-#chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.3); }
-#chat-input::placeholder { color: var(--text-secondary); opacity: 0.9; }
 
-/* Полноэкранный режим: все функциональные стили сохранены */
-#fullscreen-modal { background-color: rgba(30, 30, 30, 0.8); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-#fullscreen-modal-content { width: 100vw; height: 100vh; background-color: transparent; border: none; border-radius: 0; box-shadow: none; padding: 0; }
-#fullscreen-modal-body { padding: 2rem 4rem; height: 100%; max-width: 100%; }
-@media (max-width: 768px) { #fullscreen-modal-body { padding: 1.5rem 1rem; } }
-#fullscreen-modal-body .prose { max-width: 100%; transition: max-width 0.4s ease-in-out; margin-left: auto; margin-right: auto; }
-#fullscreen-modal-body.fullscreen-view-compact .prose { max-width: 896px; }
-#fullscreen-modal-close { position: fixed; top: 2rem; right: 2rem; z-index: 60; background-color: rgba(0, 0, 0, 0.25); color: var(--text-primary); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-in-out; }
-#fullscreen-modal-close:hover { background-color: rgba(0, 0, 0, 0.4); transform: scale(1.1) rotate(90deg); }
-#fullscreen-modal-close > i { width: 28px; height: 28px; }
-#fullscreen-width-toggle { position: fixed; top: 2rem; right: 5.5rem; z-index: 60; background-color: rgba(0, 0, 0, 0.25); color: var(--text-primary); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
-#fullscreen-width-toggle:hover { background-color: rgba(0, 0, 0, 0.4); transform: scale(1.1); }
-#fullscreen-width-toggle.active { background-color: var(--accent); color: white; }
-
-/* Выпадающее меню: вид обновлен, структура сохранена */
-.message-actions-container { position: relative; display: flex; align-items: center; }
-.message-actions-dropdown {
-    position: absolute; bottom: 100%; right: 0; margin-bottom: 8px;
-    width: max-content; min-width: 230px;
-    background-color: #2b2d31;
-    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5); padding: 0.5rem;
-    z-index: 20; display: flex; flex-direction: column; gap: 2px;
+/* 6. Стиль при фокусе на поле ввода */
+#chat-input:focus {
+    /* При выделении поля рамка будет становиться ярче, используя ваш акцентный цвет */
+    border-color: rgba(14, 99, 156, 0.8); /* Используем --accent цвет с прозрачностью */
+    /* Добавляем внешнюю тень для эффекта "кольца" */
+    box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.5);
 }
-.message-actions-dropdown.hidden { display: none; }
-.dropdown-menu-item { display: flex; align-items: center; width: 100%; padding: 0.5rem 0.75rem; border: none; background: none; color: var(--text-primary); border-radius: 6px; cursor: pointer; font-size: 14px; text-align: left; transition: background-color 0.2s, color 0.2s; }
-.dropdown-menu-item:hover { background-color: var(--accent); color: white; }
-.dropdown-menu-item > i { width: 16px; height: 16px; margin-right: 12px; flex-shrink: 0; color: var(--text-secondary); transition: color 0.2s; }
-.dropdown-menu-item:hover > i { color: white; }
-.dropdown-menu-item.danger { color: var(--danger); }
-.dropdown-menu-item.danger:hover { background-color: var(--danger); color: white; }
-.dropdown-menu-item.danger:hover > i { color: white; }
-.dropdown-menu-separator { height: 1px; background-color: var(--border-color); margin: 0.5rem 0; border: none; }
 
-/* Разделитель Split.js: вид обновлен, структура сохранена */
-.gutter { background-color: transparent; transition: background-color 0.2s; position: relative; }
-.gutter:hover { background-color: var(--accent); }
-.gutter.gutter-horizontal { cursor: col-resize; }
-.gutter.gutter-vertical { cursor: row-resize; }
-@media (max-width: 1023px) { .gutter.gutter-vertical::after { content: ''; position: absolute; width: 100%; height: 40px; top: 50%; left: 0; transform: translateY(-50%); background: transparent; } }
+/* 7. Стиль для текста-подсказки (placeholder) */
+#chat-input::placeholder {
+    /* Делаем его немного светлее для лучшей читаемости на темном фоне */
+    color: var(--text-secondary);
+    opacity: 0.9;
+}
 
-/* Сохраненный медиа-запрос для размера шрифта */
-@media (min-width: 1024px) { #diagram-input { font-size: 16px; /* Возвращено к более безопасному значению */ } }
+/* --- СТИЛИ ДЛЯ ПОЛНОЭКРАННОГО ОКНА ПРОСМОТРА СООБЩЕНИЯ --- */
+#fullscreen-modal {
+    background-color: rgba(30, 30, 30, 0.7);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+#fullscreen-modal-content {
+    width: 100vw;
+    height: 100vh;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0; 
+}
+
+/* Контейнер для прокрутки, всегда на всю ширину */
+#fullscreen-modal-body {
+    padding: 2rem 4rem;
+    height: 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    #fullscreen-modal-body {
+        padding: 1.5rem 1rem;
+    }
+}
+
+#fullscreen-modal-body .prose {
+    max-width: 100%;
+    
+    transition: max-width 0.4s ease-in-out;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#fullscreen-modal-body.fullscreen-view-compact .prose {
+    max-width: 896px; 
+}
+
+/* Стили для кнопки закрытия */
+#fullscreen-modal-close {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    z-index: 60;
+    background-color: rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+}
+
+#fullscreen-modal-close:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+    transform: scale(1.1) rotate(90deg);
+}
+
+#fullscreen-modal-close > i {
+    width: 28px;
+    height: 28px;
+}
+
+/* Стили для НОВОЙ кнопки переключения ширины */
+#fullscreen-width-toggle {
+    position: fixed;
+    top: 2rem;
+    right: 5.5rem; 
+    z-index: 60;
+    background-color: rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    border: none;
+    cursor: pointer;
+}
+
+#fullscreen-width-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+#fullscreen-width-toggle.active {
+    background-color: var(--accent);
+    color: white;
+}
+
+/* --- СТИЛИ ДЛЯ ВЫПАДАЮЩЕГО МЕНЮ В СООБЩЕНИЯХ --- */
+.message-actions-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.message-actions-dropdown {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 8px;
+    width: max-content;
+    min-width: 230px;
+    background-color: rgba(37, 37, 38, 0.85);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+    padding: 0.5rem;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Класс для скрытия меню */
+.message-actions-dropdown.hidden {
+    display: none;
+}
+
+.dropdown-menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    border-radius: 0.375rem; 
+    cursor: pointer;
+    font-size: 14px;
+    text-align: left;
+    transition: background-color 0.2s;
+}
+
+.dropdown-menu-item:hover {
+    background-color: var(--bg-element);
+}
+
+.dropdown-menu-item > i {
+    width: 16px;
+    height: 16px;
+    margin-right: 12px;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+/* Стиль для "опасных" действий, как удаление */
+.dropdown-menu-item.danger {
+    color: var(--danger);
+}
+.dropdown-menu-item.danger:hover {
+    background-color: rgba(229, 62, 62, 0.15); 
+    color: white;
+}
+.dropdown-menu-item.danger:hover > i {
+    color: white;
+}
+
+.dropdown-menu-separator {
+    height: 1px;
+    background-color: rgba(74, 74, 74, 0.5); /* Был var(--border-color) */
+    margin: 0.5rem 0;
+    border: none;
+}
+
+/* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
+.gutter {
+    background-color: rgba(55, 55, 61, 0.6); /* Был #37373d */
+    background-repeat: no-repeat;
+    background-position: 50%;
+}
+gutter.gutter-horizontal {
+    cursor: col-resize;
+    width: 5px !important;
+}
+
+.gutter.gutter-vertical {
+    cursor: row-resize;
+    position: relative; 
+}
+
+@media (max-width: 1023px) {
+    .gutter.gutter-vertical::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 40px;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        background: transparent;
+    }
+}
+@media (min-width: 1024px) {
+    #diagram-input {
+        font-size: 18px; /* Вы можете изменить это значение, если 16px покажется мало или много */
+    }
+}

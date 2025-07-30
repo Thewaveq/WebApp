@@ -1211,7 +1211,7 @@
                             <label for="accent-color-picker" class="font-semibold text-text-primary block mb-2">Акцентный цвет</label>
                             <p class="text-sm text-text-secondary mb-3">Этот цвет будет использоваться для кнопок, иконок и легкого окрашивания фона интерфейса.</p>
                             <div class="flex items-center gap-4">
-                                <input type="color" id="accent-color-picker" class="p-1 h-10 w-16 block bg-bg-element border border-border-color cursor-pointer rounded-lg" value="#409eff">
+                                <input type="text" id="accent-color-picker" data-coloris class="p-1 h-10 w-16 block bg-bg-element border border-border-color cursor-pointer rounded-lg" value="#409eff">
                                 <button id="reset-color-btn" class="px-4 py-2 rounded-md bg-bg-input hover:bg-gray-600 transition-colors text-sm">Сбросить</button>
                             </div>
                         </div>
@@ -1828,9 +1828,9 @@
             if (colorPicker) {
                 const savedAccentRGB = localStorage.getItem('userAccentRGB') || DEFAULT_ACCENT_RGB;
                 colorPicker.value = rgbStringToHex(savedAccentRGB);
-
-                colorPicker.addEventListener('input', (event) => {
-                    const newRgbString = hexToRgbString(event.target.value);
+            
+                colorPicker.addEventListener('coloris:pick', event => {
+                    const newRgbString = hexToRgbString(event.detail.color);
                     document.documentElement.style.setProperty('--user-accent-rgb', newRgbString);
                     localStorage.setItem('userAccentRGB', newRgbString);
                 });

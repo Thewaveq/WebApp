@@ -396,7 +396,7 @@
                         chatContainer.className = 'flex flex-col h-full';
                         chatContainer.innerHTML = getChatViewHTML(activeSession);
                         mainContent.appendChild(chatContainer);
-                        
+
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         let needsUpdate = false;
                         const updatePayload = {};
@@ -642,11 +642,11 @@
 
                 <!-- Плавающая панель настроек -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
-                   <div class="flex justify-between items-center border-b border-border-color pb-3 mb-4">
+                    <div class="flex justify-between items-center border-b border-border-color pb-3 mb-4">
                         <h3 class="font-bold text-lg">Настройки чата</h3>
-                        <div class="flex items-center">
+                        <div class="flex items-center gap-1">
                             <button id="export-chat-btn" title="Экспортировать чат в HTML" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-accent hover:bg-accent/10 transition-colors">
-                                <i data-lucide="file-down" class="w-4 h-4"></i>
+                                <i data-lucide="download" class="w-4 h-4"></i>
                             </button>
                             <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors">
                                 <i data-lucide="rotate-cw" class="w-4 h-4"></i>
@@ -794,76 +794,6 @@
             if (proseContainer) {
                 proseContainer.innerHTML = '';
             }
-        }
-
-        function generateExportHTML(messages, chatTitle) {
-            // Преобразуем сообщения в HTML-строки.
-            // Это УПРОЩЕННАЯ версия логики из createMessageElement, чтобы убрать все лишнее (кнопки и т.д.)
-            const messagesHTML = messages.map(msg => {
-                const isUser = msg.role === 'user';
-                const author = isUser ? (auth.currentUser?.displayName || 'Вы') : (msg.modelName || 'Ассистент');
-                const content = marked.parse(String(msg.content || ''), { breaks: true, gfm: true });
-        
-                return `
-                    <div class="message ${isUser ? 'user' : 'assistant'}">
-                        <div class="author">${author}</div>
-                        <div class="content prose">${content}</div>
-                    </div>
-                `;
-            }).join('');
-        
-            // CSS стили для экспортируемого файла. Они встраиваются прямо в HTML.
-            const styles = `
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 2rem; }
-                .container { max-width: 800px; margin: auto; }
-                .message { margin-bottom: 1.5rem; padding: 1rem; border-radius: 0.5rem; border: 1px solid #333; }
-                .message.assistant { background-color: #1e1e1e; }
-                .message.user { background-color: #242424; }
-                .author { font-weight: bold; margin-bottom: 0.5rem; color: #888; }
-                .prose pre { background-color: #2d2d2d; padding: 1em; border-radius: 0.5em; overflow-x: auto; }
-                .prose code { color: #ccc; font-family: "Courier New", Courier, monospace; }
-                .prose h1, .prose h2, .prose h3 { color: #fff; }
-                .prose a { color: #409eff; }
-                /* Стили для подсветки кода из highlight.js */
-                .hljs{display:block;overflow-x:auto;padding:.5em;background:#282c34;color:#abb2bf}
-                .hljs-keyword,.hljs-operator{color:#c678dd}
-                /* ... добавьте другие стили из atom-one-dark.min.css по желанию ... */
-            `;
-        
-            // Собираем финальный HTML
-            return `
-                <!DOCTYPE html>
-                <html lang="ru">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Экспорт чата: ${chatTitle}</title>
-                    <style>${styles}</style>
-                    <!-- Подключаем highlight.js для подсветки кода в экспортированном файле -->
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-                    <script>hljs.highlightAll();</script>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>${chatTitle}</h1>
-                        <hr>
-                        ${messagesHTML}
-                    </div>
-                </body>
-                </html>
-            `;
-        }
-
-        function triggerHtmlDownload(htmlContent, fileName) {
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
         }
         
         function getNotepadViewHTML(activeSession) {
@@ -1532,6 +1462,7 @@
             });
 
             // --- Обработка отправки формы и ввода ---
+            document.getElementById('export-chat-btn')?.addEventListener('click', handleExportChat);
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1549,27 +1480,6 @@
                 setTimeout(adjustLayout, 100);
             }
 
-            const exportBtn = document.getElementById('export-chat-btn');
-
-            exportBtn?.addEventListener('click', () => {
-                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
-                if (!activeSession || !activeSession.messages || activeSession.messages.length === 0) {
-                    showModalAlert("В этом чате нет сообщений для экспорта.");
-                    return;
-                }
-        
-                // 1. Генерируем HTML
-                const chatTitle = activeSession.title || 'Безымянный чат';
-                const htmlToExport = generateExportHTML(activeSession.messages, chatTitle);
-        
-                // 2. Формируем имя файла
-                const safeFileName = chatTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                const fileName = `export_${safeFileName}.html`;
-        
-                // 3. Запускаем скачивание
-                triggerHtmlDownload(htmlToExport, fileName);
-            });
-                    
             // --- Обработка изменений в настройках чата ---
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             titleInput?.addEventListener('change', (e) => updateDoc(sessionRef, { title: e.target.value }));
@@ -1598,10 +1508,8 @@
                 const newPipelineId = e.target.value;
                 const isPipelineMode = !!newPipelineId;
 
-                // Обновляем состояние в Firestore
                 updateDoc(sessionRef, { pipelineId: newPipelineId || deleteField() });
 
-                // Обновляем интерфейс настроек
                 if (singleModelSettings) {
                     singleModelSettings.classList.toggle('opacity-50', isPipelineMode);
                     singleModelSettings.classList.toggle('pointer-events-none', isPipelineMode);
@@ -2023,6 +1931,94 @@
             );
         }
         
+        function handleExportChat() {
+            const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+            if (!activeSession || !activeSession.messages || activeSession.messages.length === 0) {
+                showModalAlert('В этом чате нет сообщений для экспорта.');
+                return;
+            }
+
+            const chatTitle = activeSession.title || 'Экспорт чата';
+            const messages = activeSession.messages;
+
+            // Стили для экпортируемого файла
+            const styles = `
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1c1c1c; color: #f0f0f0; margin: 0; padding: 2rem; }
+                .container { max-width: 800px; margin: auto; }
+                h1 { color: #ffffff; border-bottom: 1px solid #444; padding-bottom: 10px; }
+                .message { margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; line-height: 1.6; }
+                .message.user { background-color: #2a2a2e; border: 1px solid #3a3a3e; margin-left: auto; max-width: 90%; width: fit-content; }
+                .message.assistant { background-color: #222736; border: 1px solid #303742; margin-right: auto; max-width: 90%; width: fit-content; }
+                .role { font-weight: bold; margin-bottom: 0.5rem; color: #a9a9b3; font-size: 0.9em; }
+                .role.user-role { color: #82c0ff; }
+                .role.assistant-role { color: #5eead4; }
+                .prose { max-width: none; }
+                .prose pre { background-color: #111; padding: 1em; border-radius: 8px; overflow-x: auto; }
+                .prose code { color: #f0f0f0; }
+                .prose p { margin: 0; }
+                .file-attachment { border: 1px dashed #555; padding: 0.5rem 1rem; border-radius: 8px; background-color: #333; font-family: monospace; font-size: 0.9em; }
+            `;
+
+            // Преобразуем сообщения в HTML
+            const messagesHtml = messages.map(msg => {
+                const role = msg.role === 'user' ? 'Пользователь' : 'Ассистент';
+                const roleClass = msg.role === 'user' ? 'user' : 'assistant';
+                const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
+                const thinkRegex = /<think>[\s\S]*?<\/think>/g;
+                let content = msg.content || '';
+
+                // Убираем теги <think> для чистого экспорта
+                content = content.replace(thinkRegex, '').trim();
+
+                const fileMatch = content.match(fileRegex);
+
+                if (fileMatch) {
+                    const fileName = fileMatch[1];
+                    return `<div class="message ${roleClass}">
+                                <div class="role ${roleClass}-role">${role}</div>
+                                <div class="file-attachment">Прикреплен файл: <strong>${fileName}</strong></div>
+                            </div>`;
+                }
+
+                // Используем библиотеку marked.js, которая уже подключена в проекте
+                const parsedContent = marked.parse(content, { breaks: true, gfm: true });
+
+                return `<div class="message ${roleClass}">
+                            <div class="role ${roleClass}-role">${role}</div>
+                            <div class="prose">${parsedContent}</div>
+                        </div>`;
+            }).join('');
+
+            // Собираем полный HTML-документ
+            const fullHtml = `
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${DOMPurify.sanitize(chatTitle)}</title>
+                    <style>${styles}</style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>${DOMPurify.sanitize(chatTitle)}</h1>
+                        ${messagesHtml}
+                    </div>
+                </body>
+                </html>`;
+
+            // Создаем Blob и инициируем скачивание
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            const safeFileName = chatTitle.replace(/[^a-z0-9а-яё\\s-]/gi, '_').replace(/\\s+/g, '-');
+            link.download = `${safeFileName}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+            
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
 

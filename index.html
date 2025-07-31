@@ -855,7 +855,6 @@
             
             messageWrapper.dataset.content = contentAsString;
             
-            // Обработка прикрепленного файла у пользователя (не трогаем, это работает)
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
             const fileMatch = contentAsString.match(fileRegex);
 
@@ -882,7 +881,6 @@
                 return messageWrapper;
             }
 
-            // Основная структура "пузыря" сообщения (не трогаем)
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -912,67 +910,53 @@
                 }
             }
             
-            // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            // --- ВОССТАНОВЛЕННАЯ И ИСПРАВЛЕННАЯ ЛОГИКА ---
             const contentDiv = document.createElement('div');
+            // ВАЖНО: Класс prose добавляется ПОЗЖЕ, только когда он нужен.
             contentDiv.className = 'mt-2 w-full';
 
-            // Универсальный обработчик, который возвращает и <think> блоки, и Markdown
-            function processContent(contentString) {
-                if (!contentString) return '';
-                // 1. Заменяем <think> и <pipeline_trace> на <details>
-                let processed = contentString.replace(
+            let glassWindowHtml = '';
+            let remainingContent = contentAsString;
+
+            // 1. Ищем и вырезаем "стеклянное" окно, если оно есть
+            const glassRegex = /<glass_pipeline_log>([\s\S]*?)<\/glass_pipeline_log>/;
+            const glassMatch = remainingContent.match(glassRegex);
+            if (glassMatch) {
+                glassWindowHtml = glassMatch[1]; // Сохраняем чистый HTML окна
+                remainingContent = remainingContent.replace(glassRegex, ''); // Удаляем его из строки для обработки
+            }
+
+            // 2. Обрабатываем ОСТАВШИЙСЯ контент по ВАШЕЙ старой, рабочей схеме
+            // Эта часть теперь работает точно как в вашем оригинальном коде.
+            let processedRemainingContent = remainingContent
+                .replace(
                     /<think>([\s\S]*?)<\/think>/g,
                     `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                ).replace(
-                     /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
+                )
+                .replace(
+                    /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
                     `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`
                 );
 
-                // 2. Парсим ВЕСЬ результат через Markdown
-                const rawHtml = marked.parse(processed, { breaks: true, gfm: true });
+            const finalHtml = marked.parse(processedRemainingContent, { breaks: true, gfm: true });
 
-                // 3. Очищаем, разрешая наши теги <details> и <summary>
-                return DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-            }
-
-            const pipelineSeparator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
-            if (contentAsString.includes('pipeline-log-window')) {
-                // Если это сообщение с новым "стеклянным" окном
-                let logWindowHtml = contentAsString;
-                let finalAnswerMarkdown = '';
-
-                if (contentAsString.includes(pipelineSeparator)) {
-                    const parts = contentAsString.split(pipelineSeparator);
-                    logWindowHtml = parts[0];
-                    finalAnswerMarkdown = parts[1] || '';
-                }
-
-                // Создаем контейнер, который будет держать и лог, и финальный ответ
-                const combinedContainer = document.createElement('div');
+            // 3. Собираем всё вместе
+            if (glassWindowHtml) {
+                // Если было окно, сначала вставляем его, потом остальной контент
+                contentDiv.innerHTML = glassWindowHtml;
                 
-                // Вставляем окно лога как чистый HTML
-                combinedContainer.innerHTML = logWindowHtml;
-                
-                // Если есть финальный ответ, обрабатываем его через Markdown и добавляем
-                if (finalAnswerMarkdown) {
-                    const answerDiv = document.createElement('div');
-                    answerDiv.className = 'prose max-w-none mt-4'; // Класс для стилизации текста
-                    // Используем наш универсальный обработчик, который вернет и <think> и все остальное
-                    answerDiv.innerHTML = processContent(finalAnswerMarkdown);
-                    combinedContainer.appendChild(answerDiv);
-                }
-                
-                contentDiv.appendChild(combinedContainer);
-
+                // Создаем отдельный div для текста с классом prose, чтобы стили применились
+                const textContentDiv = document.createElement('div');
+                textContentDiv.className = 'prose max-w-none mt-4';
+                textContentDiv.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
+                contentDiv.appendChild(textContentDiv);
             } else {
-                // Если это ЛЮБОЕ ДРУГОЕ сообщение (без "стеклянного" окна)
+                // Если окна не было, просто применяем класс prose и вставляем обработанный HTML
                 contentDiv.classList.add('prose', 'max-w-none');
-                contentDiv.innerHTML = processContent(contentAsString);
+                contentDiv.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
             }
             // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-
-            // Остальная часть функции для кнопок и действий (не трогаем)
             const actionsOuterContainer = document.createElement('div');
             actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
             const actionsContainer = document.createElement('div');
@@ -1018,7 +1002,6 @@
             dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
                 .addEventListener('click', function() {
                     const buttonElement = this;
-
                     navigator.clipboard.writeText(msg.content).then(() => {
                         const originalHTML = buttonElement.innerHTML;
                         buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mx-auto"><polyline points="20 6 9 17 5 12"></polyline></svg>`;
@@ -1045,7 +1028,6 @@
                     dropdownMenu.style.bottom = (menuRect.top < topMargin) ? 'auto' : '100%';
                     dropdownMenu.style.marginTop = (menuRect.top < topMargin) ? '8px' : '';
                     dropdownMenu.style.marginBottom = (menuRect.top < topMargin) ? '' : '8px';
-
                     const closeOnClickOutside = (event) => {
                         if (!dropdownMenu.contains(event.target) && !moreOptionsBtn.contains(event.target)) {
                             dropdownMenu.classList.add('hidden');
@@ -1088,7 +1070,6 @@
                  preElement.appendChild(copyBtn);
                  hljs.highlightElement(block);
             });
-
 
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;
@@ -1906,7 +1887,6 @@
             // Вспомогательная функция для сборки HTML нашего "стеклянного" окна
             const buildLogWindowHTML = (body, status) => {
                 const titleIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10c0-4.42-2.87-8.15-6.84-9.48"/></svg>`;
-                // Используем DOMPurify здесь, чтобы обезопасить лог перед вставкой
                 const sanitizedBody = DOMPurify.sanitize(body, {USE_PROFILES: {html: true}});
                 return `
                     <div class="pipeline-log-window">
@@ -1921,7 +1901,7 @@
 
             const assistantMessagePlaceholder = {
                 role: 'assistant',
-                content: buildLogWindowHTML('', 'Запуск...'),
+                content: `<glass_pipeline_log>${buildLogWindowHTML('', 'Запуск...')}</glass_pipeline_log>`,
                 modelName: finalModelName
             };
             let currentMessages = [...messagesToSubmit, assistantMessagePlaceholder];
@@ -1929,7 +1909,7 @@
         
             const updatePipelineStatus = async (log, status) => {
                 if (signal.aborted) throw new Error('AbortError');
-                currentMessages[currentMessages.length - 1].content = buildLogWindowHTML(log, status);
+                currentMessages[currentMessages.length - 1].content = `<glass_pipeline_log>${buildLogWindowHTML(log, status)}</glass_pipeline_log>`;
                 await updateDoc(sessionRef, { messages: [...currentMessages] });
             };
         
@@ -1962,7 +1942,7 @@
                         
                         await updatePipelineStatus(thinkingProcess, `Шаг ${i + 1}: Запрос к ${stepModelName}...`);
                         
-                        const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                        const stepResponse = await callApi(provider, stepModelName, stepApiMessages, signal);
                         
                         await updatePipelineStatus(thinkingProcess, `Шаг ${i + 1}: Ответ получен`);
                         await sleep(500);
@@ -1980,20 +1960,15 @@
                     }
                     
                     isSuccess = true;
-                    // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем разделитель ---
                     const finalLogHTML = buildLogWindowHTML(thinkingProcess, 'Выполнено ✅');
-                    const separator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
-                    assistantMessageContent = `${finalLogHTML}${separator}${assistantMessageContent}`;
+                    assistantMessageContent = `<glass_pipeline_log>${finalLogHTML}</glass_pipeline_log>${assistantMessageContent}`;
         
                 } else {
-                    // Стандартный режим без пайплайна
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
                     
                     const apiMessagesPayload = messagesToSubmit.map(m => ({ role: m.role, content: m.content }));
-                    if (selectedRole && selectedRole.content) {
-                        apiMessagesPayload.unshift({ role: 'system', content: selectedRole.content });
-                    }
+                    if (selectedRole && selectedRole.content) apiMessagesPayload.unshift({ role: 'system', content: selectedRole.content });
                     
                     assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
                     isSuccess = true;
@@ -2005,11 +1980,11 @@
             } finally {
                 const finalMessage = currentMessages[currentMessages.length - 1];
                 if (wasAborted) {
-                    finalMessage.content = buildLogWindowHTML(thinkingProcess, 'Остановлено 🛑');
+                    finalMessage.content = `<glass_pipeline_log>${buildLogWindowHTML(thinkingProcess, 'Остановлено 🛑')}</glass_pipeline_log>`;
                 } else if (isSuccess) {
                     finalMessage.content = assistantMessageContent;
                 } else {
-                    finalMessage.content = `${buildLogWindowHTML(thinkingProcess, 'Ошибка ❌')}<!-- MBOX_PIPELINE_SEPARATOR -->**Ошибка:** ${lastError}`;
+                    finalMessage.content = `<glass_pipeline_log>${buildLogWindowHTML(thinkingProcess, 'Ошибка ❌')}</glass_pipeline_log>**Ошибка:** ${lastError}`;
                 }
                 
                 await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });

@@ -233,9 +233,9 @@ details[open] > summary .details-arrow {
 }
 
 .prose code { 
-    background-color: rgba(14, 99, 156, 0.15);
+    background-color: rgba(var(--user-accent-rgb), 0.15);
     color: var(--accent-hover);
-    border: 1px solid rgba(14, 99, 156, 0.3);
+    border: 1px solid rgba(var(--user-accent-rgb), 0.3);
     padding: 0.1rem 0.8rem; 
     border-radius: 0.3rem;     
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -714,9 +714,9 @@ details[open] > summary .details-arrow {
 /* 6. Стиль при фокусе на поле ввода */
 #chat-input:focus {
     /* При выделении поля рамка будет становиться ярче, используя ваш акцентный цвет */
-    border-color: rgba(14, 99, 156, 0.8); /* Используем --accent цвет с прозрачностью */
+    border-color: rgba(var(--user-accent-rgb), 0.8); /* Используем --accent цвет с прозрачностью */
     /* Добавляем внешнюю тень для эффекта "кольца" */
-    box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.5);
+    box-shadow: 0 0 0 1px rgba(var(--user-accent-rgb), 0.5);
 }
 
 /* 7. Стиль для текста-подсказки (placeholder) */

@@ -157,43 +157,21 @@ input::placeholder, textarea::placeholder {
 }
 
 /* ПАЙПЛАЙН */
-.pipeline-trace-window {
-    background-color: var(--bg-sidebar); /* Фон как у боковой панели */
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1rem;
-    overflow: hidden;
-}
-
-/* Заголовок окна */
-.pipeline-trace-window h3 {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-/* Контейнер для списка шагов */
 .pipeline-steps-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem; /* Маленький отступ между шагами */
+    gap: 0.25rem; 
 }
 
 /* Оформление одного шага */
 .pipeline-step-item {
     display: flex;
     align-items: center;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem;
     border-radius: 8px;
     transition: background-color 0.2s ease;
 }
 
-/* Заголовок шага (иконка + название + статус) */
 .step-header {
     display: flex;
     align-items: center;
@@ -205,7 +183,7 @@ input::placeholder, textarea::placeholder {
     flex-shrink: 0;
 }
 .pipeline-step-item[data-status="running"] .step-status-icon .lucide {
-    animation: spin 1.5s linear infinite; /* Анимация вращения */
+    animation: spin 1.5s linear infinite;
 }
 
 .step-title-container {
@@ -216,7 +194,6 @@ input::placeholder, textarea::placeholder {
 }
 .step-title {
     font-weight: 500;
-    color: var(--text-primary);
 }
 .step-status-text {
     font-size: 0.8rem;
@@ -224,16 +201,14 @@ input::placeholder, textarea::placeholder {
 }
 
 /* Цвета для статусов */
-.pipeline-step-item[data-status="pending"] .step-status-text { color: var(--text-secondary); }
-.pipeline-step-item[data-status="running"] { background-color: rgba(59, 130, 246, 0.1); }
-.pipeline-step-item[data-status="running"] .step-status-text { color: #60a5fa; }
-.pipeline-step-item[data-status="completed"] .step-status-text { color: #4ade80; }
-.pipeline-step-item[data-status="failed"] { background-color: rgba(239, 68, 68, 0.1); }
-.pipeline-step-item[data-status="failed"] .step-status-text { color: #f87171; }
+.pipeline-step-item[data-status="pending"] { color: var(--text-secondary); }
+.pipeline-step-item[data-status="running"] { background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.pipeline-step-item[data-status="completed"] { color: #4ade80; }
+.pipeline-step-item[data-status="failed"] { background-color: rgba(239, 68, 68, 0.1); color: #f87171; }
 
 /* Блок с финальным результатом */
 .pipeline-final-result {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
 }
@@ -243,6 +218,9 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
+.pipeline-final-result .prose { /* Стили для текста результата */
+    color: var(--text-primary);
+}
 
 /* Сообщение об ошибке */
 .pipeline-error-message {
@@ -250,11 +228,9 @@ input::placeholder, textarea::placeholder {
     padding: 0.75rem 1rem;
     border-radius: 8px;
     background-color: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.2);
     color: #fca5a5;
-    font-size: 0.9rem;
 }
-
+/* ===============
 
 /* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {

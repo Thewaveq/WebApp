@@ -913,36 +913,48 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'mt-2 w-full';
 
-            // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-            const pipelineSeparator = '<!-- MBOX_PIPELINE_SEPARATOR -->'; // Переименованная переменная
+            // --- КОМПЛЕКСНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+
+            // Вспомогательная функция, которая правильно обрабатывает Markdown и <think> блоки
+            function processMarkdown(markdownString) {
+                if (!markdownString) return '';
+                // Сначала заменяем <think> на <details>
+                let processedContent = markdownString.replace(
+                    /<think>([\s\S]*?)<\/think>/g,
+                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                );
+                // Затем парсим весь результат как Markdown
+                const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+                // И в конце очищаем, разрешая теги <details> и <summary>
+                return DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            }
+
+            const pipelineSeparator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
             if (contentAsString.includes(pipelineSeparator)) {
+                // Случай 1: Завершенный пайплайн (окно лога + финальный ответ)
                 const parts = contentAsString.split(pipelineSeparator);
                 const logWindowHtml = parts[0];
                 const finalAnswerMarkdown = parts[1] || '';
 
+                // Окно лога просто вставляем как есть (оно уже было очищено)
                 const logContainer = document.createElement('div');
-                logContainer.innerHTML = logWindowHtml; // DOMPurify уже был применен в generateAssistantResponse
+                logContainer.innerHTML = logWindowHtml;
                 contentDiv.appendChild(logContainer);
 
+                // Финальный ответ пропускаем через наш универсальный обработчик
                 if (finalAnswerMarkdown) {
                     const answerContainer = document.createElement('div');
-                    answerContainer.className = 'prose max-w-none mt-4';
-                    answerContainer.innerHTML = DOMPurify.sanitize(marked.parse(finalAnswerMarkdown));
+                    answerContainer.className = 'prose max-w-none mt-4'; // Добавляем класс для стилизации
+                    answerContainer.innerHTML = processMarkdown(finalAnswerMarkdown);
                     contentDiv.appendChild(answerContainer);
                 }
+            } else if (contentAsString.includes('pipeline-log-window')) {
+                // Случай 2: Пайплайн в процессе выполнения (только окно лога)
+                contentDiv.innerHTML = contentAsString;
             } else {
-                if (contentAsString.includes('pipeline-log-window')) {
-                    contentDiv.innerHTML = contentAsString;
-                } else {
-                    contentDiv.classList.add('prose', 'max-w-none');
-                    let processedContent = String(msg.content || '')
-                        .replace(
-                            /<think>([\s\S]*?)<\/think>/g,
-                            `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                        );
-                    const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-                    contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-                }
+                // Случай 3: Любое обычное сообщение
+                contentDiv.classList.add('prose', 'max-w-none');
+                contentDiv.innerHTML = processMarkdown(contentAsString);
             }
             // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
@@ -1006,7 +1018,6 @@
                     }).catch(err => console.error('Не удалось скопировать текст:', err));
                 });
             
-            // Здесь имя `separator` уже не конфликтует
             const separator = document.createElement('hr');
             separator.className = 'dropdown-menu-separator';
             dropdownMenu.appendChild(separator);
@@ -1079,6 +1090,7 @@
                  preElement.appendChild(copyBtn);
                  hljs.highlightElement(block);
             });
+
 
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;

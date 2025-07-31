@@ -156,6 +156,118 @@ input::placeholder, textarea::placeholder {
     );
 }
 
+/* ПАЙПЛАЙН */
+.pipeline-trace-window {
+    background-color: #2a2a2e; /* Немного темнее фона сообщения */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.pipeline-trace-window h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+}
+
+/* Список всех шагов */
+.pipeline-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Контейнер одного шага */
+.pipeline-step-item {
+    background-color: var(--bg-input);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--border-color); /* Полоска статуса */
+    transition: all 0.3s ease;
+}
+
+/* Стилизация полоски статуса */
+.pipeline-step-item[data-status="pending"] { border-color: #6b7280; }
+.pipeline-step-item[data-status="running"] { border-color: #3b82f6; }
+.pipeline-step-item[data-status="completed"] { border-color: #22c55e; }
+.pipeline-step-item[data-status="failed"] { border-color: #ef4444; }
+
+/* Заголовок шага (иконка + текст) */
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.step-status-icon .lucide {
+    animation: none; /* Убираем анимацию по умолчанию */
+}
+.pipeline-step-item[data-status="running"] .step-status-icon .lucide {
+    animation: spin 1.5s linear infinite; /* Анимация вращения для загрузчика */
+}
+.pipeline-step-item[data-status="completed"] .step-status-icon { color: #22c55e; }
+.pipeline-step-item[data-status="failed"] .step-status-icon { color: #ef4444; }
+
+.step-title-container {
+    display: flex;
+    flex-direction: column;
+}
+.step-title {
+    font-weight: 500;
+}
+.step-status-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Детали шага (раскрывающийся блок) */
+.step-details summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+.step-io-content pre {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: var(--bg-main);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Блок с финальным результатом */
+.pipeline-final-result {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+.pipeline-final-result h4 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Сообщения об ошибке/отмене */
+.pipeline-aborted-message, .pipeline-error-message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+}
+.pipeline-aborted-message {
+    background-color: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.5);
+}
+.pipeline-error-message {
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
 /* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {
     background-color: rgba(37, 37, 38, 0.5); /* Полупрозрачный фон */

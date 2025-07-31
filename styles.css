@@ -11,7 +11,7 @@
     /* 3. НОВОЕ: ЯРКОСТЬ КНОПОК И ЭЛЕМЕНТОВ (в процентах) */
     /* Насколько сильно осветлять акцентный цвет для кнопок. 
        0% - цвет как есть, 30% - заметно ярче. */
-    --accent-brightness-strength: 20%;
+    --accent-brightness-strength: 20%;А
 
 
     /* === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ (генерируются автоматически) === */
@@ -158,89 +158,78 @@ input::placeholder, textarea::placeholder {
 
 /* ПАЙПЛАЙН */
 .pipeline-trace-window {
-    background-color: #2a2a2e; /* Немного темнее фона сообщения */
+    background-color: var(--bg-sidebar); /* Фон как у боковой панели */
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 1rem;
+    overflow: hidden;
 }
 
+/* Заголовок окна */
 .pipeline-trace-window h3 {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
     font-size: 1.1rem;
     font-weight: 600;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
+    margin: 0 0 1rem 0;
     padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
-/* Список всех шагов */
+/* Контейнер для списка шагов */
 .pipeline-steps-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.25rem; /* Маленький отступ между шагами */
 }
 
-/* Контейнер одного шага */
+/* Оформление одного шага */
 .pipeline-step-item {
-    background-color: var(--bg-input);
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    border-left: 4px solid var(--border-color); /* Полоска статуса */
-    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
 }
 
-/* Стилизация полоски статуса */
-.pipeline-step-item[data-status="pending"] { border-color: #6b7280; }
-.pipeline-step-item[data-status="running"] { border-color: #3b82f6; }
-.pipeline-step-item[data-status="completed"] { border-color: #22c55e; }
-.pipeline-step-item[data-status="failed"] { border-color: #ef4444; }
-
-/* Заголовок шага (иконка + текст) */
+/* Заголовок шага (иконка + название + статус) */
 .step-header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    width: 100%;
 }
 
 .step-status-icon .lucide {
-    animation: none; /* Убираем анимацию по умолчанию */
+    flex-shrink: 0;
 }
 .pipeline-step-item[data-status="running"] .step-status-icon .lucide {
-    animation: spin 1.5s linear infinite; /* Анимация вращения для загрузчика */
+    animation: spin 1.5s linear infinite; /* Анимация вращения */
 }
-.pipeline-step-item[data-status="completed"] .step-status-icon { color: #22c55e; }
-.pipeline-step-item[data-status="failed"] .step-status-icon { color: #ef4444; }
 
 .step-title-container {
     display: flex;
-    flex-direction: column;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-grow: 1;
 }
 .step-title {
     font-weight: 500;
+    color: var(--text-primary);
 }
 .step-status-text {
     font-size: 0.8rem;
-    color: var(--text-secondary);
+    font-weight: 500;
 }
 
-/* Детали шага (раскрывающийся блок) */
-.step-details summary {
-    cursor: pointer;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-top: 0.5rem;
-}
-.step-io-content pre {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background-color: var(--bg-main);
-    border-radius: 4px;
-    font-size: 0.8rem;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
+/* Цвета для статусов */
+.pipeline-step-item[data-status="pending"] .step-status-text { color: var(--text-secondary); }
+.pipeline-step-item[data-status="running"] { background-color: rgba(59, 130, 246, 0.1); }
+.pipeline-step-item[data-status="running"] .step-status-text { color: #60a5fa; }
+.pipeline-step-item[data-status="completed"] .step-status-text { color: #4ade80; }
+.pipeline-step-item[data-status="failed"] { background-color: rgba(239, 68, 68, 0.1); }
+.pipeline-step-item[data-status="failed"] .step-status-text { color: #f87171; }
 
 /* Блок с финальным результатом */
 .pipeline-final-result {
@@ -251,22 +240,21 @@ input::placeholder, textarea::placeholder {
 .pipeline-final-result h4 {
     font-weight: 600;
     margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
-/* Сообщения об ошибке/отмене */
-.pipeline-aborted-message, .pipeline-error-message {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    border-radius: 6px;
-}
-.pipeline-aborted-message {
-    background-color: rgba(251, 191, 36, 0.1);
-    border: 1px solid rgba(251, 191, 36, 0.5);
-}
+/* Сообщение об ошибке */
 .pipeline-error-message {
-    background-color: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.5);
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background-color: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    font-size: 0.9rem;
 }
+
 
 /* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {

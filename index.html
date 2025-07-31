@@ -1941,88 +1941,146 @@
             state.loadingSessionId = sessionId;
             render();
         
-            let finalAssistantContent = ''; // The final user-facing text answer
+            let assistantMessageContent = '';
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-        
+            
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
         
-            try {
-                // --- РЕЖИМ ПАЙПЛАЙНА (ПЕРЕРАБОТАН) ---
-                if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
+            // Объявляем лог здесь, чтобы он был доступен в блоке finally
+            let executionLog = []; 
+        
+            // Вспомогательная функция для рендеринга красивого лога пайплайна
+            function _renderPipelineTrace(pipeline, logData, isFinished = false, finalError = null) {
+                // Обертка для стилизации через CSS-класс
+                let traceHtml = `<div class="pipeline-trace-container">`;
+        
+                // Заголовок
+                traceHtml += `<h4 class="pipeline-trace-title">Выполнение пайплайна: <b>${pipeline.name}</b></h4>`;
+                
+                // Список шагов
+                traceHtml += `<ul class="pipeline-trace-steps-list">`;
+        
+                pipeline.steps.forEach((step, index) => {
+                    const logEntry = logData[index] || { status: 'pending' };
+                    const stepProvider = state.providers.find(p => p.id === step.providerId);
+                    const providerName = stepProvider ? stepProvider.name : 'Неизвестный провайдер';
                     
-                    // 1. Создаем начальное состояние для визуализации
-                    const pipelineProgress = {
-                        pipelineName: selectedPipeline.name,
-                        status: 'inprogress', // 'completed', 'error', 'aborted'
-                        steps: selectedPipeline.steps.map((step, index) => ({
-                            stepName: `Шаг ${index + 1}: ${step.modelName}`,
-                            status: 'pending', // 'inprogress', 'completed', 'error'
-                            input: null,
-                            output: null,
-                            role: step.roleContent,
-                            error: null
-                        })),
-                        finalOutput: null,
-                        errorMessage: null
-                    };
-
+                    let statusIcon = '';
+                    let statusText = '';
+                    let statusClass = logEntry.status;
+        
+                    switch (logEntry.status) {
+                        case 'running':
+                            // Используем анимированный индикатор
+                            statusIcon = `<div class="typing-indicator small"><span></span><span></span><span></span></div>`;
+                            statusText = 'В процессе...';
+                            break;
+                        case 'completed':
+                            statusIcon = `<i data-lucide="check-circle-2" class="w-5 h-5 text-green-500"></i>`;
+                            statusText = 'Завершено';
+                            break;
+                        case 'failed':
+                            statusIcon = `<i data-lucide="x-circle" class="w-5 h-5 text-red-500"></i>`;
+                            statusText = 'Ошибка';
+                            break;
+                        default: // pending
+                            statusIcon = `<i data-lucide="circle-dashed" class="w-5 h-5 text-text-secondary animate-pulse"></i>`;
+                            statusText = 'Ожидание';
+                    }
+        
+                    traceHtml += `
+                        <li class="pipeline-trace-step-item" data-status="${statusClass}">
+                            <div class="pipeline-step-header">
+                                <span class="pipeline-step-status-icon">${statusIcon}</span>
+                                <div class="pipeline-step-info">
+                                   <span class="pipeline-step-title">Шаг ${index + 1}: <b>${step.modelName}</b></span>
+                                   <span class="pipeline-step-provider">через ${providerName}</span>
+                                </div>
+                                <span class="pipeline-step-status-text">${statusText}</span>
+                            </div>
+                            ${(logEntry.input || logEntry.output || logEntry.error) ?
+                            `<details class="pipeline-step-details">
+                                <summary>Показать детали</summary>
+                                <div class="pipeline-step-io">
+                                    ${logEntry.input ? `<h5>Входные данные</h5><pre>${DOMPurify.sanitize(logEntry.input)}</pre>` : ''}
+                                    ${logEntry.output ? `<h5>Выходные данные</h5><pre>${DOMPurify.sanitize(logEntry.output)}</pre>` : ''}
+                                    ${logEntry.error ? `<h5>Текст ошибки</h5><pre>${DOMPurify.sanitize(logEntry.error)}</pre>` : ''}
+                                </div>
+                            </details>` : ''}
+                        </li>`;
+                });
+                traceHtml += `</ul>`;
+        
+                // Отображение финального статуса всего пайплайна
+                if (isFinished && finalError && !wasAborted) {
+                    traceHtml += `<div class="pipeline-final-status error"><i data-lucide="alert-triangle"></i><b>Ошибка выполнения:</b> ${finalError}</div>`
+                }
+                if (isFinished && isSuccess) {
+                    traceHtml += `<div class="pipeline-final-status success"><i data-lucide="check-check"></i>Пайплайн успешно завершен.</div>`
+                }
+                if (isFinished && wasAborted) {
+                    traceHtml += `<div class="pipeline-final-status aborted"><i data-lucide="slash"></i>Выполнение было остановлено пользователем.</div>`
+                }
+        
+                traceHtml += `</div>`; // Закрываем .pipeline-trace-container
+        
+                // Оборачиваем все в тег, который используется для поиска и замены
+                return `<pipeline_trace>${traceHtml}</pipeline_trace>`;
+            }
+        
+            try {
+                // --- РЕЖИМ ПАЙПЛАЙНА ---
+                if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
                     
-                    // 2. Функция для обновления сообщения в чате
-                    const updatePipelineMessage = async (content) => {
-                        const messageWrapper = `<pipeline-progress>${JSON.stringify(pipelineProgress)}</pipeline-progress>${content || ''}`;
-                        const assistantMessage = { role: 'assistant', content: messageWrapper, modelName: selectedPipeline.name + " (Пайплайн)" };
-                        
-                        // Заменяем последнее сообщение (которое всегда будет наше)
-                        const messages = [...messagesToSubmit, assistantMessage];
-                        await updateDoc(sessionRef, { messages: messages, updatedAt: serverTimestamp() }, { merge: true });
-                    };
-
-                    // 3. Создаем пустое сообщение ассистента, чтобы пользователь видел начало работы
-                    await updatePipelineMessage('<div class="pt-2 typing-indicator"><span></span><span></span><span></span></div>');
-
+                    // 1. Создаем "пустое" сообщение ассистента с начальным состоянием лога
+                    const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
+                    assistantMessage.content = _renderPipelineTrace(selectedPipeline, executionLog);
+                    let currentMessages = [...messagesToSubmit, assistantMessage];
+                    await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+        
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
                         
                         const step = selectedPipeline.steps[i];
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
-                        
-                        // Обновляем статус текущего шага на "в процессе"
-                        pipelineProgress.steps[i].status = 'inprogress';
-                        pipelineProgress.steps[i].input = currentInputContent;
-                        await updatePipelineMessage('<div class="pt-2 typing-indicator"><span></span><span></span><span></span></div>');
-
-                        if (!stepProvider || !step.modelName) {
-                            throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
-                        }
-
+                        const stepModelName = step.modelName;
+        
+                        if (!stepProvider || !stepModelName) throw new Error(`Ошибка конфигурации на шаге ${i + 1}: провайдер или модель не найдены.`);
+        
+                        // 2. Обновляем лог: помечаем шаг как "в процессе"
+                        executionLog[i] = { status: 'running', input: currentInputContent };
+                        assistantMessage.content = _renderPipelineTrace(selectedPipeline, executionLog);
+                        await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+        
                         const stepApiMessages = [];
                         if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
                         try {
-                            const stepResponse = await callApi(stepProvider, step.modelName, stepApiMessages, signal);
-                            currentInputContent = stepResponse; // Ответ текущего шага становится входом для следующего
-                            pipelineProgress.steps[i].status = 'completed';
-                            pipelineProgress.steps[i].output = currentInputContent;
-                        } catch(e) {
-                            pipelineProgress.steps[i].status = 'error';
-                            pipelineProgress.steps[i].error = e.message;
-                            throw e; // Прерываем весь пайплайн
+                            const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                            currentInputContent = stepResponse; // Результат этого шага становится входом для следующего
+                            assistantMessageContent = stepResponse; // И финальным ответом на данный момент
+                            
+                            // 3. Обновляем лог: помечаем шаг как "завершенный" и добавляем результат
+                            executionLog[i].status = 'completed';
+                            executionLog[i].output = stepResponse;
+        
+                        } catch (stepError) {
+                            // 3b. Обновляем лог: помечаем шаг как "провалившийся"
+                            executionLog[i].status = 'failed';
+                            executionLog[i].error = stepError.message;
+                            // Прерываем весь пайплайн
+                            throw stepError;
                         }
                     }
-                    
-                    // Весь пайплайн успешно завершен
-                    finalAssistantContent = currentInputContent; // Последний ответ - финальный
-                    pipelineProgress.status = 'completed';
-                    pipelineProgress.finalOutput = finalAssistantContent;
                     isSuccess = true;
-
-                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (ОСТАВЛЕН БЕЗ ИЗМЕНЕНИЙ) ---
+        
+                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (остается без изменений) ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
@@ -2040,7 +2098,7 @@
                     });
                     apiMessagesPayload.push(...cleanedMessages.map(m => ({ role: m.role, content: m.content })));
                     
-                    finalAssistantContent = await callApi(provider, modelName, apiMessagesPayload, signal);
+                    assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
                     isSuccess = true;
                 }
         
@@ -2048,38 +2106,36 @@
                 if (error.name === 'AbortError' || error.message === 'AbortError') {
                     wasAborted = true;
                     lastError = 'Генерация остановлена пользователем.';
-                    if (selectedPipeline) pipelineProgress.status = 'aborted';
                 } else {
                     console.error("Ошибка в generateAssistantResponse:", error);
                     lastError = error.message;
-                    if (selectedPipeline) {
-                        pipelineProgress.status = 'error';
-                        pipelineProgress.errorMessage = lastError;
-                    }
                 }
             } finally {
-                // --- ФИНАЛИЗАЦИЯ ---
                 const finalActiveSession = state.sessions.find(s => s.id === sessionId);
                 let finalMessages = finalActiveSession ? [...finalActiveSession.messages] : [...messagesToSubmit];
-                
-                // Для пайплайна, формируем финальное сообщение
+        
+                // Финализация для пайплайна
                 if (selectedPipeline) {
-                    const finalMessageWrapper = `<pipeline-progress>${JSON.stringify(pipelineProgress)}</pipeline-progress>${finalAssistantContent || ''}`;
-                    const lastMessage = finalMessages[finalMessages.length - 1];
-
-                    if (lastMessage?.role === 'assistant') {
-                        lastMessage.content = finalMessageWrapper;
-                        if (!isSuccess) {
-                           lastMessage.content += `\n\n**${wasAborted ? 'Выполнение прервано.' : 'Произошла ошибка:'}** ${lastError}`;
+                    const lastMessage = finalMessages.findLast(m => m.role === 'assistant');
+                    if (lastMessage) {
+                        // Генерируем финальное состояние лога, используя данные из executionLog
+                        const finalTrace = _renderPipelineTrace(selectedPipeline, executionLog, true, isSuccess ? null : lastError);
+                        
+                        if (isSuccess) {
+                            // Если все успешно, добавляем финальный ответ модели после лога
+                            lastMessage.content = finalTrace + assistantMessageContent;
+                        } else {
+                            // В случае ошибки или отмены показываем только лог с финальным статусом
+                            lastMessage.content = finalTrace;
                         }
                     }
-                // Для одиночной модели, как и раньше
+                // Финализация для одиночной модели
                 } else {
                     const finalModelName = modelName;
                     const messageToAdd = wasAborted
                         ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
                         : isSuccess
-                            ? { role: 'assistant', content: finalAssistantContent, modelName: finalModelName }
+                            ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
                             : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
                     
                     if(finalMessages[finalMessages.length-1]?.role === 'assistant') {
@@ -2089,17 +2145,20 @@
                     }
                 }
                 
+                // Обновляем сообщение в Firestore один раз в конце
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
         
+                // Логика уведомлений
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const chatTitle = activeSession?.title || 'Новый чат';
-                    const messagePreview = (finalAssistantContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
+                    const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }
         
+                // Сброс состояния загрузки
                 state.loadingSessionId = null;
                 generationAbortController = null;
-                render();
+                render(); // Этот вызов отрендерит новые иконки lucide в логе
             }
         }
         

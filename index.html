@@ -914,32 +914,26 @@
             contentDiv.className = 'mt-2 w-full';
 
             // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-            const separator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
-            if (contentAsString.includes(separator)) {
-                // Если это сообщение от пайплайна, делим его на части
-                const parts = contentAsString.split(separator);
+            const pipelineSeparator = '<!-- MBOX_PIPELINE_SEPARATOR -->'; // Переименованная переменная
+            if (contentAsString.includes(pipelineSeparator)) {
+                const parts = contentAsString.split(pipelineSeparator);
                 const logWindowHtml = parts[0];
                 const finalAnswerMarkdown = parts[1] || '';
 
-                // Окно лога вставляем как есть
                 const logContainer = document.createElement('div');
-                logContainer.innerHTML = logWindowHtml;
+                logContainer.innerHTML = logWindowHtml; // DOMPurify уже был применен в generateAssistantResponse
                 contentDiv.appendChild(logContainer);
 
-                // Финальный ответ обрабатываем как Markdown и добавляем в контейнер с классом prose
                 if (finalAnswerMarkdown) {
                     const answerContainer = document.createElement('div');
-                    answerContainer.className = 'prose max-w-none mt-4'; // mt-4 для отступа
+                    answerContainer.className = 'prose max-w-none mt-4';
                     answerContainer.innerHTML = DOMPurify.sanitize(marked.parse(finalAnswerMarkdown));
                     contentDiv.appendChild(answerContainer);
                 }
             } else {
-                // Если это ОБЫЧНОЕ сообщение (или лог без финального ответа), обрабатываем как раньше
                 if (contentAsString.includes('pipeline-log-window')) {
-                    // Это лог, который еще не завершился - вставляем как HTML
                     contentDiv.innerHTML = contentAsString;
                 } else {
-                    // Это обычное сообщение - обрабатываем через Markdown
                     contentDiv.classList.add('prose', 'max-w-none');
                     let processedContent = String(msg.content || '')
                         .replace(
@@ -1012,6 +1006,7 @@
                     }).catch(err => console.error('Не удалось скопировать текст:', err));
                 });
             
+            // Здесь имя `separator` уже не конфликтует
             const separator = document.createElement('hr');
             separator.className = 'dropdown-menu-separator';
             dropdownMenu.appendChild(separator);
@@ -1069,7 +1064,6 @@
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
 
-            // Обработка блоков кода должна происходить ПОСЛЕ вставки HTML в contentDiv
             contentDiv.querySelectorAll('pre code:not(.hljs)').forEach((block) => {
                  const preElement = block.parentElement;
                  if (preElement.querySelector('.copy-code-btn')) return;
@@ -1085,7 +1079,6 @@
                  preElement.appendChild(copyBtn);
                  hljs.highlightElement(block);
             });
-
 
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;

@@ -1,27 +1,36 @@
-const API_BASE_URL = 'https://api.telegra.ph/';
+const PROXY_ENDPOINT = '/api/telegraph'; // Обращаемся к нашему прокси
 const STORAGE_KEY = 'telegraph_access_token';
 
+/**
+ * Преобразует Markdown-подобную разметку в массив Node-объектов для API Telegraph.
+ * @param {string} markdownText - Текст для преобразования.
+ * @returns {Array} - Массив Node-объектов.
+ */
 function convertMarkdownToNodes(markdownText) {
     const nodes = [];
-    const lines = markdownText.split('\n');
+    const lines = (markdownText || '').split('\n');
 
     for (const line of lines) {
+        // Пропускаем пустые строки, чтобы не создавать пустых <p>
         if (line.trim() === '') continue;
 
-        // Пока простой обработчик: каждая строка - новый параграф.
-        // Для более сложной разметки (списки, цитаты) потребуется более сложный парсер.
         const p = {
             tag: 'p',
-            children: [line] // Упрощенно, вложенные теги можно будет добавить позже
+            children: [line]
         };
         nodes.push(p);
+    }
+    // Если после обработки не осталось ни одного узла (например, текст состоял из пробелов),
+    // возвращаем один пустой параграф, чтобы API Telegraph не вернул ошибку CONTENT_EMPTY.
+    if (nodes.length === 0) {
+        return [{ tag: 'p', children: [''] }];
     }
     return nodes;
 }
 
 
 /**
- * Получает access_token из localStorage или регистрирует нового анонимного пользователя.
+ * Получает access_token из localStorage или регистрирует нового анонимного пользователя через прокси.
  * @param {string} appName - Имя вашего приложения для short_name.
  * @param {string} authorName - Имя автора (может быть 'Anonymous').
  * @returns {Promise<string>} - Промис, который разрешается с access_token.
@@ -32,12 +41,15 @@ async function getAccessToken(appName = 'MBOX', authorName = 'Anonymous') {
         return accessToken;
     }
 
-    const response = await fetch(`${API_BASE_URL}createAccount`, {
+    const response = await fetch(PROXY_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            short_name: appName,
-            author_name: authorName
+            method: 'createAccount', // Указываем метод для прокси
+            payload: {              // Данные для этого метода
+                short_name: appName,
+                author_name: authorName
+            }
         })
     });
 
@@ -53,7 +65,7 @@ async function getAccessToken(appName = 'MBOX', authorName = 'Anonymous') {
 }
 
 /**
- * Создает страницу в Telegraph.
+ * Создает страницу в Telegraph через прокси.
  * @param {string} title - Заголовок страницы.
  * @param {Array} contentNodes - Содержимое в виде массива Node-объектов.
  * @returns {Promise<string>} - Промис, который разрешается с URL созданной страницы.
@@ -62,14 +74,17 @@ async function createTelegraphPage(title, contentNodes) {
     try {
         const accessToken = await getAccessToken();
 
-        const response = await fetch(`${API_BASE_URL}createPage`, {
+        const response = await fetch(PROXY_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                access_token: accessToken,
-                title: title,
-                content: contentNodes,
-                return_content: false
+                method: 'createPage', // Указываем метод для прокси
+                payload: {            // Данные для этого метода
+                    access_token: accessToken,
+                    title: title,
+                    content: contentNodes,
+                    return_content: false
+                }
             })
         });
 
@@ -83,7 +98,7 @@ async function createTelegraphPage(title, contentNodes) {
 
     } catch (error) {
         console.error('Ошибка экспорта в Telegraph:', error);
-        throw error; // Пробрасываем ошибку дальше для обработки в UI
+        throw error;
     }
 }
 
@@ -108,20 +123,16 @@ export async function exportChatToTelegraph(chatTitle, messages) {
     const allContent = [];
 
     messages.forEach(msg => {
-        // Пропускаем сообщения с файлами для чистоты экспорта
-        if (typeof msg.content === 'string' && msg.content.startsWith('<file')) {
+        if (typeof msg.content !== 'string' || msg.content.startsWith('<file')) {
             return;
         }
-
-        // Добавляем заголовок для каждого сообщения
+        
         const author = msg.role === 'user' ? 'Вы' : (msg.modelName || 'Ассистент');
         allContent.push({ tag: 'h4', children: [author] });
-
-        // Добавляем основной контент сообщения
+        
         const messageNodes = convertMarkdownToNodes(msg.content);
         allContent.push(...messageNodes);
-
-        // Добавляем разделитель
+        
         allContent.push({ tag: 'hr' });
     });
 

@@ -156,6 +156,134 @@ input::placeholder, textarea::placeholder {
     );
 }
 
+/* ПАЙПЛАЙН */
+.pipeline-trace-container {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem; /* 12px */
+    padding: 1rem; /* 16px */
+    margin-top: 0.5rem; /* 8px */
+}
+
+.pipeline-trace-title {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 600;
+    margin-bottom: 1rem; /* 16px */
+    color: var(--text-primary);
+}
+
+.pipeline-trace-steps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* 12px */
+}
+
+.pipeline-trace-step-item {
+    background-color: var(--bg-main);
+    border-radius: 0.5rem; /* 8px */
+    padding: 0.75rem; /* 12px */
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+}
+
+/* Цветовые индикаторы статуса */
+.pipeline-trace-step-item[data-status="running"] { border-left-color: #409eff; }
+.pipeline-trace-step-item[data-status="completed"] { border-left-color: #26d07c; }
+.pipeline-trace-step-item[data-status="failed"] { border-left-color: #ff4d4d; }
+.pipeline-trace-step-item[data-status="pending"] { border-left-color: var(--border-color); }
+
+.pipeline-step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* 12px */
+}
+
+.pipeline-step-status-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+}
+
+.pipeline-step-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.pipeline-step-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.pipeline-step-provider {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.pipeline-step-status-text {
+    font-size: 0.875rem; /* 14px */
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.pipeline-step-details {
+    margin-top: 0.75rem; /* 12px */
+}
+
+.pipeline-step-details summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.pipeline-step-io {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: var(--bg-sidebar);
+    border-radius: 0.375rem; /* 6px */
+    font-size: 0.8rem;
+}
+
+.pipeline-step-io h5 {
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.pipeline-step-io pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: transparent !important;
+    padding: 0 !important;
+}
+
+/* Финальный статус пайплайна */
+.pipeline-final-status {
+    margin-top: 1rem; /* 16px */
+    padding: 0.75rem; /* 12px */
+    border-radius: 0.5rem; /* 8px */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+.pipeline-final-status.success { background-color: rgba(38, 208, 124, 0.1); color: #26d07c; }
+.pipeline-final-status.error { background-color: rgba(255, 77, 77, 0.1); color: #ff4d4d; }
+.pipeline-final-status.aborted { background-color: rgba(139, 145, 157, 0.1); color: var(--text-secondary); }
+
+/* Уменьшенный индикатор загрузки для шагов */
+.typing-indicator.small span {
+    width: 6px;
+    height: 6px;
+    margin: 0 1px;
+}
+
 /* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {
     background-color: rgba(37, 37, 38, 0.5); /* Полупрозрачный фон */

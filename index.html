@@ -396,7 +396,7 @@
                         chatContainer.className = 'flex flex-col h-full';
                         chatContainer.innerHTML = getChatViewHTML(activeSession);
                         mainContent.appendChild(chatContainer);
-
+                        
                         const provider = state.providers.find(p => p.id === activeSession.providerId);
                         let needsUpdate = false;
                         const updatePayload = {};
@@ -642,11 +642,16 @@
 
                 <!-- Плавающая панель настроек -->
                 <div id="chat-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
-                    <div class="flex justify-between items-center border-b border-border-color pb-3 mb-4">
+                   <div class="flex justify-between items-center border-b border-border-color pb-3 mb-4">
                         <h3 class="font-bold text-lg">Настройки чата</h3>
-                        <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors -mr-2">
-                            <i data-lucide="rotate-cw" class="w-4 h-4"></i>
-                        </button>
+                        <div class="flex items-center">
+                            <button id="export-chat-btn" title="Экспортировать чат в HTML" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-accent hover:bg-accent/10 transition-colors">
+                                <i data-lucide="file-down" class="w-4 h-4"></i>
+                            </button>
+                            <button id="clear-chat-history-btn" title="Очистить историю чата" class="flex-shrink-0 p-2 rounded-full text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors">
+                                <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label for="chat-title-input" class="text-sm font-medium text-text-secondary block mb-1">Название чата</label>
@@ -789,6 +794,76 @@
             if (proseContainer) {
                 proseContainer.innerHTML = '';
             }
+        }
+
+        function generateExportHTML(messages, chatTitle) {
+            // Преобразуем сообщения в HTML-строки.
+            // Это УПРОЩЕННАЯ версия логики из createMessageElement, чтобы убрать все лишнее (кнопки и т.д.)
+            const messagesHTML = messages.map(msg => {
+                const isUser = msg.role === 'user';
+                const author = isUser ? (auth.currentUser?.displayName || 'Вы') : (msg.modelName || 'Ассистент');
+                const content = marked.parse(String(msg.content || ''), { breaks: true, gfm: true });
+        
+                return `
+                    <div class="message ${isUser ? 'user' : 'assistant'}">
+                        <div class="author">${author}</div>
+                        <div class="content prose">${content}</div>
+                    </div>
+                `;
+            }).join('');
+        
+            // CSS стили для экспортируемого файла. Они встраиваются прямо в HTML.
+            const styles = `
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 2rem; }
+                .container { max-width: 800px; margin: auto; }
+                .message { margin-bottom: 1.5rem; padding: 1rem; border-radius: 0.5rem; border: 1px solid #333; }
+                .message.assistant { background-color: #1e1e1e; }
+                .message.user { background-color: #242424; }
+                .author { font-weight: bold; margin-bottom: 0.5rem; color: #888; }
+                .prose pre { background-color: #2d2d2d; padding: 1em; border-radius: 0.5em; overflow-x: auto; }
+                .prose code { color: #ccc; font-family: "Courier New", Courier, monospace; }
+                .prose h1, .prose h2, .prose h3 { color: #fff; }
+                .prose a { color: #409eff; }
+                /* Стили для подсветки кода из highlight.js */
+                .hljs{display:block;overflow-x:auto;padding:.5em;background:#282c34;color:#abb2bf}
+                .hljs-keyword,.hljs-operator{color:#c678dd}
+                /* ... добавьте другие стили из atom-one-dark.min.css по желанию ... */
+            `;
+        
+            // Собираем финальный HTML
+            return `
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Экспорт чата: ${chatTitle}</title>
+                    <style>${styles}</style>
+                    <!-- Подключаем highlight.js для подсветки кода в экспортированном файле -->
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+                    <script>hljs.highlightAll();</script>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>${chatTitle}</h1>
+                        <hr>
+                        ${messagesHTML}
+                    </div>
+                </body>
+                </html>
+            `;
+        }
+
+        function triggerHtmlDownload(htmlContent, fileName) {
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
         
         function getNotepadViewHTML(activeSession) {
@@ -1474,6 +1549,27 @@
                 setTimeout(adjustLayout, 100);
             }
 
+            const exportBtn = document.getElementById('export-chat-btn');
+
+            exportBtn?.addEventListener('click', () => {
+                const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
+                if (!activeSession || !activeSession.messages || activeSession.messages.length === 0) {
+                    showModalAlert("В этом чате нет сообщений для экспорта.");
+                    return;
+                }
+        
+                // 1. Генерируем HTML
+                const chatTitle = activeSession.title || 'Безымянный чат';
+                const htmlToExport = generateExportHTML(activeSession.messages, chatTitle);
+        
+                // 2. Формируем имя файла
+                const safeFileName = chatTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const fileName = `export_${safeFileName}.html`;
+        
+                // 3. Запускаем скачивание
+                triggerHtmlDownload(htmlToExport, fileName);
+            });
+                    
             // --- Обработка изменений в настройках чата ---
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             titleInput?.addEventListener('change', (e) => updateDoc(sessionRef, { title: e.target.value }));

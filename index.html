@@ -851,13 +851,13 @@
         function createMessageElement(msg, index) {
             const isUser = msg.role === 'user';
             const messageWrapper = document.createElement('div');
-            const contentAsString = String(msg.content || ''); 
+            const contentAsString = String(msg.content || '');
             
             messageWrapper.dataset.content = contentAsString;
             
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
             const fileMatch = contentAsString.match(fileRegex);
-
+        
             if (isUser && fileMatch) {
                 const fileName = fileMatch[1];
                 messageWrapper.className = 'message-container group relative flex flex-col mb-6 items-end';
@@ -880,7 +880,7 @@
                 lucide.createIcons({ nodes: [messageWrapper] });
                 return messageWrapper;
             }
-
+        
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -888,11 +888,11 @@
             headerDiv.className = `flex items-center space-x-3`;
             const iconDiv = document.createElement('div');
             iconDiv.className = `w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden`;
-
+        
             if (isUser) {
                 const user = auth.currentUser;
                 const userNameSpan = document.createElement('span');
-                userNameSpan.className = 'text-sm text-text-secondary'; 
+                userNameSpan.className = 'text-sm text-text-secondary';
                 userNameSpan.textContent = user?.displayName || 'Вы';
                 headerDiv.appendChild(userNameSpan);
                 const avatarSrc = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=4285F4&color=fff`;
@@ -912,25 +912,40 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
-            let processedContent = String(msg.content || '')
-                .replace( // Обработка стандартного тега мыслей
-                    /<think>([\s\S]*?)<\/think>/g,
-                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                )
-                .replace( // Обработка нового тега для лога пайплайна
-                    /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
-                    `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`
-                );
-            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-
+        
+            // --- ИСПРАВЛЕННАЯ ЛОГИКА ---
+            const isPipelineTrace = contentAsString.trim().startsWith('<div class="pipeline-trace-window">');
+        
+            if (isPipelineTrace) {
+                // Если это наш специальный блок пайплайна, вставляем его как HTML напрямую (после очистки)
+                // Добавляем 'data-status' в список разрешенных атрибутов для DOMPurify
+                contentDiv.innerHTML = DOMPurify.sanitize(contentAsString, { 
+                    ADD_TAGS: ['details', 'summary'],
+                    ADD_ATTR: ['data-status'] 
+                });
+                // Ручное подсвечивание синтаксиса в блоках <pre><code> внутри пайплайна
+                contentDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+        
+            } else {
+                // Если это обычное сообщение, обрабатываем его как Markdown (старая логика)
+                let processedContent = contentAsString
+                    .replace(/<think>([\s\S]*?)<\/think>/g, `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`)
+                    .replace(/<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g, `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`);
+                const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            }
+            // --- КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ ---
+        
+        
             const actionsOuterContainer = document.createElement('div');
             actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'message-actions-container';
             const dropdownMenu = document.createElement('div');
             dropdownMenu.className = 'message-actions-dropdown hidden';
-
+        
             const createMenuItem = (icon, text, customClass = '', dataset = {}) => {
                 const button = document.createElement('button');
                 button.className = `dropdown-menu-item ${customClass}`;
@@ -939,7 +954,7 @@
                 Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
                 return button;
             };
-
+        
             if (isUser) {
                 dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', { messageIndex: index }));
                 dropdownMenu.appendChild(createMenuItem('pencil', 'Редактировать и отправить', 'edit-message-btn', { messageIndex: index }));
@@ -969,12 +984,10 @@
             dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
                 .addEventListener('click', function() {
                     const buttonElement = this;
-
+        
                     navigator.clipboard.writeText(msg.content).then(() => {
                         const originalHTML = buttonElement.innerHTML;
-
                         buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mx-auto"><polyline points="20 6 9 17 5 12"></polyline></svg>`;
-
                         setTimeout(() => {
                             if (document.body.contains(buttonElement)) {
                                 buttonElement.innerHTML = originalHTML;
@@ -1000,11 +1013,8 @@
                     dropdownMenu.style.bottom = '100%';
                     dropdownMenu.style.marginTop = '';
                     dropdownMenu.style.marginBottom = '8px';
-
                     const menuRect = dropdownMenu.getBoundingClientRect();
-                    
-                    const topMargin = 10; 
-
+                    const topMargin = 10;
                     if (menuRect.top < topMargin) {
                         dropdownMenu.style.top = '100%';
                         dropdownMenu.style.bottom = 'auto';
@@ -1022,7 +1032,7 @@
                     }, 0);
                 }
             });
-
+        
             actionsContainer.appendChild(moreOptionsBtn);
             actionsContainer.appendChild(dropdownMenu);
             actionsOuterContainer.appendChild(actionsContainer);
@@ -1039,7 +1049,7 @@
             messageWrapper.appendChild(contentDiv);
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
-
+        
             messageWrapper.querySelectorAll('pre').forEach((preElement) => {
                  const codeBlock = preElement.querySelector('code');
                  if (!codeBlock) return;
@@ -1051,10 +1061,10 @@
                     const codeToShow = preElement.cloneNode(true);
                     const diagramContainer = document.createElement('div');
                     diagramContainer.className = 'mermaid-render-container hidden';
-
+        
                     const buttonsContainer = document.createElement('div');
                     buttonsContainer.className = 'diagram-actions-container';
-
+        
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'code-action-btn';
                     copyBtn.title = 'Копировать код диаграммы';
@@ -1065,7 +1075,7 @@
                          setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
                          lucide.createIcons();
                     });
-
+        
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'code-action-btn';
                     toggleBtn.title = 'Показать/скрыть диаграмму';
@@ -1079,7 +1089,7 @@
                     diagramWrapper.appendChild(buttonsContainer);
                     
                     preElement.replaceWith(diagramWrapper);
-
+        
                     (async () => {
                         try {
                             await mermaid.parse(codeBlock.innerText);
@@ -1094,12 +1104,10 @@
                             lucide.createIcons({nodes: [toggleBtn]});
                         }
                     })();
-
+        
                     toggleBtn.addEventListener('click', async () => {
                         if (diagramContainer.querySelector('.text-red-400')) return;
-
                         const isDiagramCurrentlyHidden = diagramContainer.classList.contains('hidden');
-                        
                         if (isDiagramCurrentlyHidden && diagramContainer.innerHTML === '') {
                             diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
                             try {
@@ -1110,7 +1118,6 @@
                                 return;
                             }
                         }
-                        
                         diagramContainer.classList.toggle('hidden');
                         codeToShow.classList.toggle('hidden');
                         toggleBtn.querySelector('i').setAttribute('data-lucide', diagramContainer.classList.contains('hidden') ? 'git-fork' : 'code');
@@ -1132,9 +1139,12 @@
                      buttonContainer.appendChild(copyBtn);
                      preElement.appendChild(buttonContainer);
                  }
-                 hljs.highlightElement(codeBlock);
+                 // Условие, чтобы не подсвечивать блок с пайплайном
+                 if (!isPipelineTrace) {
+                    hljs.highlightElement(codeBlock);
+                 }
             });
-
+        
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;
         }

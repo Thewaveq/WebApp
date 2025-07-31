@@ -107,9 +107,16 @@ input::placeholder, textarea::placeholder {
 .main-nav-item.active { background-color: var(--accent); color: white; }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
-::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #666; }
-.typing-indicator span { height: 8px; width: 8px; background-color: var(--accent); border-radius: 50%; display: inline-block; animation: bounce 1.4s infinite ease-in-out both; }
+::-webkit-scrollbar-thumb { background: var(--base-dark-500); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--base-dark-600); }
+.typing-indicator span { 
+    height: 8px; 
+    width: 8px; 
+    background-color: var(--accent); /* Используем переменную акцентного цвета */
+    border-radius: 50%; 
+    display: inline-block; 
+    animation: bounce 1.4s infinite ease-in-out both; 
+}
 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
 @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
@@ -233,9 +240,9 @@ details[open] > summary .details-arrow {
 }
 
 .prose code { 
-    background-color: rgba(var(--user-accent-rgb), 0.15);
+    background-color: rgba(14, 99, 156, 0.15);
     color: var(--accent-hover);
-    border: 1px solid rgba(var(--user-accent-rgb), 0.3);
+    border: 1px solid rgba(14, 99, 156, 0.3);
     padding: 0.1rem 0.8rem; 
     border-radius: 0.3rem;     
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -599,14 +606,13 @@ details[open] > summary .details-arrow {
 /* --- Стили для In-App Уведомления с эффектом свечения --- */
 @keyframes pulse-glow {
     0% {
-        box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
+        box-shadow: 0 0 5px 0px rgba(var(--user-accent-rgb), 0.7), 0 0 0 0px rgba(var(--user-accent-rgb), 0.7);
     }
     50% {
-
         box-shadow: 0 0 10px 3px var(--accent), 0 0 7px 2px var(--accent);
     }
     100% {
-        box-shadow: 0 0 5px 0px rgba(14, 99, 156, 0.7), 0 0 0 0px rgba(14, 99, 156, 0.7);
+        box-shadow: 0 0 5px 0px rgba(var(--user-accent-rgb), 0.7), 0 0 0 0px rgba(var(--user-accent-rgb), 0.7);
     }
 }
 

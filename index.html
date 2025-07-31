@@ -1988,9 +1988,18 @@
                         thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
-                    // Оборачиваем финальный ответ и процесс выполнения в теги
-                    assistantMessageContent = `<think>${thinkingProcess}</think>${assistantMessageContent}`;
-
+                    let finalAnswer = assistantMessageContent;
+                    let modelThoughts = '';
+                    
+                    const match = finalAnswer.match(/^<think>([\s\S]*?)<\/think>([\s\S]*)$/);
+                    
+                    if (match) {
+                        modelThoughts = match[1]; // Мысли последней модели
+                        finalAnswer = match[2];   // Чистый ответ
+                    }
+                    const combinedThoughts = thinkingProcess + (modelThoughts ? `\n\n--- (Мысли финальной модели) ---\n${modelThoughts}` : '');
+                    assistantMessageContent = `<think>${combinedThoughts}</think>${finalAnswer}`;
+                    
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");

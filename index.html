@@ -1939,21 +1939,28 @@
             const signal = generationAbortController.signal;
         
             state.loadingSessionId = sessionId;
-            render(); // Показать индикатор загрузки
+            render();
         
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const finalModelName = selectedPipeline ? selectedPipeline.name + " (Пайплайн)" : modelName;
         
-            // Создаем сообщение-плейсхолдер, которое будем обновлять в реальном времени
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        
             const assistantMessagePlaceholder = {
                 role: 'assistant',
-                content: '*Запускаю процесс...*',
+                content: '*Запускаю пайплайн...*',
                 modelName: finalModelName
             };
             let currentMessages = [...messagesToSubmit, assistantMessagePlaceholder];
             await updateDoc(sessionRef, { messages: currentMessages });
+        
+            const updatePipelineStatus = async (log, status) => {
+                if (signal.aborted) throw new Error('AbortError');
+                currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${log}</pipeline_trace>_${status}_`;
+                await updateDoc(sessionRef, { messages: [...currentMessages] });
+            };
         
             let assistantMessageContent = '';
             let isSuccess = false;
@@ -1967,10 +1974,8 @@
                     thinkingProcess += `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
         
-                    // Обновляем UI с начальным сообщением
-                    currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>_Выполняется..._`;
-                    await updateDoc(sessionRef, { messages: [...currentMessages] });
-        
+                    await updatePipelineStatus(thinkingProcess, 'Инициализация...');
+                    await sleep(500);
         
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
@@ -1979,11 +1984,8 @@
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
                         const stepModelName = step.modelName;
                         
-                        // Обновляем UI, чтобы показать, что текущий шаг выполняется
-                        let stepLog = `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\` (Выполняется...)\n`;
-                        currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${thinkingProcess}${stepLog}</pipeline_trace>`;
-                        // Немедленно обновляем документ, чтобы UI перерисовался
-                        await updateDoc(sessionRef, { messages: [...currentMessages] });
+                        await updatePipelineStatus(thinkingProcess, `Шаг ${i + 1}/${selectedPipeline.steps.length}: Подготовка данных...`);
+                        await sleep(500);
         
                         if (!stepProvider || !stepModelName) {
                             throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
@@ -1993,35 +1995,34 @@
                         if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
+                        await updatePipelineStatus(thinkingProcess, `Шаг ${i + 1}/${selectedPipeline.steps.length}: Отправка запроса к модели \`${stepModelName}\`...`);
+                        await sleep(250);
+        
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
         
-                        // Обновляем лог результатами завершенного шага
-                        stepLog = `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\` (Завершен)\n`;
+                        await updatePipelineStatus(thinkingProcess, `Шаг ${i + 1}/${selectedPipeline.steps.length}: Ответ получен. Обработка результатов...`);
+                        await sleep(500);
+                        
+                        let stepLog = `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\` (Завершен)\n`;
                         stepLog += `**Роль:** ${step.roleContent || 'Нет'}\n`;
                         stepLog += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
                         stepLog += `**Выходные данные:**\n\`\`\`\n${stepResponse}\n\`\`\`\n\n`;
                         
-                        // Добавляем лог этого шага к общему процессу
                         thinkingProcess += stepLog;
-                        
-                        // Выход этого шага - это вход для следующего
-                        currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; // Финальный ответ - это результат последнего шага
-        
-                        // Снова обновляем UI с информацией о завершенном шаге
-                        currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>_Выполняется..._`;
-                        await updateDoc(sessionRef, { messages: [...currentMessages] });
+                        currentInputContent = stepResponse; 
+                        assistantMessageContent = stepResponse;
                     }
                     
                     isSuccess = true;
-                    // Итоговый контент объединяет лог и финальный ответ
                     assistantMessageContent = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
         
-                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
+                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
 
+                    await updateDoc(sessionRef, { messages: [...currentMessages, {role: 'assistant', content: '_Генерация ответа..._', modelName: finalModelName}] });
+                    
                     const apiMessagesPayload = [];
                     if (selectedRole && selectedRole.content) {
                         apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
@@ -2043,7 +2044,6 @@
         
             } catch (error) {
                 if (error.name === 'AbortError' || error.message === 'AbortError') {
-                    console.log('Генерация остановлена пользователем.');
                     wasAborted = true;
                     lastError = 'Генерация остановлена пользователем.';
                 } else {
@@ -2051,14 +2051,13 @@
                     lastError = error.message;
                 }
             } finally {
-                // Финальное обновление сообщения в Firestore
                 const finalMessage = currentMessages[currentMessages.length - 1];
                 if (wasAborted) {
-                    finalMessage.content = `*Генерация была остановлена.*`;
+                    finalMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>*Генерация была остановлена на шаге ${thinkingProcess.split('---').length - 1}.*`;
                 } else if (isSuccess) {
                     finalMessage.content = assistantMessageContent;
                 } else {
-                    finalMessage.content = `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                    finalMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>**Ошибка:** Не удалось получить ответ.\n\n*Детали: ${lastError}*`;
                 }
                 
                 await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });

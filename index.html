@@ -855,6 +855,7 @@
             
             messageWrapper.dataset.content = contentAsString;
             
+            // Обработка прикрепленного файла у пользователя (не трогаем, это работает)
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
             const fileMatch = contentAsString.match(fileRegex);
 
@@ -881,6 +882,7 @@
                 return messageWrapper;
             }
 
+            // Основная структура "пузыря" сообщения (не трогаем)
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -910,55 +912,67 @@
                 }
             }
             
+            // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
             const contentDiv = document.createElement('div');
             contentDiv.className = 'mt-2 w-full';
 
-            // --- КОМПЛЕКСНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-
-            // Вспомогательная функция, которая правильно обрабатывает Markdown и <think> блоки
-            function processMarkdown(markdownString) {
-                if (!markdownString) return '';
-                // Сначала заменяем <think> на <details>
-                let processedContent = markdownString.replace(
+            // Универсальный обработчик, который возвращает и <think> блоки, и Markdown
+            function processContent(contentString) {
+                if (!contentString) return '';
+                // 1. Заменяем <think> и <pipeline_trace> на <details>
+                let processed = contentString.replace(
                     /<think>([\s\S]*?)<\/think>/g,
                     `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                ).replace(
+                     /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
+                    `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`
                 );
-                // Затем парсим весь результат как Markdown
-                const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-                // И в конце очищаем, разрешая теги <details> и <summary>
+
+                // 2. Парсим ВЕСЬ результат через Markdown
+                const rawHtml = marked.parse(processed, { breaks: true, gfm: true });
+
+                // 3. Очищаем, разрешая наши теги <details> и <summary>
                 return DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
             }
 
             const pipelineSeparator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
-            if (contentAsString.includes(pipelineSeparator)) {
-                // Случай 1: Завершенный пайплайн (окно лога + финальный ответ)
-                const parts = contentAsString.split(pipelineSeparator);
-                const logWindowHtml = parts[0];
-                const finalAnswerMarkdown = parts[1] || '';
+            if (contentAsString.includes('pipeline-log-window')) {
+                // Если это сообщение с новым "стеклянным" окном
+                let logWindowHtml = contentAsString;
+                let finalAnswerMarkdown = '';
 
-                // Окно лога просто вставляем как есть (оно уже было очищено)
-                const logContainer = document.createElement('div');
-                logContainer.innerHTML = logWindowHtml;
-                contentDiv.appendChild(logContainer);
-
-                // Финальный ответ пропускаем через наш универсальный обработчик
-                if (finalAnswerMarkdown) {
-                    const answerContainer = document.createElement('div');
-                    answerContainer.className = 'prose max-w-none mt-4'; // Добавляем класс для стилизации
-                    answerContainer.innerHTML = processMarkdown(finalAnswerMarkdown);
-                    contentDiv.appendChild(answerContainer);
+                if (contentAsString.includes(pipelineSeparator)) {
+                    const parts = contentAsString.split(pipelineSeparator);
+                    logWindowHtml = parts[0];
+                    finalAnswerMarkdown = parts[1] || '';
                 }
-            } else if (contentAsString.includes('pipeline-log-window')) {
-                // Случай 2: Пайплайн в процессе выполнения (только окно лога)
-                contentDiv.innerHTML = contentAsString;
+
+                // Создаем контейнер, который будет держать и лог, и финальный ответ
+                const combinedContainer = document.createElement('div');
+                
+                // Вставляем окно лога как чистый HTML
+                combinedContainer.innerHTML = logWindowHtml;
+                
+                // Если есть финальный ответ, обрабатываем его через Markdown и добавляем
+                if (finalAnswerMarkdown) {
+                    const answerDiv = document.createElement('div');
+                    answerDiv.className = 'prose max-w-none mt-4'; // Класс для стилизации текста
+                    // Используем наш универсальный обработчик, который вернет и <think> и все остальное
+                    answerDiv.innerHTML = processContent(finalAnswerMarkdown);
+                    combinedContainer.appendChild(answerDiv);
+                }
+                
+                contentDiv.appendChild(combinedContainer);
+
             } else {
-                // Случай 3: Любое обычное сообщение
+                // Если это ЛЮБОЕ ДРУГОЕ сообщение (без "стеклянного" окна)
                 contentDiv.classList.add('prose', 'max-w-none');
-                contentDiv.innerHTML = processMarkdown(contentAsString);
+                contentDiv.innerHTML = processContent(contentAsString);
             }
             // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
 
+            // Остальная часть функции для кнопок и действий (не трогаем)
             const actionsOuterContainer = document.createElement('div');
             actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
             const actionsContainer = document.createElement('div');
@@ -1007,14 +1021,8 @@
 
                     navigator.clipboard.writeText(msg.content).then(() => {
                         const originalHTML = buttonElement.innerHTML;
-
                         buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mx-auto"><polyline points="20 6 9 17 5 12"></polyline></svg>`;
-
-                        setTimeout(() => {
-                            if (document.body.contains(buttonElement)) {
-                                buttonElement.innerHTML = originalHTML;
-                            }
-                        }, 2000);
+                        setTimeout(() => { if (document.body.contains(buttonElement)) { buttonElement.innerHTML = originalHTML; } }, 2000);
                     }).catch(err => console.error('Не удалось скопировать текст:', err));
                 });
             
@@ -1031,30 +1039,20 @@
                 e.stopPropagation();
                 dropdownMenu.classList.toggle('hidden');
                 if (!dropdownMenu.classList.contains('hidden')) {
-                    dropdownMenu.style.top = '';
-                    dropdownMenu.style.bottom = '100%';
-                    dropdownMenu.style.marginTop = '';
-                    dropdownMenu.style.marginBottom = '8px';
-
                     const menuRect = dropdownMenu.getBoundingClientRect();
-                    
-                    const topMargin = 10; 
+                    const topMargin = 10;
+                    dropdownMenu.style.top = (menuRect.top < topMargin) ? '100%' : '';
+                    dropdownMenu.style.bottom = (menuRect.top < topMargin) ? 'auto' : '100%';
+                    dropdownMenu.style.marginTop = (menuRect.top < topMargin) ? '8px' : '';
+                    dropdownMenu.style.marginBottom = (menuRect.top < topMargin) ? '' : '8px';
 
-                    if (menuRect.top < topMargin) {
-                        dropdownMenu.style.top = '100%';
-                        dropdownMenu.style.bottom = 'auto';
-                        dropdownMenu.style.marginTop = '8px';
-                        dropdownMenu.style.marginBottom = '0';
-                    }
                     const closeOnClickOutside = (event) => {
                         if (!dropdownMenu.contains(event.target) && !moreOptionsBtn.contains(event.target)) {
                             dropdownMenu.classList.add('hidden');
                             document.removeEventListener('click', closeOnClickOutside, { capture: true });
                         }
                     };
-                    setTimeout(() => {
-                        document.addEventListener('click', closeOnClickOutside, { capture: true });
-                    }, 0);
+                    setTimeout(() => document.addEventListener('click', closeOnClickOutside, { capture: true }), 0);
                 }
             });
 

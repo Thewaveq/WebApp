@@ -2011,7 +2011,6 @@
                         return msg;
                     });
 
-                    // Используем очищенную историю для формирования запроса к API
                     apiMessagesPayload.push(...cleanedMessages.map(m => ({ role: m.role, content: m.content })));
                     
                     assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
@@ -2028,17 +2027,37 @@
                     lastError = error.message;
                 }
             } finally {
-                const finalModelName = selectedPipeline ? selectedPipeline.name + " (Пайплайн)" : modelName;
-
-                const messageToAdd = wasAborted
-                    ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
-                    : isSuccess
-                        ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
-                        : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
-                
-                const finalMessages = [...messagesToSubmit, messageToAdd];
                 const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+                const activeSession = state.sessions.find(s => s.id === sessionId);
+                let finalMessages = activeSession ? [...activeSession.messages] : [...messagesToSubmit];
+
+                // --- ЛОГИКА ДЛЯ ПАЙПЛАЙНА ---
+                if (selectedPipeline) {
+                    const lastMessage = finalMessages[finalMessages.length - 1];
+
+                    if (lastMessage?.role === 'assistant') {
+                        if (isSuccess) {
+                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
+                        } else if (wasAborted) {
+                            lastMessage.content += `\n\n*Генерация была остановлена.*`;
+                        } else {
+                            lastMessage.content += `\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                        }
+                        await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+                    }
+                }
+                // --- ЛОГИКА ДЛЯ ОДИНОЧНОЙ МОДЕЛИ (остается без изменений) ---
+                else {
+                    const finalModelName = modelName;
+                    const messageToAdd = wasAborted
+                        ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
+                        : isSuccess
+                            ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
+                            : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
+                    
+                    finalMessages = [...messagesToSubmit, messageToAdd];
+                    await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+                }
 
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const session = state.sessions.find(s => s.id === sessionId);
@@ -2051,15 +2070,12 @@
                 generationAbortController = null;
                 render();
             }
-        }
 
         function parseApiResponseContent(content) {
-            // Если это уже простая строка (старый формат), просто возвращаем ее.
             if (typeof content === 'string') {
                 return content;
             }
         
-            // Если это массив (новый формат), собираем текст из всех его частей.
             if (Array.isArray(content)) {
                 return content
                     .map(part => {

@@ -1988,17 +1988,26 @@
                         thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
-                    let finalAnswer = assistantMessageContent;
-                    let modelThoughts = '';
+                    let finalVisibleAnswer = assistantMessageContent;
                     
-                    const match = finalAnswer.match(/^<think>([\s\S]*?)<\/think>([\s\S]*)$/);
-                    
+                    // Проверяем, не завернула ли последняя модель ВЕСЬ свой ответ в тег <think>
+                    const thinkTagRegex = /<think>([\s\S]*)<\/think>/;
+                    const match = assistantMessageContent.match(thinkTagRegex);
+
+                    // Если да, то мы извлекаем содержимое этого тега и делаем его видимым ответом.
                     if (match) {
-                        modelThoughts = match[1]; // Мысли последней модели
-                        finalAnswer = match[2];   // Чистый ответ
+                        // Содержимое тега <think> от последней модели становится финальным ответом.
+                        finalVisibleAnswer = match[1].trim(); 
+                        
+                        // В общий лог пайплайна мы добавляем запись о том, что сделали это извлечение.
+                        // Это поможет при отладке понять, что произошло.
+                        thinkingProcess += `\n\n--- (Финал извлечен из <think> последней модели) ---`;
                     }
-                    const combinedThoughts = thinkingProcess + (modelThoughts ? `\n\n--- (Мысли финальной модели) ---\n${modelThoughts}` : '');
-                    assistantMessageContent = `<think>${combinedThoughts}</think>${finalAnswer}`;
+                    
+                    // Собираем финальное сообщение: 
+                    // 1. Единый блок <think> со всем процессом выполнения.
+                    // 2. Извлеченный чистый ответ, который будет виден сразу.
+                    assistantMessageContent = `<think>${thinkingProcess}</think>${finalVisibleAnswer}`;
                     
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {

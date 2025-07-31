@@ -155,68 +155,6 @@ input::placeholder, textarea::placeholder {
         transparent calc(100% - var(--form-height))
     );
 }
-/* СТИЛИ ДЛЯ ИНИКАЦИИ ПАЙПЛАЙНА */
-.pipeline-log-window {
-    background: rgba(40, 42, 54, 0.6); /* Полупрозрачный темный фон */
-    backdrop-filter: blur(10px); /* Главный эффект "матового стекла" */
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1); /* Тонкая светлая рамка */
-    border-radius: 12px; /* Скругленные углы */
-    margin-top: 1rem;
-    overflow: hidden; /* Важно, чтобы размытие не вылезало за рамки */
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* Мягкая тень для объема */
-}
-
-.pipeline-log-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    background: rgba(0, 0, 0, 0.2); /* Чуть более темная "шапка" окна */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.pipeline-log-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #f1f1f1;
-    display: flex;
-    align-items: center;
-}
-
-.pipeline-log-title svg {
-    margin-right: 0.5rem;
-    width: 1.2em;
-    height: 1.2em;
-}
-
-.pipeline-log-status {
-    font-style: italic;
-    font-size: 0.85rem;
-    color: #a9a9b3;
-    animation: pulse-status 2s infinite ease-in-out;
-}
-
-.pipeline-log-body {
-    padding: 1rem;
-    max-height: 300px; /* Ограничиваем высоту, чтобы длинные логи не ломали верстку */
-    overflow-y: auto; /* Добавляем скролл, если лог не помещается */
-    font-family: 'Courier New', Courier, monospace; /* Моноширинный шрифт для логов */
-    font-size: 0.8rem;
-    color: #dcdcdc;
-    line-height: 1.6;
-    white-space: pre-wrap; /* Сохраняем переносы строк и пробелы */
-}
-
-/* Простая анимация пульсации для статуса */
-@keyframes pulse-status {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.6;
-    }
-}
 
 /* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
 .chat-action-btn {

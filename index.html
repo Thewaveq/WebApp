@@ -911,25 +911,47 @@
             }
             
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'mt-2 w-full'; // Убрали 'prose' отсюда по умолчанию
+            contentDiv.className = 'mt-2 w-full';
 
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // Проверяем, является ли сообщение логом пайплайна
-            if (contentAsString.includes('pipeline-log-window')) {
-                // Если да, просто вставляем HTML как есть, БЕЗ обработки Markdown и класса prose
-                contentDiv.innerHTML = contentAsString;
+            // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            const separator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
+            if (contentAsString.includes(separator)) {
+                // Если это сообщение от пайплайна, делим его на части
+                const parts = contentAsString.split(separator);
+                const logWindowHtml = parts[0];
+                const finalAnswerMarkdown = parts[1] || '';
+
+                // Окно лога вставляем как есть
+                const logContainer = document.createElement('div');
+                logContainer.innerHTML = logWindowHtml;
+                contentDiv.appendChild(logContainer);
+
+                // Финальный ответ обрабатываем как Markdown и добавляем в контейнер с классом prose
+                if (finalAnswerMarkdown) {
+                    const answerContainer = document.createElement('div');
+                    answerContainer.className = 'prose max-w-none mt-4'; // mt-4 для отступа
+                    answerContainer.innerHTML = DOMPurify.sanitize(marked.parse(finalAnswerMarkdown));
+                    contentDiv.appendChild(answerContainer);
+                }
             } else {
-                // Если это обычное сообщение, добавляем класс prose и обрабатываем через Markdown
-                contentDiv.classList.add('prose', 'max-w-none');
-                let processedContent = String(msg.content || '')
-                    .replace(
-                        /<think>([\s\S]*?)<\/think>/g,
-                        `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                    );
-                const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+                // Если это ОБЫЧНОЕ сообщение (или лог без финального ответа), обрабатываем как раньше
+                if (contentAsString.includes('pipeline-log-window')) {
+                    // Это лог, который еще не завершился - вставляем как HTML
+                    contentDiv.innerHTML = contentAsString;
+                } else {
+                    // Это обычное сообщение - обрабатываем через Markdown
+                    contentDiv.classList.add('prose', 'max-w-none');
+                    let processedContent = String(msg.content || '')
+                        .replace(
+                            /<think>([\s\S]*?)<\/think>/g,
+                            `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                        );
+                    const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+                    contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+                }
             }
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
 
             const actionsOuterContainer = document.createElement('div');
             actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
@@ -1047,100 +1069,23 @@
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
 
-            messageWrapper.querySelectorAll('pre').forEach((preElement) => {
-                 const codeBlock = preElement.querySelector('code');
-                 if (!codeBlock) return;
-                 
-                 if (codeBlock.classList.contains('language-mermaid') && !preElement.closest('.diagram-wrapper')) {
-                    const diagramWrapper = document.createElement('div');
-                    diagramWrapper.className = 'diagram-wrapper';
-                    
-                    const codeToShow = preElement.cloneNode(true);
-                    const diagramContainer = document.createElement('div');
-                    diagramContainer.className = 'mermaid-render-container hidden';
-
-                    const buttonsContainer = document.createElement('div');
-                    buttonsContainer.className = 'diagram-actions-container';
-
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'code-action-btn';
-                    copyBtn.title = 'Копировать код диаграммы';
-                    copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                    copyBtn.addEventListener('click', () => {
-                         navigator.clipboard.writeText(codeBlock.innerText);
-                         copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                         setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
-                         lucide.createIcons();
-                    });
-
-                    const toggleBtn = document.createElement('button');
-                    toggleBtn.className = 'code-action-btn';
-                    toggleBtn.title = 'Показать/скрыть диаграмму';
-                    toggleBtn.innerHTML = '<i data-lucide="git-fork" class="w-4 h-4"></i>';
-                    
-                    buttonsContainer.appendChild(copyBtn);
-                    buttonsContainer.appendChild(toggleBtn);
-                    
-                    diagramWrapper.appendChild(codeToShow);
-                    diagramWrapper.appendChild(diagramContainer);
-                    diagramWrapper.appendChild(buttonsContainer);
-                    
-                    preElement.replaceWith(diagramWrapper);
-
-                    (async () => {
-                        try {
-                            await mermaid.parse(codeBlock.innerText);
-                            toggleBtn.click();
-                        } catch (e) {
-                            console.warn('Mermaid syntax error found, not auto-rendering:', e.str || e.message);
-                            toggleBtn.disabled = true;
-                            toggleBtn.title = 'Невозможно отобразить: ошибка синтаксиса';
-                            const icon = toggleBtn.querySelector('i');
-                            icon.setAttribute('data-lucide', 'alert-circle');
-                            icon.classList.add('text-red-400');
-                            lucide.createIcons({nodes: [toggleBtn]});
-                        }
-                    })();
-
-                    toggleBtn.addEventListener('click', async () => {
-                        if (diagramContainer.querySelector('.text-red-400')) return;
-
-                        const isDiagramCurrentlyHidden = diagramContainer.classList.contains('hidden');
-                        
-                        if (isDiagramCurrentlyHidden && diagramContainer.innerHTML === '') {
-                            diagramContainer.innerHTML = '<div class="flex justify-center items-center p-4"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-                            try {
-                                const { svg } = await mermaid.render('msg-mermaid-' + Date.now(), codeBlock.innerText);
-                                diagramContainer.innerHTML = svg;
-                            } catch (err) {
-                                diagramContainer.innerHTML = `<div class="text-red-400 p-4 text-center"><b>Ошибка синтаксиса Mermaid</b><pre class="mt-2 text-xs text-left">${err.str || err.message}</pre></div>`;
-                                return;
-                            }
-                        }
-                        
-                        diagramContainer.classList.toggle('hidden');
-                        codeToShow.classList.toggle('hidden');
-                        toggleBtn.querySelector('i').setAttribute('data-lucide', diagramContainer.classList.contains('hidden') ? 'git-fork' : 'code');
-                        lucide.createIcons({nodes: [toggleBtn]});
-                    });
-                 } else if (!preElement.querySelector('.copy-code-btn')) {
-                     const buttonContainer = document.createElement('div');
-                     buttonContainer.className = 'code-block-actions';
-                     const copyBtn = document.createElement('button');
-                     copyBtn.className = 'code-action-btn copy-code-btn';
-                     copyBtn.title = "Копировать код";
-                     copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
-                     copyBtn.addEventListener('click', () => {
-                         navigator.clipboard.writeText(codeBlock.innerText);
-                         copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
-                         setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
-                         lucide.createIcons();
-                     });
-                     buttonContainer.appendChild(copyBtn);
-                     preElement.appendChild(buttonContainer);
-                 }
-                 hljs.highlightElement(codeBlock);
+            // Обработка блоков кода должна происходить ПОСЛЕ вставки HTML в contentDiv
+            contentDiv.querySelectorAll('pre code:not(.hljs)').forEach((block) => {
+                 const preElement = block.parentElement;
+                 if (preElement.querySelector('.copy-code-btn')) return;
+                 const copyBtn = document.createElement('button');
+                 copyBtn.className = 'copy-code-btn';
+                 copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+                 copyBtn.addEventListener('click', () => {
+                     navigator.clipboard.writeText(block.innerText);
+                     copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                     setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
+                     lucide.createIcons();
+                 });
+                 preElement.appendChild(copyBtn);
+                 hljs.highlightElement(block);
             });
+
 
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;
@@ -1958,13 +1903,15 @@
             // Вспомогательная функция для сборки HTML нашего "стеклянного" окна
             const buildLogWindowHTML = (body, status) => {
                 const titleIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10c0-4.42-2.87-8.15-6.84-9.48"/></svg>`;
+                // Используем DOMPurify здесь, чтобы обезопасить лог перед вставкой
+                const sanitizedBody = DOMPurify.sanitize(body, {USE_PROFILES: {html: true}});
                 return `
                     <div class="pipeline-log-window">
                         <div class="pipeline-log-header">
                             <div class="pipeline-log-title">${titleIcon} Ход выполнения пайплайна</div>
                             <div class="pipeline-log-status">${status}</div>
                         </div>
-                        <div class="pipeline-log-body">${DOMPurify.sanitize(body)}</div>
+                        <div class="pipeline-log-body">${sanitizedBody}</div>
                     </div>
                 `;
             };
@@ -2030,7 +1977,10 @@
                     }
                     
                     isSuccess = true;
-                    assistantMessageContent = `${buildLogWindowHTML(thinkingProcess, 'Выполнено ✅')}<br>${assistantMessageContent}`;
+                    // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем разделитель ---
+                    const finalLogHTML = buildLogWindowHTML(thinkingProcess, 'Выполнено ✅');
+                    const separator = '<!-- MBOX_PIPELINE_SEPARATOR -->';
+                    assistantMessageContent = `${finalLogHTML}${separator}${assistantMessageContent}`;
         
                 } else {
                     // Стандартный режим без пайплайна
@@ -2052,11 +2002,11 @@
             } finally {
                 const finalMessage = currentMessages[currentMessages.length - 1];
                 if (wasAborted) {
-                    finalMessage.content = `${buildLogWindowHTML(thinkingProcess, 'Остановлено 🛑')}`;
+                    finalMessage.content = buildLogWindowHTML(thinkingProcess, 'Остановлено 🛑');
                 } else if (isSuccess) {
                     finalMessage.content = assistantMessageContent;
                 } else {
-                    finalMessage.content = `${buildLogWindowHTML(thinkingProcess, 'Ошибка ❌')}<br><strong>Ошибка:</strong> ${lastError}`;
+                    finalMessage.content = `${buildLogWindowHTML(thinkingProcess, 'Ошибка ❌')}<!-- MBOX_PIPELINE_SEPARATOR -->**Ошибка:** ${lastError}`;
                 }
                 
                 await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });

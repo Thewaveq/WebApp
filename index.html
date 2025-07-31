@@ -1945,58 +1945,140 @@
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let thinkingProcess = '';
-        
+            
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
         
+            // --- НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ РЕНДЕРИНГА UI ПАЙПЛАЙНА ---
+            // Эта функция генерирует красивый HTML для отображения состояния пайплайна.
+            // Вы можете стилизовать классы .pipeline-trace-window, .pipeline-step-item, и т.д. в вашем CSS.
+            const renderPipelineTraceHTML = (pipeline, stepsData, finalOutput = null) => {
+                const getStatusInfo = (status) => {
+                    switch (status) {
+                        case 'running':
+                            return { icon: 'loader-2', text: 'В процессе', class: 'running' };
+                        case 'completed':
+                            return { icon: 'check-circle-2', text: 'Выполнен', class: 'completed' };
+                        case 'failed':
+                            return { icon: 'x-circle', text: 'Ошибка', class: 'failed' };
+                        default: // 'pending'
+                            return { icon: 'circle-dashed', text: 'Ожидание', class: 'pending' };
+                    }
+                };
+        
+                const stepsHTML = stepsData.map((step, index) => {
+                    const statusInfo = getStatusInfo(step.status);
+                    return `
+                        <div class="pipeline-step-item" data-status="${statusInfo.class}">
+                            <div class="step-header">
+                                <div class="step-status-icon">
+                                    <i data-lucide="${statusInfo.icon}" class="w-5 h-5"></i>
+                                </div>
+                                <div class="step-title-container">
+                                    <span class="step-title">Шаг ${index + 1}: ${step.modelName}</span>
+                                    <span class="step-status-text">${statusInfo.text}</span>
+                                </div>
+                            </div>
+                            ${step.details ? `
+                            <details class="step-details">
+                                <summary>Показать детали</summary>
+                                <div class="step-io-content">
+                                    <pre><code>${DOMPurify.sanitize(step.details)}</code></pre>
+                                </div>
+                            </details>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+        
+                // Если есть финальный результат, добавляем его после всех шагов
+                const finalResultHTML = finalOutput ? `
+                    <div class="pipeline-final-result">
+                        <h4>Итоговый результат:</h4>
+                        <div class="prose max-w-none">${marked.parse(finalOutput, { breaks: true, gfm: true })}</div>
+                    </div>
+                ` : '';
+        
+                return `
+                    <div class="pipeline-trace-window">
+                        <h3><i data-lucide="route" class="w-5 h-5"></i> Выполнение пайплайна: "${pipeline.name}"</h3>
+                        <div class="pipeline-steps-list">${stepsHTML}</div>
+                        ${finalResultHTML}
+                    </div>
+                `;
+            };
+        
             try {
-                // --- РЕЖИМ ПАЙПЛАЙНА ---
+                // --- РЕЖИM ПАЙПЛАЙНА (ПЕРЕРАБОТАН) ---
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
-                    thinkingProcess = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
-                    let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
                     
-                    // 1. Сразу создаем "пустое" сообщение ассистента.
-                    const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
+                    // 1. Подготавливаем структуру данных для всех шагов
+                    let stepsData = selectedPipeline.steps.map(step => ({
+                        modelName: step.modelName || 'Неизвестная модель',
+                        status: 'pending', // 'pending', 'running', 'completed', 'failed'
+                        details: '',
+                    }));
+        
+                    // 2. Создаем начальное сообщение ассистента со всеми шагами в статусе "Ожидание"
+                    const initialTraceHTML = renderPipelineTraceHTML(selectedPipeline, stepsData);
+                    const assistantMessage = { role: 'assistant', content: initialTraceHTML, modelName: selectedPipeline.name + " (Пайплайн)" };
                     let currentMessages = [...messagesToSubmit, assistantMessage];
-                    // Первая запись в БД, чтобы сообщение появилось в чате.
                     await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
+                    let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
+        
+                    // 3. Последовательно выполняем шаги
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
                         
                         const step = selectedPipeline.steps[i];
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
                         const stepModelName = step.modelName;
-        
-                        if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         
-                        thinkingProcess += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
-        
-                        // 2. Обновляем сообщение, показывая, что шаг начался.
-                        // ВАЖНО: Весь контент теперь ВНУТРИ тега pipeline_trace.
-                        assistantMessage.content = `<pipeline_trace>${thinkingProcess}*Выполняется...*</pipeline_trace>`;
+                        if (!stepProvider || !stepModelName) {
+                            throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
+                        }
+                        
+                        // Обновляем UI: текущий шаг "В процессе"
+                        stepsData[i].status = 'running';
+                        assistantMessage.content = renderPipelineTraceHTML(selectedPipeline, stepsData);
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
                         const stepApiMessages = [];
                         if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
-                        
-                        thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
-                        const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
-                        
-                        currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; // Это финальный ответ на данный момент.
-                        
-                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+                        let stepDetails = `Роль: ${step.roleContent || 'Нет'}\n\n---\n\nВходные данные:\n${currentInputContent}\n\n---\n\n`;
+        
+                        try {
+                            const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                            
+                            // Успешное выполнение шага
+                            assistantMessageContent = stepResponse; // Обновляем финальный результат
+                            currentInputContent = stepResponse; // Готовим вход для следующего шага
+                            stepDetails += `Выходные данные:\n${currentInputContent}`;
+                            stepsData[i].details = stepDetails;
+                            stepsData[i].status = 'completed';
+        
+                        } catch (stepError) {
+                            if (stepError.name === 'AbortError') throw stepError;
+                            // Ошибка на конкретном шаге
+                            stepDetails += `ОШИБКА ВЫПОЛНЕНИЯ:\n${stepError.message}`;
+                            stepsData[i].details = stepDetails;
+                            stepsData[i].status = 'failed';
+                            isSuccess = false;
+                            lastError = `Ошибка на шаге ${i + 1}: ${stepError.message}`;
+                            // Обновляем UI, чтобы показать ошибку, и выходим из цикла
+                            assistantMessage.content = renderPipelineTraceHTML(selectedPipeline, stepsData);
+                            await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+                            throw new Error(lastError); // Прерываем весь пайплайн
+                        }
                     }
+                    
                     isSuccess = true;
-                    // После цикла в assistantMessageContent лежит финальный ответ. В thinkingProcess - полный лог.
-        
-                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (ОСТАВЛЕН БЕЗ ИЗМЕНЕНИЙ, ОН РАБОТАЛ) ---
+                
+                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (ОСТАВЛЕН БЕЗ ИЗМЕНЕНИЙ) ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
@@ -2027,25 +2109,27 @@
                     lastError = error.message;
                 }
             } finally {
-                // --- ФИНАЛИЗАЦИЯ: ИСПРАВЛЕННАЯ И НАДЕЖНАЯ ЛОГИКА ---
                 const finalActiveSession = state.sessions.find(s => s.id === sessionId);
                 let finalMessages = finalActiveSession ? [...finalActiveSession.messages] : [...messagesToSubmit];
+                const lastMessage = finalMessages[finalMessages.length - 1];
         
-                // Для пайплайна, сообщение уже создано, нам нужно его только финализировать.
                 if (selectedPipeline) {
-                    const lastMessage = finalMessages[finalMessages.length - 1];
                     if (lastMessage?.role === 'assistant') {
                         if (isSuccess) {
-                            // ЯВНО СОБИРАЕМ ПРАВИЛЬНОЕ ФИНАЛЬНОЕ СООБЩЕНИЕ
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
-                        } else if (wasAborted) {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>\n\n*Генерация была остановлена.*`;
+                            // Рендерим финальный UI, где все шаги "completed" и добавляем итоговый результат
+                            lastMessage.content = renderPipelineTraceHTML(selectedPipeline, stepsData, assistantMessageContent);
                         } else {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                            // Если была ошибка или отмена, просто рендерим последнее состояние stepsData
+                             lastMessage.content = renderPipelineTraceHTML(selectedPipeline, stepsData);
+                             if (wasAborted) {
+                                lastMessage.content += `<div class="pipeline-aborted-message">Генерация была остановлена.</div>`;
+                             } else {
+                                lastMessage.content += `<div class="pipeline-error-message"><strong>Ошибка:</strong> Не удалось завершить пайплайн. Детали: ${lastError}</div>`;
+                             }
                         }
                     }
-                // Для одиночной модели, создаем сообщение как и раньше.
                 } else {
+                    // Логика для одиночной модели осталась без изменений
                     const finalModelName = modelName;
                     const messageToAdd = wasAborted
                         ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
@@ -2053,7 +2137,6 @@
                             ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
                             : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
                     
-                    // Заменяем временное сообщение (если оно было) или добавляем новое.
                     if(finalMessages[finalMessages.length-1]?.role === 'assistant') {
                         finalMessages[finalMessages.length-1] = messageToAdd;
                     } else {
@@ -2061,20 +2144,17 @@
                     }
                 }
                 
-                // Одно финальное обновление БД с правильным сообщением.
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
         
-                // Логика уведомлений
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const chatTitle = activeSession?.title || 'Новый чат';
                     const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }
         
-                // Сброс состояния загрузки
                 state.loadingSessionId = null;
                 generationAbortController = null;
-                render();
+                render(); // Перерисовываем интерфейс с финальным результатом
             }
         }
         

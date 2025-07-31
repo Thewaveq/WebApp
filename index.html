@@ -1969,46 +1969,30 @@
                         if (step.roleContent) {
                             stepApiMessages.push({ role: 'system', content: step.roleContent });
                         }
-                        // Все предыдущие сообщения + текущий ввод
-                        //stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
                         thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        
-                        //thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
                         thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
 
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
                         
                         // Ответ текущего шага становится входом для следующего
                         currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; // Сохраняем последний успешный ответ
                         
-                        //thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
-                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+                        // Логгируем промежуточный результат только если это не последний шаг
+                        if (i < selectedPipeline.steps.length - 1) {
+                            thinkingProcess += `**Выходные данные (промежуточные):**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+                        }
                     }
-                    isSuccess = true;
-                    let finalVisibleAnswer = assistantMessageContent;
                     
-                    // Проверяем, не завернула ли последняя модель ВЕСЬ свой ответ в тег <think>
-                    const thinkTagRegex = /<think>([\s\S]*)<\/think>/;
-                    const match = assistantMessageContent.match(thinkTagRegex);
+                    // После цикла, currentInputContent содержит финальный ответ от последнего шага
+                    assistantMessageContent = currentInputContent; 
+                    thinkingProcess += `\n**Результат последнего шага был возвращен как ответ пользователю.**\n`;
 
-                    // Если да, то мы извлекаем содержимое этого тега и делаем его видимым ответом.
-                    if (match) {
-                        // Содержимое тега <think> от последней модели становится финальным ответом.
-                        finalVisibleAnswer = match[1].trim(); 
-                        
-                        // В общий лог пайплайна мы добавляем запись о том, что сделали это извлечение.
-                        // Это поможет при отладке понять, что произошло.
-                        thinkingProcess += `\n\n--- (Финал извлечен из <think> последней модели) ---`;
-                    }
-                    
-                    // Собираем финальное сообщение: 
-                    // 1. Единый блок <think> со всем процессом выполнения.
-                    // 2. Извлеченный чистый ответ, который будет виден сразу.
-                    assistantMessageContent = `<think>${thinkingProcess}</think>${finalVisibleAnswer}`;
-                    
+                    isSuccess = true;
+                    // Корректно объединяем: лог выполнения в <think>, а за ним - финальный ответ
+                    assistantMessageContent = `<think>${thinkingProcess}</think>${assistantMessageContent}`;
+
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");

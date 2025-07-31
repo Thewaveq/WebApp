@@ -1934,68 +1934,89 @@
         
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
-
+        
             generationAbortController = new AbortController();
             const signal = generationAbortController.signal;
-
+        
             state.loadingSessionId = sessionId;
-            render();
-
+            render(); // Показать индикатор загрузки
+        
+            const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
+            const activeSession = state.sessions.find(s => s.id === sessionId);
+            const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
+            const finalModelName = selectedPipeline ? selectedPipeline.name + " (Пайплайн)" : modelName;
+        
+            // Создаем сообщение-плейсхолдер, которое будем обновлять в реальном времени
+            const assistantMessagePlaceholder = {
+                role: 'assistant',
+                content: '*Запускаю процесс...*',
+                modelName: finalModelName
+            };
+            let currentMessages = [...messagesToSubmit, assistantMessagePlaceholder];
+            await updateDoc(sessionRef, { messages: currentMessages });
+        
             let assistantMessageContent = '';
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let thinkingProcess = ''; // Для записи хода выполнения пайплайна
-
-            const activeSession = state.sessions.find(s => s.id === sessionId);
-            const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
-
+            let thinkingProcess = '';
+        
             try {
                 // --- РЕЖИМ ПАЙПЛАЙНА ---
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     thinkingProcess += `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
-
+        
+                    // Обновляем UI с начальным сообщением
+                    currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>_Выполняется..._`;
+                    await updateDoc(sessionRef, { messages: [...currentMessages] });
+        
+        
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
                         
                         const step = selectedPipeline.steps[i];
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
                         const stepModelName = step.modelName;
-
-                        thinkingProcess += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
-
+                        
+                        // Обновляем UI, чтобы показать, что текущий шаг выполняется
+                        let stepLog = `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\` (Выполняется...)\n`;
+                        currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${thinkingProcess}${stepLog}</pipeline_trace>`;
+                        // Немедленно обновляем документ, чтобы UI перерисовался
+                        await updateDoc(sessionRef, { messages: [...currentMessages] });
+        
                         if (!stepProvider || !stepModelName) {
                             throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         }
-
-                        // Формируем сообщения для текущего шага API
+                        
                         const stepApiMessages = [];
-                        if (step.roleContent) {
-                            stepApiMessages.push({ role: 'system', content: step.roleContent });
-                        }
-                        // Все предыдущие сообщения + текущий ввод
-                        //stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
+                        if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
-                        thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        
-                        //thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
-                        thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
-
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+        
+                        // Обновляем лог результатами завершенного шага
+                        stepLog = `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\` (Завершен)\n`;
+                        stepLog += `**Роль:** ${step.roleContent || 'Нет'}\n`;
+                        stepLog += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
+                        stepLog += `**Выходные данные:**\n\`\`\`\n${stepResponse}\n\`\`\`\n\n`;
                         
-                        // Ответ текущего шага становится входом для следующего
+                        // Добавляем лог этого шага к общему процессу
+                        thinkingProcess += stepLog;
+                        
+                        // Выход этого шага - это вход для следующего
                         currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; // Сохраняем последний успешный ответ
-                        
-                        //thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
-                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+                        assistantMessageContent = stepResponse; // Финальный ответ - это результат последнего шага
+        
+                        // Снова обновляем UI с информацией о завершенном шаге
+                        currentMessages[currentMessages.length - 1].content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>_Выполняется..._`;
+                        await updateDoc(sessionRef, { messages: [...currentMessages] });
                     }
+                    
                     isSuccess = true;
-                    // Оборачиваем финальный ответ и процесс выполнения в теги
+                    // Итоговый контент объединяет лог и финальный ответ
                     assistantMessageContent = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
-
+        
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
@@ -2014,13 +2035,12 @@
                         return msg;
                     });
 
-                    // Используем очищенную историю для формирования запроса к API
                     apiMessagesPayload.push(...cleanedMessages.map(m => ({ role: m.role, content: m.content })));
                     
                     assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
                     isSuccess = true;
                 }
-
+        
             } catch (error) {
                 if (error.name === 'AbortError' || error.message === 'AbortError') {
                     console.log('Генерация остановлена пользователем.');
@@ -2031,25 +2051,25 @@
                     lastError = error.message;
                 }
             } finally {
-                const finalModelName = selectedPipeline ? selectedPipeline.name + " (Пайплайн)" : modelName;
-
-                const messageToAdd = wasAborted
-                    ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
-                    : isSuccess
-                        ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
-                        : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
+                // Финальное обновление сообщения в Firestore
+                const finalMessage = currentMessages[currentMessages.length - 1];
+                if (wasAborted) {
+                    finalMessage.content = `*Генерация была остановлена.*`;
+                } else if (isSuccess) {
+                    finalMessage.content = assistantMessageContent;
+                } else {
+                    finalMessage.content = `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                }
                 
-                const finalMessages = [...messagesToSubmit, messageToAdd];
-                const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-                await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
-
+                await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+        
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const session = state.sessions.find(s => s.id === sessionId);
                     const chatTitle = session?.title || 'Новый чат';
                     const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }
-
+        
                 state.loadingSessionId = null;
                 generationAbortController = null;
                 render();

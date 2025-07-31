@@ -5,8 +5,7 @@ export function handleExportChat(activeSession, currentUser, marked, DOMPurify, 
         return;
     }
 
-    // --- СТИЛИ, ВСТРОЕННЫЕ НАПРЯМУЮ В СКРИПТ (НАДЕЖНЫЙ МЕТОД) ---
-    // Здесь только то, что нужно для отображения сообщений и кода.
+    // --- СТИЛИ, ВСТРОЕННЫЕ НАПРЯМУЮ В СКРИПТ ---
     const styles = `
         :root {
             /* Основные цвета из вашего файла styles4.css */
@@ -54,8 +53,17 @@ export function handleExportChat(activeSession, currentUser, marked, DOMPurify, 
             background-color: var(--bg-sidebar);
             margin-right: auto; /* Сообщение ассистента слева */
         }
+
+        /* <<< НОВЫЙ СТИЛЬ ДЛЯ ИМЕНИ МОДЕЛИ >>> */
+        .model-name {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
         
-        /* Стили для контента внутри сообщений (Markdown) */
         .prose { 
             color: var(--text-primary);
             white-space: pre-wrap;
@@ -86,14 +94,22 @@ export function handleExportChat(activeSession, currentUser, marked, DOMPurify, 
     const chatTitle = activeSession.title || 'Экспорт чата';
     const messages = activeSession.messages;
 
-    // --- ГЕНЕРАЦИЯ HTML ДЛЯ СООБЩЕНИЙ (БЕЗ АВАТАРА И ИМЕНИ) ---
+    // --- ИЗМЕНЕННАЯ ГЕНЕРАЦИЯ HTML ДЛЯ СООБЩЕНИЙ ---
     const messagesHtml = messages.map(msg => {
         const isUser = msg.role === 'user';
         const roleClass = isUser ? 'user' : 'assistant';
         const thinkRegex = /<think>[\s\S]*?<\/think>/g;
         const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
         let content = (msg.content || '').replace(thinkRegex, '').trim();
+        
+        // Создаем контейнер для всего тела сообщения
+        let messageBodyHtml = '';
 
+        // <<< ДОБАВЛЕНА ПРОВЕРКА: если это ассистент и у него есть имя модели, добавляем заголовок >>>
+        if (!isUser && msg.modelName) {
+            messageBodyHtml += `<div class="model-name">${DOMPurify.sanitize(msg.modelName)}</div>`;
+        }
+        
         const fileMatch = content.match(fileRegex);
         let contentHtml;
         if (fileMatch) {
@@ -102,13 +118,15 @@ export function handleExportChat(activeSession, currentUser, marked, DOMPurify, 
             contentHtml = `<div class="prose">${marked.parse(content, { breaks: true, gfm: true })}</div>`;
         }
 
-        // Упрощенная структура, без заголовков и аватаров
+        // Добавляем основной контент после заголовка (если он был)
+        messageBodyHtml += contentHtml;
+
         return `<div class="message-bubble ${roleClass}">
-                    ${contentHtml}
+                    ${messageBodyHtml}
                 </div>`;
     }).join('');
 
-    // Собираем финальный HTML-документ
+    // Собираем финальный HTML-документ (эта часть не изменилась)
     const fullHtml = `
         <!DOCTYPE html>
         <html lang="ru">
@@ -131,7 +149,7 @@ export function handleExportChat(activeSession, currentUser, marked, DOMPurify, 
         </body>
         </html>`;
 
-    // Создаем Blob и инициируем скачивание
+    // Создаем Blob и инициируем скачивание (эта часть не изменилась)
     const blob = new Blob([fullHtml], { type: 'text/html' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

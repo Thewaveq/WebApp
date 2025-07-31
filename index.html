@@ -1945,7 +1945,7 @@
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let thinkingProcess = ''; // Для записи хода выполнения пайплайна
+            let thinkingProcess = '';
 
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
@@ -1955,6 +1955,10 @@
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     thinkingProcess += `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
+                    
+                    const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
+                    let currentMessages = [...messagesToSubmit, assistantMessage];
+                    const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
 
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
@@ -1965,36 +1969,29 @@
 
                         thinkingProcess += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
 
-                        if (!stepProvider || !stepModelName) {
-                            throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
-                        }
+                        if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
 
-                        // Формируем сообщения для текущего шага API
+                        assistantMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>*Выполняется шаг ${i + 1}...*`;
+                        await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+                        
                         const stepApiMessages = [];
-                        if (step.roleContent) {
-                            stepApiMessages.push({ role: 'system', content: step.roleContent });
-                        }
-                        // Все предыдущие сообщения + текущий ввод
-                        //stepApiMessages.push(...messagesToSubmit.slice(0, -1)); 
+                        if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
                         thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        
-                        //thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent.substring(0, 200)}...\n\`\`\`\n`;
                         thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
 
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
                         
-                        // Ответ текущего шага становится входом для следующего
                         currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; // Сохраняем последний успешный ответ
+                        assistantMessageContent = stepResponse; 
                         
-                        //thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent.substring(0, 300)}...\n\`\`\`\n\n`;
                         thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+
+                        assistantMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
+                        await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                     }
                     isSuccess = true;
-                    // Оборачиваем финальный ответ и процесс выполнения в теги
-                    assistantMessageContent = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
 
                 // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
                 } else {

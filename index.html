@@ -360,58 +360,62 @@
             dropdown.classList.toggle('hidden');
         }
 
-        /**
-         * Обрабатывает выбор голоса и запускает озвучивание.
-         */
         function handleVoiceSelectionClick(event) {
             event.stopPropagation();
             const voiceOptionBtn = event.target.closest('.voice-option-btn');
+            if (!voiceOptionBtn) return;
+        
             const messageWrapper = voiceOptionBtn.closest('.message-container');
             const speakBtn = messageWrapper.querySelector('.speak-message-btn');
             const dropdown = voiceOptionBtn.closest('.voice-selection-dropdown');
             
             dropdown.classList.add('hidden');
             
+            const icon = speakBtn.querySelector('i');
+            if (!icon) return;
+        
             const contentProseEl = messageWrapper.querySelector('.prose');
             if (!contentProseEl) return;
             
-            // Клонируем, чтобы не изменять оригинал, и удаляем скрытые детали
             const contentClone = contentProseEl.cloneNode(true);
             contentClone.querySelectorAll('details').forEach(d => d.remove());
             const cleanedText = contentClone.textContent.trim();
-            
             if (!cleanedText) return;
-
+        
             const voiceIndex = parseInt(voiceOptionBtn.dataset.voiceIndex, 10);
             const selectedVoice = russianVoices[voiceIndex];
-
+        
             const utterance = new SpeechSynthesisUtterance(cleanedText);
             utterance.voice = selectedVoice;
-            
-            const icon = speakBtn.querySelector('i');
-            
+        
             utterance.onstart = () => {
-                // Сбрасываем иконки на других сообщениях
-                document.querySelectorAll('.speak-message-btn i[data-lucide="square"]').forEach(otherIcon => {
-                    if(otherIcon !== icon) {
+                const otherPlayingIcons = document.querySelectorAll('.speak-message-btn i[data-lucide="square"]');
+                const iconsToUpdate = [];
+
+                otherPlayingIcons.forEach(otherIcon => {
+                    if (otherIcon !== icon) {
                         otherIcon.setAttribute('data-lucide', 'volume-2');
+                        iconsToUpdate.push(otherIcon);
                     }
                 });
+        
                 icon.setAttribute('data-lucide', 'square');
-                lucide.createIcons({nodes: [messageWrapper]});
+                iconsToUpdate.push(icon);
+
+                lucide.createIcons({ nodes: iconsToUpdate });
             };
-            
-            utterance.onend = () => {
+        
+            const onPlaybackEnd = () => {
                 icon.setAttribute('data-lucide', 'volume-2');
-                lucide.createIcons({nodes: [speakBtn]});
+                lucide.createIcons({ nodes: [icon] });
             };
-            
+        
+            utterance.onend = onPlaybackEnd;
             utterance.onerror = (e) => {
                 console.error('Ошибка синтеза речи:', e);
-                icon.setAttribute('data-lucide', 'volume-2');
-                lucide.createIcons({nodes: [speakBtn]});
+                onPlaybackEnd();
             };
-
+        
             synth.speak(utterance);
         }
         

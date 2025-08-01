@@ -2336,14 +2336,17 @@
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
         
+            // Убираем старый индикатор, если он был
             const oldIndicator = document.getElementById('loading-message-placeholder');
-            if(oldIndicator) oldIndicator.remove();
-        
-            if (typewriterAbortController) {
-                typewriterAbortController.abort();
+            if(oldIndicator) {
+                if (typewriterAbortController) typewriterAbortController.abort();
+                oldIndicator.remove();
             }
+        
+            // Запускаем новый контроллер для анимации текста
             typewriterAbortController = new AbortController();
         
+            // HTML-структура из вашего примера
             const indicatorHtml = `
                 <div class="message-container assistant-message-bg" id="loading-message-placeholder">
                     <div class="loader-content">
@@ -2357,8 +2360,10 @@
                     </div>
                 </div>
             `;
+        
             messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
             
+            // Запускаем анимацию печати
             const textElement = document.getElementById('typewriter-text');
             typeWriter(textElement, typewriterAbortController.signal);
         

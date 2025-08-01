@@ -1077,8 +1077,6 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
         
-            // --- НАЧАЛО ИСПРАВЛЕННОГО БЛОКА ---
-        
             const messageText = String(msg.content || '');
             // Регулярное выражение для поиска наших блоков в начале строки
             const traceRegex = /^<(think|pipeline_trace)>([\s\S]*?)<\/\1>([\s\S]*)/;
@@ -1093,8 +1091,8 @@
                 const mainContent = match[3];  // Основной текст ответа
         
                 // Обрабатываем каждую часть НЕЗАВИСИМО через Markdown-парсер
-                const parsedTraceHtml = marked.parse(traceContent, { breaks: true, gfm: true });
-                const parsedMainHtml = marked.parse(mainContent, { breaks: true, gfm: true });
+                const parsedTraceHtml = marked.parse(traceContent.trim(), { breaks: true, gfm: true });
+                const parsedMainHtml = marked.parse(mainContent.trim(), { breaks: true, gfm: true });
         
                 const summaryText = tagType === 'think'
                     ? 'Показать ход мыслей'
@@ -1115,8 +1113,6 @@
         
             // Очищаем и вставляем финальный результат
             contentDiv.innerHTML = DOMPurify.sanitize(finalHtml, { ADD_TAGS: ['details', 'summary'] });
-        
-            // --- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ---
         
             const actionsOuterContainer = document.createElement('div');
             actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';

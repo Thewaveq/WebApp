@@ -327,41 +327,36 @@
             }
         }
         
-        /**
-         * Обрабатывает клик по кнопке "Озвучить" или "Стоп".
-         */
         function handleSpeakButtonClick(event) {
             event.stopPropagation();
             const speakBtn = event.target.closest('.speak-message-btn');
+            if (!speakBtn) return;
+        
             const controlsContainer = speakBtn.closest('.speak-controls-container');
             const dropdown = controlsContainer.querySelector('.voice-selection-dropdown');
-            
-            // Если что-то уже озвучивается, останавливаем.
+        
             if (synth.speaking) {
                 synth.cancel();
-                return; 
+                // Иконка сама вернется в 'volume-2' по событию onend, которое сработает при отмене.
+                return;
             }
-            
-            // Закрываем все другие открытые списки голосов
+        
             document.querySelectorAll('.voice-selection-dropdown').forEach(d => {
                 if (d !== dropdown) {
                     d.classList.add('hidden');
                 }
             });
 
-            // Заполняем список голосов, если он пуст
-            if (dropdown.innerHTML.trim() === '') {
-                if (russianVoices.length > 0) {
-                    dropdown.innerHTML = russianVoices.map((voice, index) =>
-                        `<button class="voice-option-btn w-full text-left px-3 py-2 text-sm hover:bg-bg-element transition-colors" data-voice-index="${index}">
-                            ${voice.name}
-                        </button>`
-                    ).join('');
-                } else {
-                    dropdown.innerHTML = '<span class="block text-center text-xs text-text-secondary p-2">Нет русских голосов</span>';
-                }
+            if (russianVoices.length > 0) {
+                dropdown.innerHTML = russianVoices.map((voice, index) =>
+                    `<button class="voice-option-btn w-full text-left px-3 py-2 text-sm hover:bg-bg-element transition-colors" data-voice-index="${index}">
+                        ${voice.name}
+                    </button>`
+                ).join('');
+            } else {
+                dropdown.innerHTML = '<span class="block text-center text-xs text-text-secondary p-2">Русские голоса не найдены в браузере.</span>';
             }
-            
+        
             dropdown.classList.toggle('hidden');
         }
 
@@ -3213,6 +3208,17 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+
+                // --- ИСПРАВЛЕНИЕ ДЛЯ ОЗВУЧКИ ---
+                // Проверяем, поддерживается ли API, и привязываем загрузку голосов к событию.
+                if ('speechSynthesis' in window) {
+                    // Некоторые браузеры (Firefox) требуют первоначального вызова, чтобы "разбудить" API.
+                    synth.getVoices(); 
+                    // Это событие сработает, когда список голосов будет окончательно готов.
+                    synth.onvoiceschanged = loadAndSortVoices;
+                } else {
+                    console.warn("Web Speech API (Text-to-Speech) не поддерживается в этом браузере.");
+                }
                 
                 onAuthStateChanged(auth, (user) => {
                     const googleBtn = document.getElementById('google-signin-btn');
@@ -3239,11 +3245,6 @@
                     renderMainNav(); 
                     updateSidebarView();
                 });
-
-                loadAndSortVoices();
-                if (synth.onvoiceschanged !== undefined) {
-                    synth.onvoiceschanged = loadAndSortVoices;
-                }
                 
                 setupGlobalEventListeners();
     

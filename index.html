@@ -2339,7 +2339,7 @@
             loadingMessageWrapper.innerHTML = `
                 <div class="loader-content">
                     <div class="loading-avatar">
-                        <i data-lucide="sparkles" class="w-6 h-6"></i>
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
                     </div>
                     <p id="typewriter-text"></p>
                 </div>
@@ -2348,7 +2348,6 @@
             messagesContainer.appendChild(loadingMessageWrapper);
             
             lucide.createIcons({ nodes: [loadingMessageWrapper] });
-            // Запускаем анимацию печати
             const textElement = document.getElementById('typewriter-text');
             typeWriter(textElement, typewriterAbortController.signal);
         

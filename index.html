@@ -913,11 +913,11 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
             let processedContent = String(msg.content || '')
-                .replace( // Обработка стандартного тега мыслей
+                .replace(
                     /<think>([\s\S]*?)<\/think>/g,
                     `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
                 )
-                .replace( // Обработка нового тега для лога пайплайна
+                .replace( 
                     /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
                     `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`
                 );
@@ -939,6 +939,141 @@
                 Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
                 return button;
             };
+            
+            // --- Начало блока озвучки ---
+            let russianVoices = [];
+            let speechUtterance = null;
+
+            const getAndPrepareVoices = () => {
+                if (russianVoices.length > 0) return;
+                const allVoices = window.speechSynthesis.getVoices();
+                const filteredVoices = allVoices.filter(voice => voice.lang.startsWith('ru'));
+                
+                // Сортировка для вывода качественных голосов первыми
+                filteredVoices.sort((a, b) => {
+                    const aName = a.name.toLowerCase();
+                    const bName = b.name.toLowerCase();
+                    const aIsPreferred = aName.includes('online') || aName.includes('neural');
+                    const bIsPreferred = bName.includes('online') || bName.includes('neural');
+
+                    if (aIsPreferred && !bIsPreferred) return -1;
+                    if (!aIsPreferred && bIsPreferred) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                russianVoices = filteredVoices;
+            };
+            
+            // Первоначальная загрузка голосов
+            getAndPrepareVoices();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                 window.speechSynthesis.onvoiceschanged = getAndPrepareVoices;
+            }
+
+            if (!isUser && window.speechSynthesis) {
+                const speechContainer = document.createElement('div');
+                speechContainer.className = 'speech-controls-container';
+
+                const speakBtn = createMenuItem('volume-2', 'Озвучить');
+                speakBtn.classList.remove('dropdown-menu-item');
+                speakBtn.classList.add('p-1', 'text-text-secondary', 'hover:text-accent', 'transition-colors');
+                speakBtn.title = 'Озвучить';
+
+                const voiceSelectDropdown = document.createElement('div');
+                voiceSelectDropdown.className = 'message-actions-dropdown hidden';
+                
+                const voiceSelectBtn = createMenuItem('user-voice', 'Голос');
+                voiceSelectBtn.classList.remove('dropdown-menu-item');
+                voiceSelectBtn.classList.add('p-1', 'text-text-secondary', 'hover:text-accent', 'transition-colors');
+                voiceSelectBtn.title = 'Выбрать голос';
+                voiceSelectBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    getAndPrepareVoices();
+                    voiceSelectDropdown.innerHTML = ''; // Очистить список
+                    if (russianVoices.length > 0) {
+                        russianVoices.forEach(voice => {
+                            const item = document.createElement('button');
+                            item.className = 'dropdown-menu-item';
+                            item.textContent = voice.name;
+                            item.addEventListener('click', () => {
+                                speakBtn.dataset.selectedVoice = voice.name;
+                                voiceSelectDropdown.classList.add('hidden');
+                                // Если уже говорит, перезапустить с новым голосом
+                                if(window.speechSynthesis.speaking) {
+                                     speakBtn.click(); // Остановить
+                                     setTimeout(() => speakBtn.click(), 100); // Запустить снова
+                                }
+                            });
+                            voiceSelectDropdown.appendChild(item);
+                        });
+                    } else {
+                        voiceSelectDropdown.innerHTML = `<span class="dropdown-menu-item text-text-secondary">Нет русских голосов</span>`;
+                    }
+                    voiceSelectDropdown.classList.toggle('hidden');
+                });
+                
+                document.addEventListener('click', (e) => {
+                    if (!speechContainer.contains(e.target)) {
+                        voiceSelectDropdown.classList.add('hidden');
+                    }
+                }, true);
+
+                speakBtn.addEventListener('click', () => {
+                    if (window.speechSynthesis.speaking && speechUtterance) {
+                        window.speechSynthesis.cancel();
+                        return;
+                    }
+                    
+                    // Отменяем любую другую озвучку перед началом новой
+                    window.speechSynthesis.cancel();
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = DOMPurify.sanitize(msg.content);
+
+                    // Удаляем блоки <think> и <pipeline_trace>
+                    tempDiv.querySelectorAll('details').forEach(el => el.remove());
+
+                    const textToSpeak = tempDiv.textContent || tempDiv.innerText || "";
+                    if (!textToSpeak.trim()) return;
+
+                    speechUtterance = new SpeechSynthesisUtterance(textToSpeak);
+                    
+                    if (russianVoices.length > 0) {
+                        const selectedVoiceName = speakBtn.dataset.selectedVoice;
+                        let voiceToUse = russianVoices.find(v => v.name === selectedVoiceName);
+                        if (!voiceToUse) {
+                            voiceToUse = russianVoices[0]; // По умолчанию лучший
+                        }
+                        speechUtterance.voice = voiceToUse;
+                    }
+
+                    const icon = speakBtn.querySelector('i');
+                    icon.setAttribute('data-lucide', 'square');
+                    lucide.createIcons({ nodes: [icon] });
+                    
+                    speechUtterance.onend = () => {
+                        icon.setAttribute('data-lucide', 'volume-2');
+                        lucide.createIcons({ nodes: [icon] });
+                        speechUtterance = null;
+                    };
+                    
+                    speechUtterance.onerror = (event) => {
+                        console.error('Ошибка синтеза речи:', event.error);
+                        icon.setAttribute('data-lucide', 'volume-2');
+                        lucide.createIcons({ nodes: [icon] });
+                        speechUtterance = null;
+                    };
+
+                    window.speechSynthesis.speak(speechUtterance);
+                });
+                
+                speechContainer.appendChild(speakBtn);
+                if (russianVoices.length > 1) { // Показываем кнопку выбора, только если есть больше 1 голоса
+                     speechContainer.appendChild(voiceSelectBtn);
+                }
+                speechContainer.appendChild(voiceSelectDropdown);
+                actionsContainer.prepend(speechContainer);
+            }
+            // --- Конец блока озвучки ---
 
             if (isUser) {
                 dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', { messageIndex: index }));
@@ -970,11 +1105,15 @@
                 .addEventListener('click', function() {
                     const buttonElement = this;
 
-                    navigator.clipboard.writeText(msg.content).then(() => {
+                    // Создаем временный элемент для очистки от HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = DOMPurify.sanitize(msg.content);
+                    const textToCopy = tempDiv.textContent || tempDiv.innerText || "";
+
+
+                    navigator.clipboard.writeText(textToCopy).then(() => {
                         const originalHTML = buttonElement.innerHTML;
-
                         buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mx-auto"><polyline points="20 6 9 17 5 12"></polyline></svg>`;
-
                         setTimeout(() => {
                             if (document.body.contains(buttonElement)) {
                                 buttonElement.innerHTML = originalHTML;
@@ -1002,7 +1141,6 @@
                     dropdownMenu.style.marginBottom = '8px';
 
                     const menuRect = dropdownMenu.getBoundingClientRect();
-                    
                     const topMargin = 10; 
 
                     if (menuRect.top < topMargin) {

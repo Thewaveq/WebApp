@@ -270,7 +270,7 @@
 
         let availableVoices = [];
         let currentUtterance = null;
-        let originalSpeakBtnIcon = null;
+        let speakingButton = null;
         
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
          function loadUserPreferences() {
@@ -1180,7 +1180,7 @@
             }
             setVoices(); 
         }
-        
+
         function getCleanTextForSpeech(htmlContent) {
             if (!htmlContent) return '';
             const tempDiv = document.createElement('div');
@@ -1194,13 +1194,29 @@
         
             return tempDiv.textContent.replace(/\s+/g, ' ').trim();
         }
+
+        function stopSpeech() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+        }
+        
+        function resetSpeakingButton() {
+            if (speakingButton) {
+                speakingButton.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
+                lucide.createIcons({ nodes: [speakingButton] });
+                speakingButton = null;
+            }
+        }
         
         function handleSpeakButtonClick(button, rawContent, dropdownContainer) {
-            if (speechSynthesis.speaking && currentUtterance) {
-                speechSynthesis.cancel();
+            // 1. Если речь сейчас активна, просто останавливаем ее и выходим.
+            if (speechSynthesis.speaking) {
+                stopSpeech(); // onend сработает автоматически и сбросит кнопку
                 return;
             }
-        
+            
+            // Скрываем все остальные открытые списки голосов
             document.querySelectorAll('.voice-list-dropdown').forEach(d => {
                 if (d !== dropdownContainer) d.classList.add('hidden');
             });
@@ -1210,7 +1226,7 @@
                 return;
             }
         
-            dropdownContainer.innerHTML = '';
+            dropdownContainer.innerHTML = ''; // Очищаем список перед заполнением
         
             if (availableVoices.length === 0) {
                 dropdownContainer.innerHTML = '<div class="p-3 text-sm text-text-secondary text-center">Русские голоса не найдены.</div>';
@@ -1223,6 +1239,7 @@
                 return;
             }
         
+            // 2. Создаем список голосов
             availableVoices.forEach(voice => {
                 const voiceItem = document.createElement('button');
                 voiceItem.className = 'voice-list-item';
@@ -1239,40 +1256,34 @@
                 }
         
                 voiceItem.onclick = () => {
-                    if (currentUtterance) {
-                        speechSynthesis.cancel();
-                    }
+                    stopSpeech(); // Останавливаем предыдущую речь, если она была
         
                     currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
                     currentUtterance.voice = voice;
                     currentUtterance.lang = voice.lang;
         
-                    const icon = button.querySelector('i');
-                    originalSpeakBtnIcon = button.innerHTML;
-        
+                    // 3. Управляем состоянием кнопки через события
                     currentUtterance.onstart = () => {
-                        icon.setAttribute('data-lucide', 'square');
-                        lucide.createIcons({ nodes: [button] });
+                        resetSpeakingButton(); // Сбрасываем любую другую активную кнопку
+                        speakingButton = button; // Запоминаем текущую кнопку
+                        speakingButton.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i>'; // Меняем иконку на "стоп"
+                        lucide.createIcons({ nodes: [speakingButton] });
                     };
         
                     currentUtterance.onend = () => {
-                        if (originalSpeakBtnIcon) {
-                           button.innerHTML = originalSpeakBtnIcon;
-                           lucide.createIcons({ nodes: [button] });
-                        }
+                        resetSpeakingButton(); // Сбрасываем кнопку, когда речь закончилась
                         currentUtterance = null;
-                        originalSpeakBtnIcon = null;
                     };
                     
                     currentUtterance.onerror = (event) => {
-                        console.error('SpeechSynthesisUtterance.onerror', event);
-                        showModalAlert(`Ошибка озвучивания: ${event.error}`);
-                        if (originalSpeakBtnIcon) {
-                           button.innerHTML = originalSpeakBtnIcon;
-                           lucide.createIcons({ nodes: [button] });
+                        // 4. Игнорируем ошибку 'interrupted'
+                        if (event.error === 'interrupted') {
+                            return; 
                         }
+                        console.error('Ошибка синтеза речи:', event);
+                        showModalAlert(`Ошибка озвучивания: ${event.error}`);
+                        resetSpeakingButton(); // Сбрасываем кнопку в случае реальной ошибки
                         currentUtterance = null;
-                        originalSpeakBtnIcon = null;
                     };
         
                     speechSynthesis.speak(currentUtterance);
@@ -1281,6 +1292,7 @@
                 dropdownContainer.appendChild(voiceItem);
             });
         
+            // Логика закрытия списка по клику вне его
             const closeOnClickOutside = (event) => {
                 if (!dropdownContainer.contains(event.target) && !button.contains(event.target)) {
                     dropdownContainer.classList.add('hidden');

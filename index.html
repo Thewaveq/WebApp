@@ -370,13 +370,9 @@
             const dropdown = voiceOptionBtn.closest('.voice-selection-dropdown');
             
             dropdown.classList.add('hidden');
-            
-            const icon = speakBtn.querySelector('i');
-            if (!icon) return;
         
             const contentProseEl = messageWrapper.querySelector('.prose');
             if (!contentProseEl) return;
-            
             const contentClone = contentProseEl.cloneNode(true);
             contentClone.querySelectorAll('details').forEach(d => d.remove());
             const cleanedText = contentClone.textContent.trim();
@@ -387,27 +383,28 @@
         
             const utterance = new SpeechSynthesisUtterance(cleanedText);
             utterance.voice = selectedVoice;
+                
+            const resetAllPlayingIcons = () => {
+                const playingButtons = document.querySelectorAll('.speak-message-btn[data-state="playing"]');
+                playingButtons.forEach(btn => {
+                    delete btn.dataset.state;
+                    btn.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
+                    lucide.createIcons({ nodes: [btn] });
+                });
+            };
         
             utterance.onstart = () => {
-                const otherPlayingIcons = document.querySelectorAll('.speak-message-btn i[data-lucide="square"]');
-                const iconsToUpdate = [];
-
-                otherPlayingIcons.forEach(otherIcon => {
-                    if (otherIcon !== icon) {
-                        otherIcon.setAttribute('data-lucide', 'volume-2');
-                        iconsToUpdate.push(otherIcon);
-                    }
-                });
+                resetAllPlayingIcons();
         
-                icon.setAttribute('data-lucide', 'square');
-                iconsToUpdate.push(icon);
-
-                lucide.createIcons({ nodes: iconsToUpdate });
+                speakBtn.dataset.state = 'playing';
+                speakBtn.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i>';
+                lucide.createIcons({ nodes: [speakBtn] });
             };
         
             const onPlaybackEnd = () => {
-                icon.setAttribute('data-lucide', 'volume-2');
-                lucide.createIcons({ nodes: [icon] });
+                delete speakBtn.dataset.state;
+                speakBtn.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
+                lucide.createIcons({ nodes: [speakBtn] });
             };
         
             utterance.onend = onPlaybackEnd;
@@ -416,6 +413,7 @@
                 onPlaybackEnd();
             };
         
+            synth.cancel();
             synth.speak(utterance);
         }
         

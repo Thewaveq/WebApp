@@ -2339,10 +2339,7 @@
             loadingMessageWrapper.innerHTML = `
                 <div class="loader-content">
                     <div class="loading-avatar">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m12 3-1.9 4.8-4.8 1.9 4.8 1.9L12 16l1.9-4.8 4.8-1.9-4.8-1.9L12 3z"/>
-                            <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
-                        </svg>
+                        <i data-lucide="sparkles" class="w-6 h-6"></i>
                     </div>
                     <p id="typewriter-text"></p>
                 </div>
@@ -2350,6 +2347,7 @@
         
             messagesContainer.appendChild(loadingMessageWrapper);
             
+            lucide.createIcons({ nodes: [loadingMessageWrapper] });
             // Запускаем анимацию печати
             const textElement = document.getElementById('typewriter-text');
             typeWriter(textElement, typewriterAbortController.signal);

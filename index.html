@@ -271,6 +271,16 @@
         // --- ДЛЯ ОЗВУЧИВАНИЯ ТЕКСТА ---
         let russianVoices = [];
         const synth = window.speechSynthesis;
+
+        // --- ЭЛЕМЕНТЫ ДЛЯ АНИМАЦИИ ИНДИКАТОРА ЗАГРУЗКИ ---
+        let typewriterAbortController = null;
+        const typewriterPhrases = [
+            "Анализирую контекст...",
+            "Подбираю данные...",
+            "Генерирую ответ...",
+            "Проверяю результат...",
+            "Завершаю обработку..."
+        ];
         
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
          function loadUserPreferences() {
@@ -415,6 +425,44 @@
         
             synth.cancel();
             synth.speak(utterance);
+        }
+
+        // ИНДИКАТОР ПЕЧАТИ
+        async function typeWriter(element, signal) {
+            if (!element) return;
+            const typeSpeed = 80;
+            const eraseSpeed = 40;
+            const newPhraseDelay = 2000;
+            let phraseIndex = 0;
+        
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        
+            try {
+                while (!signal.aborted) {
+                    const currentPhrase = typewriterPhrases[phraseIndex];
+                    // Печать текста
+                    for (let charIndex = 0; charIndex < currentPhrase.length; charIndex++) {
+                        if (signal.aborted) return;
+                        element.textContent = currentPhrase.substring(0, charIndex + 1);
+                        await sleep(typeSpeed);
+                    }
+                    if (signal.aborted) return;
+                    await sleep(newPhraseDelay);
+                    // Стирание текста
+                    for (let charIndex = currentPhrase.length; charIndex > 0; charIndex--) {
+                        if (signal.aborted) return;
+                        element.textContent = currentPhrase.substring(0, charIndex - 1);
+                        await sleep(eraseSpeed);
+                    }
+                    phraseIndex = (phraseIndex + 1) % typewriterPhrases.length;
+                    if (signal.aborted) return;
+                    await sleep(500);
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error("Ошибка в цикле анимации:", error);
+                }
+            }
         }
         
         // --- ФУНКЦИИ РЕНДЕРИНГА ---
@@ -2287,47 +2335,58 @@
         function showTypingIndicatorInChat() {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
-
+        
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) oldIndicator.remove();
-
+        
+            if (typewriterAbortController) {
+                typewriterAbortController.abort();
+            }
+            typewriterAbortController = new AbortController();
+        
             const indicatorHtml = `
-                <div id="loading-message-placeholder" class="message-container flex items-start space-x-4 mb-6">
-                    <div class="w-10 h-10 rounded-full bg-accent flex-shrink-0 flex items-center justify-center">
-                        <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <div class="pt-2 typing-indicator">
-                        <span></span><span></span><span></span>
+                <div class="message-container assistant-message-bg" id="loading-message-placeholder">
+                    <div class="loader-content">
+                        <div class="loading-avatar">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m12 3-1.9 4.8-4.8 1.9 4.8 1.9L12 16l1.9-4.8 4.8-1.9-4.8-1.9L12 3z"/>
+                                <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
+                            </svg>
+                        </div>
+                        <p id="typewriter-text"></p>
                     </div>
                 </div>
             `;
             messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
-            lucide.createIcons();
+            
+            const textElement = document.getElementById('typewriter-text');
+            typeWriter(textElement, typewriterAbortController.signal);
+        
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         function updateLoadingIndicator() {
             const form = document.getElementById('chat-form');
             if (!form) return;
-
+        
             const button = form.querySelector('button[type="submit"], button[type="button"]');
             const textarea = form.querySelector('textarea');
             const isLoadingThisSession = state.loadingSessionId === state.activeSessionId;
-
+        
             if (textarea) {
                 textarea.disabled = isLoadingThisSession;
             }
-
+        
             if (button) {
                 const newButton = button.cloneNode(true);
                 button.parentNode.replaceChild(newButton, button);
-
+        
                 if (isLoadingThisSession) {
                     newButton.setAttribute('type', 'button');
                     newButton.title = 'Остановить генерацию';
                     newButton.innerHTML = '<i data-lucide="square" class="w-5 h-5 text-white"></i>';
                     newButton.disabled = false;
-
+        
                     const stopHandler = (e) => {
                         e.preventDefault();
                         if (generationAbortController) {
@@ -2335,7 +2394,7 @@
                         }
                     };
                     newButton.addEventListener('click', stopHandler);
-
+        
                 } else {
                     newButton.setAttribute('type', 'submit');
                     newButton.title = 'Отправить';
@@ -2344,16 +2403,21 @@
                 }
                 lucide.createIcons({ nodes: [newButton] });
             }
-
+        
             const typingIndicator = document.getElementById('loading-message-placeholder');
             if (typingIndicator) {
+                // Прерываем анимацию текста перед удалением элемента
+                if (typewriterAbortController) {
+                    typewriterAbortController.abort();
+                    typewriterAbortController = null;
+                }
                 typingIndicator.remove();
             }
-
+        
             if (isLoadingThisSession) {
                 showTypingIndicatorInChat();
             }
-        }        
+        }
         
         async function handleAddProvider() {
             if (state.isLoading) return;

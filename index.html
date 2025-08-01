@@ -2128,7 +2128,7 @@
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let thinkingProcess = '';
+            let pipelineTraceLog = '';
         
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
@@ -2137,7 +2137,7 @@
             try {
                 // --- РЕЖИМ ПАЙПЛАЙНА ---
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
-                    thinkingProcess = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
+                    pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
                     
                     const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
@@ -2153,27 +2153,28 @@
         
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         
-                        thinkingProcess += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
+                        pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
         
-                        assistantMessage.content = `<pipeline_trace>${thinkingProcess}*Выполняется...*</pipeline_trace>`;
+                        assistantMessage.content = `<pipeline_trace>${pipelineTraceLog}*Выполняется...*</pipeline_trace>`;
+                        currentMessages[currentMessages.length - 1] = assistantMessage;
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
                         const stepApiMessages = [];
                         if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
                         stepApiMessages.push({ role: 'user', content: currentInputContent });
                         
-                        thinkingProcess += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        thinkingProcess += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
+                        pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n`;
+                        pipelineTraceLog += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
                         
                         currentInputContent = stepResponse;
-                        assistantMessageContent = stepResponse; 
-                        thinkingProcess += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+                        assistantMessageContent = stepResponse;
+                        pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
         
-                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ ---
+                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
                 } else {
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
@@ -2210,13 +2211,17 @@
                 if (selectedPipeline) {
                     const lastMessage = finalMessages[finalMessages.length - 1];
                     if (lastMessage?.role === 'assistant') {
+                        let finalContent = '';
+                        const traceBlock = `<pipeline_trace>${pipelineTraceLog}</pipeline_trace>`;
+        
                         if (isSuccess) {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
+                            finalContent = `${traceBlock}\n\n${assistantMessageContent}`;
                         } else if (wasAborted) {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>\n\n*Генерация была остановлена.*`;
+                            finalContent = `${traceBlock}\n\n*Генерация была остановлена.*`;
                         } else {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                            finalContent = `${traceBlock}\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
                         }
+                        lastMessage.content = finalContent;
                     }
                 } else {
                     const finalModelName = modelName;

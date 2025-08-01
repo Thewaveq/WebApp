@@ -2210,12 +2210,13 @@
                 if (selectedPipeline) {
                     const lastMessage = finalMessages[finalMessages.length - 1];
                     if (lastMessage?.role === 'assistant') {
+                        const traceHTML = `<pipeline_trace>${thinkingProcess}</pipeline_trace>`;
                         if (isSuccess) {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>${assistantMessageContent}`;
+                            lastMessage.content = `${traceHTML}${assistantMessageContent}`;
                         } else if (wasAborted) {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>\n\n*Генерация была остановлена.*`;
+                           lastMessage.content = `${traceHTML}\n\n*Генерация была остановлена.*`;
                         } else {
-                            lastMessage.content = `<pipeline_trace>${thinkingProcess}</pipeline_trace>\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                            lastMessage.content = `${traceHTML}\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
                         }
                     }
                 } else {

@@ -1076,16 +1076,45 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
-            let processedContent = String(msg.content || '')
-                .replace( // Обработка стандартного тега мыслей
-                    /<think>([\s\S]*?)<\/think>/g,
-                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>\n\n`
-                )
-                .replace( // Обработка нового тега для лога пайплайна
-                    /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
-                    `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>\n\n`
-                );
-            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+
+            const placeholders = {};
+            let placeholderIndex = 0;
+            let tempContent = String(msg.content || '');
+            
+            tempContent = tempContent.replace(
+                /<(think|pipeline_trace)>([\s\S]*?)<\/\1>/g,
+                (match, tag, content) => {
+                    const placeholder = `__CUSTOM_TAG_PLACEHOLDER_${placeholderIndex}__`;
+                    placeholders[placeholder] = {
+                        tag: tag,
+                        content: content
+                    };
+                    placeholderIndex++;
+                    return placeholder;
+                }
+            );
+
+            let rawHtml = marked.parse(tempContent, { breaks: true, gfm: true });
+
+            for (const placeholder in placeholders) {
+                const data = placeholders[placeholder];
+                const summaryText = data.tag === 'think' 
+                    ? 'Показать ход мыслей' 
+                    : 'Показать ход выполнения пайплайна';
+                
+                // Создаем полный HTML для нашего <details> блока
+                const detailsHtml = `<details><summary>${summaryText}</summary><div>${data.content}</div></details>`;
+            
+                // Если заглушка оказалась в отдельном параграфе, заменяем весь параграф, чтобы не осталось пустого <p></p>
+                const paragraphWrapper = `<p>${placeholder}</p>`;
+                if (rawHtml.includes(paragraphWrapper)) {
+                    rawHtml = rawHtml.replace(paragraphWrapper, detailsHtml);
+                } else {
+                    // В противном случае просто заменяем саму заглушку
+                    rawHtml = rawHtml.replace(placeholder, detailsHtml);
+                }
+            }
+            
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 
             const actionsOuterContainer = document.createElement('div');

@@ -169,14 +169,13 @@ input::placeholder, textarea::placeholder {
     align-items: center;
     justify-content: center;
     margin-right: 1rem;
-    background-color: var(--bg-main);
-    border: 1px solid var(--border-color);
+    background-color: var(--accent); 
 }
 
 .loading-avatar svg {
     width: 24px;
     height: 24px;
-    color: var(--accent);
+    color: #FFFFFF;
 }
 
 /* Текст и курсор */

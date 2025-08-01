@@ -268,9 +268,35 @@
         let editPipelineForm;
         let editPipelineCancelBtn;
 
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ ОЗВУЧКИ ---
+        let speechSynthesisInstance = window.speechSynthesis;
         let availableVoices = [];
-        let currentUtterance = null;
-        let speakingButton = null;
+        let ttsCleanupFunction = null;
+
+        const populateVoices = () => {
+            const allVoices = speechSynthesisInstance.getVoices();
+            if (allVoices.length === 0) return; // Если голоса еще не загружены
+
+            const russianVoices = allVoices.filter(voice => voice.lang === 'ru-RU');
+            
+            // Сортировка: сначала "neural", потом "Online", потом остальные
+            russianVoices.sort((a, b) => {
+                const score = (voice) => {
+                    if (voice.name.toLowerCase().includes('neural')) return 3;
+                    if (voice.name.toLowerCase().includes('online')) return 2;
+                    return 1;
+                };
+                return score(b) - score(a);
+            });
+            
+            availableVoices = russianVoices;
+        };
+        
+        // Первоначальное получение голосов и подписка на их изменение
+        populateVoices();
+        if (speechSynthesisInstance.onvoiceschanged !== undefined) {
+            speechSynthesisInstance.onvoiceschanged = populateVoices;
+        }
         
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
          function loadUserPreferences() {
@@ -1027,36 +1053,122 @@
                 }
             });
 
-             if (!isUser) {
-                const speakBtn = document.createElement('button');
-                speakBtn.className = 'p-1 text-text-secondary hover:text-accent transition-colors speak-message-btn';
-                speakBtn.title = 'Озвучить сообщение';
-                speakBtn.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
-
-                const voiceListDropdown = document.createElement('div');
-                voiceListDropdown.className = 'voice-list-dropdown hidden';
-
-                actionsContainer.appendChild(speakBtn);
-                actionsContainer.appendChild(voiceListDropdown);
-                
-                speakBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    handleSpeakButtonClick(speakBtn, msg.content, voiceListDropdown);
-                });
-            }
-            
             actionsContainer.appendChild(moreOptionsBtn);
             actionsContainer.appendChild(dropdownMenu);
             actionsOuterContainer.appendChild(actionsContainer);
-            
             const leftActionsContainer = document.createElement('div');
             leftActionsContainer.className = 'absolute bottom-1 left-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
-            
             const fullscreenButton = document.createElement('button');
             fullscreenButton.className = 'p-1 text-text-secondary hover:text-accent transition-colors';
             fullscreenButton.title = 'Открыть в полном окне';
             fullscreenButton.innerHTML = `<i data-lucide="maximize" class="w-4 h-4"></i>`;
             fullscreenButton.addEventListener('click', () => { showFullscreenMessage(msg.content); });
+
+            const ttsButton = document.createElement('button');
+            ttsButton.className = 'tts-btn p-1 text-text-secondary hover:text-accent transition-colors';
+            ttsButton.title = 'Озвучить сообщение';
+            ttsButton.innerHTML = `
+                <i data-lucide="volume-2" class="w-4 h-4"></i>
+                <i data-lucide="square" class="w-4 h-4"></i>
+                <i data-lucide="loader-2" class="w-4 h-4"></i>
+            `;
+            
+            ttsButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+            
+                // Если сейчас идет озвучка, останавливаем ее
+                if (ttsButton.classList.contains('is-speaking')) {
+                    speechSynthesisInstance.cancel(); // onend сработает автоматически и почистит UI
+                    return;
+                }
+            
+                // Если есть открытый список голосов, закрываем его
+                if (ttsCleanupFunction) {
+                    ttsCleanupFunction();
+                }
+            
+                // Показываем индикатор загрузки, пока получаем голоса
+                ttsButton.classList.add('is-loading');
+            
+                // Даем браузеру время обновить UI, а затем получаем голоса
+                setTimeout(() => {
+                    populateVoices(); // Обновляем список на случай, если он изменился
+                    ttsButton.classList.remove('is-loading');
+            
+                    if (availableVoices.length === 0) {
+                        alert('Русские голоса для озвучки не найдены в вашем браузере.');
+                        return;
+                    }
+            
+                    // Создаем и показываем список выбора голосов
+                    const voiceList = document.createElement('div');
+                    voiceList.className = 'tts-voice-list';
+                    
+                    availableVoices.forEach(voice => {
+                        const item = document.createElement('button');
+                        item.className = 'tts-voice-item';
+                        item.textContent = voice.name;
+                        
+                        if (voice.name.toLowerCase().includes('online')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'online-badge';
+                            badge.textContent = 'Online';
+                            item.appendChild(badge);
+                        }
+            
+                        item.onclick = (event) => {
+                            event.stopPropagation();
+                            if (ttsCleanupFunction) ttsCleanupFunction();
+            
+                            const textToSpeak = contentAsString
+                                .replace(/<think>[\s\S]*?<\/think>/g, '')
+                                .replace(/<pipeline_trace>[\s\S]*?<\/pipeline_trace>/g, '')
+                                .replace(/<[^>]*>/g, ''); // Удаляем остальные HTML теги для чистоты
+            
+                            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                            utterance.voice = voice;
+                            utterance.lang = 'ru-RU';
+                            
+                            const resetButtonStyle = () => {
+                                ttsButton.classList.remove('is-speaking');
+                                ttsButton.title = 'Озвучить сообщение';
+                            };
+                            
+                            utterance.onstart = () => {
+                                ttsButton.classList.add('is-speaking');
+                                ttsButton.title = 'Остановить озвучку';
+                            };
+                            utterance.onend = resetButtonStyle;
+                            utterance.onerror = (err) => {
+                                console.error('Ошибка синтеза речи:', err);
+                                resetButtonStyle();
+                            };
+            
+                            speechSynthesisInstance.speak(utterance);
+                        };
+                        voiceList.appendChild(item);
+                    });
+            
+                    messageWrapper.appendChild(voiceList);
+            
+                    // Функция для удаления списка голосов
+                    const cleanup = () => {
+                        if(voiceList.parentElement) {
+                           voiceList.remove();
+                        }
+                        document.removeEventListener('click', cleanup);
+                        ttsCleanupFunction = null;
+                    };
+                    
+                    ttsCleanupFunction = cleanup;
+                    
+                    // Закрываем список при клике в любом другом месте
+                    setTimeout(() => document.addEventListener('click', cleanup), 0);
+            
+                }, 50); // Небольшая задержка
+            });
+
+            leftActionsContainer.appendChild(ttsButton);
             leftActionsContainer.appendChild(fullscreenButton);
             
             messageWrapper.appendChild(headerDiv);
@@ -1162,148 +1274,7 @@
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;
         }
-        // TTS start
-        function loadVoices() {
-            const setVoices = () => {
-                availableVoices = speechSynthesis.getVoices().filter(voice => voice.lang.startsWith('ru'));
-                availableVoices.sort((a, b) => {
-                    const aIsPreferred = /Online|neural/i.test(a.name) || !a.localService;
-                    const bIsPreferred = /Online|neural/i.test(b.name) || !b.localService;
-                    if (aIsPreferred && !bIsPreferred) return -1;
-                    if (!aIsPreferred && bIsPreferred) return 1;
-                    return a.name.localeCompare(b.name);
-                });
-            };
         
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = setVoices;
-            }
-            setVoices(); 
-        }
-
-        function getCleanTextForSpeech(htmlContent) {
-            if (!htmlContent) return '';
-            const tempDiv = document.createElement('div');
-            
-            let cleanedHtml = htmlContent
-                .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
-                .replace(/<pipeline_trace>[\s\S]*?<\/pipeline_trace>/gi, ' ');
-        
-            cleanedHtml = marked.parse(cleanedHtml);
-            tempDiv.innerHTML = DOMPurify.sanitize(cleanedHtml, { ALLOWED_TAGS: [] });
-        
-            return tempDiv.textContent.replace(/\s+/g, ' ').trim();
-        }
-
-        function stopSpeech() {
-            if (speechSynthesis.speaking) {
-                speechSynthesis.cancel();
-            }
-        }
-        
-        function resetSpeakingButton() {
-            if (speakingButton) {
-                speakingButton.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
-                lucide.createIcons({ nodes: [speakingButton] });
-                speakingButton = null;
-            }
-        }
-        
-        function handleSpeakButtonClick(button, rawContent, dropdownContainer) {
-            // 1. Если речь сейчас активна, просто останавливаем ее и выходим.
-            if (speechSynthesis.speaking) {
-                stopSpeech(); // onend сработает автоматически и сбросит кнопку
-                return;
-            }
-            
-            // Скрываем все остальные открытые списки голосов
-            document.querySelectorAll('.voice-list-dropdown').forEach(d => {
-                if (d !== dropdownContainer) d.classList.add('hidden');
-            });
-        
-            dropdownContainer.classList.toggle('hidden');
-            if (dropdownContainer.classList.contains('hidden')) {
-                return;
-            }
-        
-            dropdownContainer.innerHTML = ''; // Очищаем список перед заполнением
-        
-            if (availableVoices.length === 0) {
-                dropdownContainer.innerHTML = '<div class="p-3 text-sm text-text-secondary text-center">Русские голоса не найдены.</div>';
-                return;
-            }
-        
-            const textToSpeak = getCleanTextForSpeech(rawContent);
-            if (!textToSpeak) {
-                dropdownContainer.innerHTML = '<div class="p-3 text-sm text-text-secondary text-center">Нет текста для озвучивания.</div>';
-                return;
-            }
-        
-            // 2. Создаем список голосов
-            availableVoices.forEach(voice => {
-                const voiceItem = document.createElement('button');
-                voiceItem.className = 'voice-list-item';
-                
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = voice.name;
-                voiceItem.appendChild(nameSpan);
-        
-                if (!voice.localService) {
-                    const onlineTag = document.createElement('span');
-                    onlineTag.className = 'online-indicator';
-                    onlineTag.textContent = 'ONLINE';
-                    voiceItem.appendChild(onlineTag);
-                }
-        
-                voiceItem.onclick = () => {
-                    stopSpeech(); // Останавливаем предыдущую речь, если она была
-        
-                    currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
-                    currentUtterance.voice = voice;
-                    currentUtterance.lang = voice.lang;
-        
-                    // 3. Управляем состоянием кнопки через события
-                    currentUtterance.onstart = () => {
-                        resetSpeakingButton(); // Сбрасываем любую другую активную кнопку
-                        speakingButton = button; // Запоминаем текущую кнопку
-                        speakingButton.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i>'; // Меняем иконку на "стоп"
-                        lucide.createIcons({ nodes: [speakingButton] });
-                    };
-        
-                    currentUtterance.onend = () => {
-                        resetSpeakingButton(); // Сбрасываем кнопку, когда речь закончилась
-                        currentUtterance = null;
-                    };
-                    
-                    currentUtterance.onerror = (event) => {
-                        // 4. Игнорируем ошибку 'interrupted'
-                        if (event.error === 'interrupted') {
-                            return; 
-                        }
-                        console.error('Ошибка синтеза речи:', event);
-                        showModalAlert(`Ошибка озвучивания: ${event.error}`);
-                        resetSpeakingButton(); // Сбрасываем кнопку в случае реальной ошибки
-                        currentUtterance = null;
-                    };
-        
-                    speechSynthesis.speak(currentUtterance);
-                    dropdownContainer.classList.add('hidden');
-                };
-                dropdownContainer.appendChild(voiceItem);
-            });
-        
-            // Логика закрытия списка по клику вне его
-            const closeOnClickOutside = (event) => {
-                if (!dropdownContainer.contains(event.target) && !button.contains(event.target)) {
-                    dropdownContainer.classList.add('hidden');
-                    document.removeEventListener('click', closeOnClickOutside, { capture: true });
-                }
-            };
-            setTimeout(() => {
-                document.addEventListener('click', closeOnClickOutside, { capture: true });
-            }, 0);
-        }
-        // TTS end
         function renderChatMessages(session) {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
@@ -3183,7 +3154,6 @@
         }
         
         async function init() {
-            loadVoices();
             const pipelineModalHTML = `
                 <div id="edit-pipeline-modal" class="modal-overlay hidden">
                     <div class="modal-content !max-w-3xl">

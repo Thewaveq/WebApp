@@ -2346,22 +2346,26 @@
             // Запускаем новый контроллер для анимации текста
             typewriterAbortController = new AbortController();
         
-            // HTML-структура из вашего примера
-            const indicatorHtml = `
-                <div class="message-container assistant-message-bg" id="loading-message-placeholder">
-                    <div class="loader-content">
-                        <div class="loading-avatar">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m12 3-1.9 4.8-4.8 1.9 4.8 1.9L12 16l1.9-4.8 4.8-1.9-4.8-1.9L12 3z"/>
-                                <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
-                            </svg>
-                        </div>
-                        <p id="typewriter-text"></p>
+            // СОЗДАЕМ КОНТЕЙНЕР С ПРАВИЛЬНЫМИ КЛАССАМИ, КАК У ОБЫЧНОГО СООБЩЕНИЯ
+            const loadingMessageWrapper = document.createElement('div');
+            loadingMessageWrapper.id = 'loading-message-placeholder';
+            // ВОТ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: добавлены все классы от обычного сообщения
+            loadingMessageWrapper.className = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl assistant-message-bg items-start';
+        
+            // Внутренняя структура из вашего примера
+            loadingMessageWrapper.innerHTML = `
+                <div class="loader-content">
+                    <div class="loading-avatar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m12 3-1.9 4.8-4.8 1.9 4.8 1.9L12 16l1.9-4.8 4.8-1.9-4.8-1.9L12 3z"/>
+                            <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
+                        </svg>
                     </div>
+                    <p id="typewriter-text"></p>
                 </div>
             `;
         
-            messagesContainer.insertAdjacentHTML('beforeend', indicatorHtml);
+            messagesContainer.appendChild(loadingMessageWrapper);
             
             // Запускаем анимацию печати
             const textElement = document.getElementById('typewriter-text');

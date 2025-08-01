@@ -2295,8 +2295,14 @@
                     }
 
                     const data = await response.json();
-                    if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                    if (data.error) {
+                        throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                    }
 
+                    if (!data.choices || data.choices.length === 0 || !data.choices[0].message || typeof data.choices[0].message.content === 'undefined') {
+                        throw new Error('Некорректный ответ от API: отсутствует или имеет неверный формат содержимое сообщения. ' + JSON.stringify(data));
+                    }
+                    
                     const rawContent = data.choices[0].message.content;
                     const finalContent = parseApiResponseContent(rawContent);
                     

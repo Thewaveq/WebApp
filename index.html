@@ -1088,7 +1088,7 @@
                 // Случай 1: В сообщении есть блок <think> или <pipeline_trace>
                 const tagType = match[1];      // 'think' или 'pipeline_trace'
                 const traceContent = match[2]; // Содержимое для выпадающего блока
-                const mainContent = match[3];  // Основной текст ответа
+                const mainContent = match[3] || '';  // Основной текст ответа
         
                 // Обрабатываем каждую часть НЕЗАВИСИМО через Markdown-парсер
                 const parsedTraceHtml = marked.parse(traceContent.trim(), { breaks: true, gfm: true });

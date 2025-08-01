@@ -1077,14 +1077,14 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
             let processedContent = String(msg.content || '')
-                .replace( // Обработка стандартного тега мыслей
-                    /<think>([\s\S]*?)<\/think>/g,
-                    `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                )
-                .replace( // Обработка нового тега для лога пайплайна
-                    /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
-                    `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`
-                );
+            .replace( // Обработка стандартного тега мыслей
+                /<think>([\s\S]*?)<\/think>/g,
+                `<details><summary>Показать ход мыслей</summary><div>$1</div></details>\n`
+            )
+            .replace( // Обработка нового тега для лога пайплайна
+                /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
+                `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>\n`
+            );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
 

@@ -162,8 +162,8 @@ input::placeholder, textarea::placeholder {
 /* Аватар-иконка */
 .loading-avatar {
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -173,8 +173,8 @@ input::placeholder, textarea::placeholder {
 }
 
 .loading-avatar svg {
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     color: #FFFFFF;
 }
 

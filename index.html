@@ -2289,34 +2289,29 @@
                     signal: signal
                 });
         
-                // --- ГЛАВНАЯ ЧАСТЬ ДИАГНОСТИКИ ---
-                // Получаем сырой текст ответа, каким бы он ни был
                 const rawTextResponse = await response.text();
         
-                // ВЫВОДИМ В КОНСОЛЬ ВСЮ ПРАВДУ
-                console.log("--- ДИАГНОСТИКА ОТВЕТА ОТ ПРОКСИ ---");
-                console.log("СТАТУС:", response.status, response.statusText);
-                console.log("СЫРОЙ ТЕКСТ ОТВЕТА:", rawTextResponse);
-                console.log("-----------------------------------");
-                // ------------------------------------
-        
-                // Теперь пытаемся работать с тем, что получили
-                if (!response.ok) {
-                    throw new Error(`Прокси вернул ошибку. Статус: ${response.status}. Тело: ${rawTextResponse}`);
+                // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ---
+                // Проверяем, что ответ успешный И что тело ответа НЕ пустое и НЕ равно 'null'.
+                if (!response.ok || !rawTextResponse || rawTextResponse === 'null') {
+                    throw new Error(`API вернул некорректный или пустой ответ (Статус: ${response.status}). Возможно, модель временно недоступна или неверно указано ее имя.`);
                 }
                 
-                // Пытаемся распарсить текст. Если он пустой или не JSON, будет ошибка.
+                // Теперь мы уверены, что у нас есть валидный JSON для парсинга.
                 const data = JSON.parse(rawTextResponse);
         
-                if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
-                if (!data.choices) throw new Error('Некорректный ответ от API.');
+                if (data.error) {
+                    throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                }
+                if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+                    throw new Error('Ответ от API не содержит ожидаемых данных (`choices`).');
+                }
                 
                 return parseApiResponseContent(data.choices[0].message.content);
         
             } catch (error) {
                 if (error.name === 'AbortError') throw error;
                 console.error(`Ошибка при вызове API через прокси:`, error);
-                // Теперь ошибка будет содержать больше деталей
                 throw new Error(error.message);
             }
         }

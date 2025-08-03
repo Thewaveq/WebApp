@@ -2273,20 +2273,17 @@
             if (apiKeys.length === 0) throw new Error(`У провайдера "${provider.name}" нет API ключей.`);
         
             let lastAttemptError = 'Не удалось получить ответ после всех попыток.';
-            // Используем первый ключ из списка для отправки на прокси
-            const currentKey = apiKeys[0]; 
+            const currentKey = apiKeys[0];
         
             try {
                 const fullUrl = new URL(provider.path, provider.baseUrl).href;
                 
-                // Формируем тело запроса для ВАШЕГО ПРОКСИ
                 const proxyRequestBody = {
                     targetUrl: fullUrl,
-                    apiKey: currentKey, // Ключ отправляется в теле на прокси
+                    apiKey: currentKey,
                     payload: { model: modelName, messages: messages }
                 };
         
-                // Отправляем запрос именно на /api/proxy
                 const response = await fetch('/api/proxy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2294,15 +2291,17 @@
                     signal: signal
                 });
         
-                // Если сам прокси-сервер вернул ошибку
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: `HTTP статус от прокси: ${response.status}` }));
-                    throw new Error(errorData.message || 'Ошибка от прокси-сервера.');
+                // Пытаемся безопасно получить JSON. Если тело пустое - data будет null
+                const data = await response.json().catch(() => null);
+        
+                // --- ВОТ ИСПРАВЛЕНИЕ ---
+                // Если ответ от прокси пришел пустой ИЛИ неуспешный, выдаем ошибку.
+                if (!response.ok || !data) {
+                    const statusText = response.statusText || 'No response from proxy';
+                    throw new Error(`Ошибка от прокси-сервера (Статус: ${response.status}). Возможно, неверное название модели или другая ошибка API.`);
                 }
         
-                const data = await response.json();
-        
-                // Если внешний API через прокси вернул ошибку
+                // Теперь мы знаем, что 'data' существует, и можем безопасно проверять его содержимое.
                 if (data.error) {
                     throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
                 }
@@ -2315,7 +2314,6 @@
         
             } catch (error) {
                 if (error.name === 'AbortError') throw error;
-                // Эта ошибка теперь будет более информативной
                 console.error(`Ошибка при вызове API через прокси:`, error);
                 lastAttemptError = error.message;
             }

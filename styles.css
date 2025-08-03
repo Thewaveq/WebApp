@@ -3,13 +3,13 @@
     /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
 
     /* 1. АКЦЕНТНЫЙ ЦВЕТ ПОЛЬЗОВАТЕЛЯ (в формате R, G, B) */
-    --user-accent-rgb: 64, 158, 255;
+    --user-accent-rgb: 64, 158, 255; 
 
     /* 2. СИЛА ОКРАШИВАНИЯ ФОНА (в процентах) */
     --accent-mix-strength: 15%;
 
     /* 3. НОВОЕ: ЯРКОСТЬ КНОПОК И ЭЛЕМЕНТОВ (в процентах) */
-    /* Насколько сильно осветлять акцентный цвет для кнопок.
+    /* Насколько сильно осветлять акцентный цвет для кнопок. 
        0% - цвет как есть, 30% - заметно ярче. */
     --accent-brightness-strength: 20%;
 
@@ -17,7 +17,7 @@
     /* === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ (генерируются автоматически) === */
     --base-dark-900: hsl(0, 0%, 12%);
     --base-dark-800: hsl(0, 0%, 15%);
-    --base-dark-700: hsl(0, 0%, 20%); /* <-- ИСПОЛЬЗОВАНО ДЛЯ .gutter */
+    --base-dark-700: hsl(0, 0%, 20%);
     --base-dark-600: hsl(0, 0%, 25%);
     --base-dark-500: hsl(0, 0%, 28%);
 
@@ -33,7 +33,7 @@
     --accent-hover: color-mix(in srgb, var(--accent), white 10%); /* При наведении делаем его еще на 10% светлее */
 
     /* Статичные цвета */
-    --text-primary: #f5f5f5; /* <-- ИСПОЛЬЗОВАНО ДЛЯ .loading-avatar svg */
+    --text-primary: #f5f5f5;
     --text-secondary: #888888;
     --danger: #e53e3e;
     --danger-hover: #c53030;
@@ -109,13 +109,13 @@ input::placeholder, textarea::placeholder {
 ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
 ::-webkit-scrollbar-thumb { background: var(--base-dark-500); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--base-dark-600); }
-.typing-indicator span {
-    height: 8px;
-    width: 8px;
+.typing-indicator span { 
+    height: 8px; 
+    width: 8px; 
     background-color: var(--accent); /* Используем переменную акцентного цвета */
-    border-radius: 50%;
-    display: inline-block;
-    animation: bounce 1.4s infinite ease-in-out both;
+    border-radius: 50%; 
+    display: inline-block; 
+    animation: bounce 1.4s infinite ease-in-out both; 
 }
 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
@@ -124,7 +124,7 @@ input::placeholder, textarea::placeholder {
 /* --- СТИЛИ ДЛЯ НОВОГО ИНДИКАТОРА ПЕЧАТИ --- */
 /* Контейнер теперь стилизуется классами из JS, а этому правилу нужен только блик */
 #loading-message-placeholder {
-    position: relative;
+    position: relative; 
     overflow: hidden; /* Обязательно для эффекта блика */
 }
 
@@ -175,8 +175,7 @@ input::placeholder, textarea::placeholder {
 .loading-avatar svg {
     width: 16px;
     height: 16px;
-    /* color: #FFFFFF; <-- ЗАМЕНЕНО НА ПЕРЕМЕННУЮ */
-    color: var(--text-primary);
+    color: #FFFFFF;
 }
 
 /* Текст и курсор */
@@ -202,16 +201,16 @@ input::placeholder, textarea::placeholder {
 
 /* --- СТИЛЬ ДЛЯ ЭФФЕКТА ЗАТУХАНИЯ ПРИ ПРОКРУТКЕ (УВЕЛИЧЕННЫЙ) --- */
 #notepad-scroll-container {
-    -webkit-mask-image: linear-gradient(to bottom,
-        transparent,
-        black 50px,
-        black calc(100% - 30px),
+    -webkit-mask-image: linear-gradient(to bottom, 
+        transparent, 
+        black 50px, 
+        black calc(100% - 30px), 
         transparent
     );
-    mask-image: linear-gradient(to bottom,
-        transparent,
-        black 50px,
-        black calc(100% - 30px),
+    mask-image: linear-gradient(to bottom, 
+        transparent, 
+        black 50px, 
+        black calc(100% - 30px), 
         transparent
     );
 }
@@ -253,12 +252,12 @@ input::placeholder, textarea::placeholder {
     bottom: 100%; /* Появляется над кнопкой */
     left: 0;
     margin-bottom: 8px; /* Небольшой отступ от кнопки */
-
+    
     /* Размеры и внешний вид */
     width: 240px; /* Фиксированная ширина для аккуратного вида */
     max-height: 250px; /* Ограничение высоты с прокруткой, если голосов много */
     overflow-y: auto;
-
+    
     /* Эффект "стекла" */
     background-color: rgba(37, 37, 38, 0.85);
     -webkit-backdrop-filter: blur(10px);
@@ -349,7 +348,7 @@ details[open] > summary .details-arrow {
 }
 
 /* --- СТИЛИ ДЛЯ Markdown-контента --- */
-.prose {
+.prose { 
     color: var(--text-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -360,7 +359,7 @@ details[open] > summary .details-arrow {
 
 /* --- СТИЛИ ДЛЯ БЛОКА КОДА --- */
 .prose pre {
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: rgba(0, 0, 0, 0.4); 
     /*background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)); */
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
@@ -369,10 +368,10 @@ details[open] > summary .details-arrow {
 
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5),
                 inset 0 0 30px rgba(0, 0, 0, 0.25);
+    
+    padding: 0.5rem; 
 
-    padding: 0.5rem;
-
-    border-radius: 0.75rem;
+    border-radius: 0.75rem; 
     position: relative;
     margin-top: 1.25em;
     margin-bottom: 1.25em;
@@ -382,20 +381,20 @@ details[open] > summary .details-arrow {
     line-height: 1.6;
 }
 
-.prose code {
+.prose code { 
     background-color: rgba(14, 99, 156, 0.15);
     color: var(--accent-hover);
     border: 1px solid rgba(14, 99, 156, 0.3);
-    padding: 0.1rem 0.8rem;
-    border-radius: 0.3rem;
+    padding: 0.1rem 0.8rem; 
+    border-radius: 0.3rem;     
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.85em;
 }
 
-.prose pre code {
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
+.prose pre code { 
+    background-color: transparent; 
+    padding: 0; 
+    border-radius: 0; 
     border: none;
     color: inherit;
     font-size: inherit;
@@ -454,9 +453,9 @@ details[open] > summary .details-arrow {
 
 .code-action-btn:disabled,
 .code-action-btn:disabled:hover {
-    background-color: var(--bg-element);
-    opacity: 0.5;
-    cursor: not-allowed;
+    background-color: var(--bg-element); 
+    opacity: 0.5;                        
+    cursor: not-allowed;                 
 }
 
 /* Контейнер для отрендеренной диаграммы */
@@ -582,9 +581,9 @@ details[open] > summary .details-arrow {
 #sidebar > * {
     opacity: 1;
     /* Контент будет появляться плавно за 0.2 секунды... */
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity 0.2s ease-in-out; 
     /* ...НО С ЗАДЕРЖКОЙ в 0.1 секунды. Он подождет, пока сайдбар немного развернется. */
-    transition-delay: 0.1s;
+    transition-delay: 0.1s; 
 }
 
 @media (min-width: 1024px) {
@@ -594,7 +593,7 @@ details[open] > summary .details-arrow {
         /* Контент будет исчезать БЫСТРЕЕ, за 0.15 секунды... */
         transition: opacity 0.15s ease-in-out;
         /* ...И БЕЗ ЗАДЕРЖКИ. Исчезновение начнется сразу. */
-        transition-delay: 0s;
+        transition-delay: 0s; 
     }
 }
 
@@ -734,7 +733,7 @@ details[open] > summary .details-arrow {
     max-width: 100%;
     margin-left: auto;
     margin-right: auto;
-    transition: max-width 0.4s ease-in-out;
+    transition: max-width 0.4s ease-in-out; 
 }
 
 #notepad-scroll-container.notepad-view-compact #note-cards-grid {
@@ -762,19 +761,19 @@ details[open] > summary .details-arrow {
 
 #in-app-notification > div {
 
-    position: relative;
-
+    position: relative; 
+    
     background-color: var(--bg-sidebar);
-
+    
 
     border: none;
-
+    
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-
+    
     border-radius: 0.75rem;
     margin: 1rem;
     padding: 1rem;
-
+    
     animation: pulse-glow 2.5s infinite ease-in-out;
 }
 
@@ -792,7 +791,7 @@ details[open] > summary .details-arrow {
     transition: color 0.2s, background-color 0.2s;
     border-radius: 9999px;
     padding: 0.25rem;
-
+    
     position: relative;
     z-index: 2;
 }
@@ -855,7 +854,7 @@ details[open] > summary .details-arrow {
     /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
     box-shadow: none;
     outline: none;
-
+    
     /* 5. Добавляем плавный переход для рамки и тени при фокусе */
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
@@ -889,7 +888,7 @@ details[open] > summary .details-arrow {
     border: none;
     border-radius: 0;
     box-shadow: none;
-    padding: 0;
+    padding: 0; 
 }
 
 /* Контейнер для прокрутки, всегда на всю ширину */
@@ -907,14 +906,14 @@ details[open] > summary .details-arrow {
 
 #fullscreen-modal-body .prose {
     max-width: 100%;
-
+    
     transition: max-width 0.4s ease-in-out;
     margin-left: auto;
     margin-right: auto;
 }
 
 #fullscreen-modal-body.fullscreen-view-compact .prose {
-    max-width: 896px;
+    max-width: 896px; 
 }
 
 /* Стили для кнопки закрытия */
@@ -948,7 +947,7 @@ details[open] > summary .details-arrow {
 #fullscreen-width-toggle {
     position: fixed;
     top: 2rem;
-    right: 5.5rem;
+    right: 5.5rem; 
     z-index: 60;
     background-color: rgba(0, 0, 0, 0.25);
     color: var(--text-primary);
@@ -1014,7 +1013,7 @@ details[open] > summary .details-arrow {
     border: none;
     background: none;
     color: var(--text-primary);
-    border-radius: 0.375rem;
+    border-radius: 0.375rem; 
     cursor: pointer;
     font-size: 14px;
     text-align: left;
@@ -1038,7 +1037,7 @@ details[open] > summary .details-arrow {
     color: var(--danger);
 }
 .dropdown-menu-item.danger:hover {
-    background-color: rgba(229, 62, 62, 0.15);
+    background-color: rgba(229, 62, 62, 0.15); 
     color: white;
 }
 .dropdown-menu-item.danger:hover > i {
@@ -1054,8 +1053,7 @@ details[open] > summary .details-arrow {
 
 /* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
 .gutter {
-    /* background-color: #37373d; <-- ЗАМЕНЕНО НА ПЕРЕМЕННУЮ */
-    background-color: var(--base-dark-700);
+    background-color: #37373d;
     background-repeat: no-repeat;
     background-position: 50%;
 }
@@ -1065,7 +1063,7 @@ details[open] > summary .details-arrow {
 
 .gutter.gutter-vertical {
     cursor: row-resize;
-    position: relative;
+    position: relative; 
 }
 
 @media (max-width: 1023px) {
@@ -1095,7 +1093,7 @@ details[open] > summary .details-arrow {
     background-color: transparent; /* Фон делаем прозрачным, чтобы видеть внутренний квадрат с цветом */
     padding: 4px;                  /* Небольшой внутренний отступ, чтобы цвет не прилипал к рамке */
     border: 1px solid var(--border-color); /* Применяем ВАШУ стандартную серую рамку */
-
+    
     box-shadow: none;
     outline: none;
 }

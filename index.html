@@ -2271,8 +2271,6 @@
         async function callApi(provider, modelName, messages, signal) {
             const apiKeys = provider.apiKeys || [];
             if (apiKeys.length === 0) throw new Error(`У провайдера "${provider.name}" нет API ключей.`);
-        
-            let lastAttemptError = 'Не удалось получить ответ после всех попыток.';
             const currentKey = apiKeys[0];
         
             try {
@@ -2291,34 +2289,36 @@
                     signal: signal
                 });
         
-                // Пытаемся безопасно получить JSON. Если тело пустое - data будет null
-                const data = await response.json().catch(() => null);
+                // --- ГЛАВНАЯ ЧАСТЬ ДИАГНОСТИКИ ---
+                // Получаем сырой текст ответа, каким бы он ни был
+                const rawTextResponse = await response.text();
         
-                // --- ВОТ ИСПРАВЛЕНИЕ ---
-                // Если ответ от прокси пришел пустой ИЛИ неуспешный, выдаем ошибку.
-                if (!response.ok || !data) {
-                    const statusText = response.statusText || 'No response from proxy';
-                    throw new Error(`Ошибка от прокси-сервера (Статус: ${response.status}). Возможно, неверное название модели или другая ошибка API.`);
-                }
+                // ВЫВОДИМ В КОНСОЛЬ ВСЮ ПРАВДУ
+                console.log("--- ДИАГНОСТИКА ОТВЕТА ОТ ПРОКСИ ---");
+                console.log("СТАТУС:", response.status, response.statusText);
+                console.log("СЫРОЙ ТЕКСТ ОТВЕТА:", rawTextResponse);
+                console.log("-----------------------------------");
+                // ------------------------------------
         
-                // Теперь мы знаем, что 'data' существует, и можем безопасно проверять его содержимое.
-                if (data.error) {
-                    throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                // Теперь пытаемся работать с тем, что получили
+                if (!response.ok) {
+                    throw new Error(`Прокси вернул ошибку. Статус: ${response.status}. Тело: ${rawTextResponse}`);
                 }
+                
+                // Пытаемся распарсить текст. Если он пустой или не JSON, будет ошибка.
+                const data = JSON.parse(rawTextResponse);
         
-                if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
-                    throw new Error('Некорректный ответ от API.');
-                }
+                if (data.error) throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                if (!data.choices) throw new Error('Некорректный ответ от API.');
                 
                 return parseApiResponseContent(data.choices[0].message.content);
         
             } catch (error) {
                 if (error.name === 'AbortError') throw error;
                 console.error(`Ошибка при вызове API через прокси:`, error);
-                lastAttemptError = error.message;
+                // Теперь ошибка будет содержать больше деталей
+                throw new Error(error.message);
             }
-        
-            throw new Error(lastAttemptError);
         }
 
         function showTypingIndicatorInChat() {

@@ -2175,10 +2175,9 @@
                 const selectedPipeline = initialActiveSession?.pipelineId ? state.pipelines.find(p => p.id === initialActiveSession.pipelineId) : null;
         
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
+                    // --- ЛОГИКА ПАЙПЛАЙНА ---
                     let pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
-                    // *** ИЗМЕНЕНИЕ 1: Исходный запрос пользователя для первого шага ***
-                    let currentInputContent = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
-                    let previousStepOutput = ''; // Хранит результат предыдущего шага для последующих
+                    let lastStepOutput = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
 
                     const assistantMessage = { 
                         role: 'assistant', 
@@ -2197,24 +2196,22 @@
                         const stepModelName = step.modelName;
         
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
-                        
-                        // *** КЛЮЧЕВОЕ ИЗМЕНЕНИЕ 2: Формируем правильный контент для API ***
-                        let apiPayloadContent;
-                        let stepRoleContent = step.roleContent || '';
-                        
-                        if (i === 0) {
-                            // Для первого шага используем оригинальный запрос пользователя
-                            apiPayloadContent = currentInputContent;
+                        if (!lastStepOutput) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
+
+                        // *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Собираем ОДИН промпт из роли и данных ***
+                        const stepInstruction = step.roleContent || ''; // Роль/инструкция для этого шага
+                        let finalApiContent;
+
+                        if (stepInstruction) {
+                            // Если есть инструкция, формируем полный промпт
+                            finalApiContent = `${stepInstruction}\n\n---\n\nВот данные, которые нужно обработать:\n\n${lastStepOutput}`;
                         } else {
-                            // Для последующих шагов создаем новую инструкцию
-                            if (!previousStepOutput) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные с предыдущего шага. Пайплайн прерван.`);
-                            apiPayloadContent = `Предыдущий шаг вернул следующий результат:\n\n---\n${previousStepOutput}\n---\n\nОсновываясь на этом, выполни свою задачу.`;
+                            // Если инструкции нет, просто передаем данные
+                            finalApiContent = lastStepOutput;
                         }
-
-                        if (!apiPayloadContent) throw new Error(`На шаге ${i + 1} не удалось сформировать контент для запроса.`);
-
+                        
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
-                        pipelineTraceLog += `**Роль:** ${stepRoleContent || 'Нет'}\n**Входные данные (для API):**\n\`\`\`\n${apiPayloadContent}\n\`\`\`\n*Выполняется...*\n`;
+                        pipelineTraceLog += `**Входные данные (для API):**\n\`\`\`\n${finalApiContent}\n\`\`\`\n*Выполняется...*\n`;
                         
                         const lastMessage = currentMessages.at(-1);
                         lastMessage.pipelineTrace = pipelineTraceLog;
@@ -2222,29 +2219,25 @@
                         
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
-                        // *** ИЗМЕНЕНИЕ 3: Собираем сообщения для API с учетом роли ***
-                        const apiMessages = [];
-                        if (stepRoleContent) {
-                            apiMessages.push({ role: 'system', content: stepRoleContent });
-                        }
-                        apiMessages.push({ role: 'user', content: apiPayloadContent });
+                        // *** ВОЗВРАЩАЕМСЯ К СТАРОЙ, РАБОЧЕЙ СТРУКТУРЕ ВЫЗОВА API ***
+                        const apiMessages = [{ role: 'user', content: finalApiContent }];
                         
                         const stepResponse = await callApi(stepProvider, stepModelName, apiMessages, signal);
                         const cleanResponse = getCleanContent(stepResponse);
                         
                         pipelineTraceLog = pipelineTraceLog.replace('*Выполняется...*\n', `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`);
                         
-                        lastMessage.content = cleanResponse; // Финальный контент сообщения - это результат последнего шага
+                        lastMessage.content = cleanResponse; 
                         lastMessage.pipelineTrace = pipelineTraceLog;
                         
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
                         // Готовим выход для следующего шага
-                        previousStepOutput = cleanResponse;
+                        lastStepOutput = cleanResponse;
                     }
                     isSuccess = true;
                 } else {
-                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
+                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (не тронута, работает как раньше) ---
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];

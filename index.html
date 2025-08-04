@@ -2163,8 +2163,6 @@
             let lastError = 'Неизвестная ошибка.';
             let pipelineTraceLog = '';
         
-            const activeSession = state.sessions.find(s => s.id === sessionId);
-            const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
         
             const getCleanContent = (rawContent) => {
@@ -2174,23 +2172,40 @@
             };
         
             try {
+                const initialActiveSession = state.sessions.find(s => s.id === sessionId);
+                const selectedPipeline = initialActiveSession?.pipelineId ? state.pipelines.find(p => p.id === initialActiveSession.pipelineId) : null;
+        
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = getCleanContent(messagesToSubmit.findLast(m => m.role === 'user')?.content || '');
-                    
+        
                     const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
-                    let currentMessages = [...messagesToSubmit, assistantMessage];
-                    await updateDoc(sessionRef, { messages: currentMessages });
+                    await updateDoc(sessionRef, { messages: arrayUnion(assistantMessage) });
         
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
-                        
+        
+                        // ================== ИСПРАВЛЕНИЕ REAL-TIME ОБНОВЛЕНИЙ ==================
+                        // На каждой итерации берем САМЫЕ СВЕЖИЕ данные из глобального состояния,
+                        // которое обновляется через onSnapshot.
+                        const currentSessionState = state.sessions.find(s => s.id === sessionId);
+                        if (!currentSessionState) throw new Error("Сессия была удалена во время генерации.");
+                        const currentMessages = currentSessionState.messages;
+                        // =====================================================================
+        
                         const step = selectedPipeline.steps[i];
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
                         const stepModelName = step.modelName;
         
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         
+                        // ================== ИСПРАВЛЕНИЕ ОШИБКИ 200/502 ==================
+                        // Проверяем, что на вход модели не пойдет пустота.
+                        if (!currentInputContent) {
+                            throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
+                        }
+                        // ================================================================
+        
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
                         
                         const lastMessage = currentMessages[currentMessages.length - 1];
@@ -2202,17 +2217,9 @@
                         
                         pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
-                        const stepResponse = await callApi(provider, modelName, stepApiMessages, signal);
-                        
+                        const stepResponse = await callApi(stepProvider, modelName, stepApiMessages, signal);
                         const cleanResponse = getCleanContent(stepResponse);
                         
-                        // ================== КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ОШИБКИ 502 ==================
-                        // Если шаг (не последний) не вернул никакого контента, прерываем пайплайн
-                        if (!cleanResponse && i < selectedPipeline.steps.length - 1) {
-                            throw new Error(`Шаг ${i + 1} (${stepModelName}) не вернул полезного контента. Пайплайн прерван.`);
-                        }
-                        // ======================================================================
-        
                         currentInputContent = cleanResponse;
                         assistantMessageContent = cleanResponse;
         
@@ -2226,9 +2233,8 @@
                     const apiMessagesPayload = [];
                     if (selectedRole?.content) apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
         
-                    // ИСПРАВЛЕНО: Очищаем историю И фильтруем пустые сообщения
                     const cleanedHistory = messagesToSubmit.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
-                    const filteredHistory = cleanedHistory.filter(msg => msg.role === 'system' || msg.content); // Сохраняем системные промпты и сообщения с контентом
+                    const filteredHistory = cleanedHistory.filter(msg => msg.role === 'system' || msg.content);
                     apiMessagesPayload.push(...filteredHistory);
                     
                     assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
@@ -2244,29 +2250,25 @@
                     lastError = error.message;
                 }
             } finally {
-                const finalSessionDoc = await getDoc(sessionRef);
-                let finalMessages = finalSessionDoc.exists() ? finalSessionDoc.data().messages : messagesToSubmit;
+                const finalSessionState = state.sessions.find(s => s.id === sessionId);
+                let finalMessages = finalSessionState ? [...finalSessionState.messages] : [...messagesToSubmit];
         
-                if (selectedPipeline) {
-                    const lastMessage = finalMessages.at(-1);
-                    if (lastMessage && lastMessage.role === 'assistant') {
-                        if (isSuccess) {
-                            lastMessage.content = assistantMessageContent;
-                            lastMessage.pipelineTrace = pipelineTraceLog;
-                        } else {
-                            lastMessage.content = wasAborted 
-                                ? '*Генерация была остановлена.*' 
-                                : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
-                            lastMessage.pipelineTrace = pipelineTraceLog;
+                const lastMessage = finalMessages.at(-1);
+        
+                if (lastMessage && lastMessage.role === 'assistant') {
+                    if (isSuccess) {
+                        lastMessage.content = assistantMessageContent;
+                        if (lastMessage.hasOwnProperty('pipelineTrace')) {
+                           lastMessage.pipelineTrace = pipelineTraceLog;
+                        }
+                    } else {
+                        lastMessage.content = wasAborted 
+                            ? '*Генерация была остановлена.*' 
+                            : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
+                        if (lastMessage.hasOwnProperty('pipelineTrace')) {
+                           lastMessage.pipelineTrace = pipelineTraceLog;
                         }
                     }
-                } else {
-                    const messageToAdd = {
-                        role: 'assistant',
-                        modelName: modelName,
-                        content: isSuccess ? assistantMessageContent : (wasAborted ? '*Генерация была остановлена.*' : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`)
-                    };
-                    finalMessages.push(messageToAdd);
                 }
                 
                 state.loadingSessionId = null;
@@ -2276,7 +2278,8 @@
                 render();
         
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
-                    const chatTitle = activeSession?.title || 'Новый чат';
+                    const finalSessionForNotif = state.sessions.find(s => s.id === sessionId);
+                    const chatTitle = finalSessionForNotif?.title || 'Новый чат';
                     const messagePreview = (assistantMessageContent || '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }

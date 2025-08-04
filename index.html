@@ -206,15 +206,64 @@
         </div>
     </div>
     <div id="auth-prompt-modal" class="modal-overlay hidden">
-        <div class="modal-content !max-w-md text-center">
-            <h3 class="text-xl font-bold mb-2">Добро пожаловать в MBOX!</h3>
-            <p class="text-text-secondary mb-6">Войдите, чтобы сохранять историю чатов, создавать заметки и синхронизировать данные между устройствами.</p>
-            
-            <!-- Используем тот же ID, что и у кнопки в боковой панели, чтобы не писать новый JS-код для логина -->
-            <button id="google-signin-btn-modal" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded transition-colors text-sm">
-                <svg class="w-4 h-4 mr-2" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-                Войти через Google
-            </button>
+        <div class="modal-content !max-w-4xl !p-0 flex flex-col md:flex-row overflow-hidden">
+    
+            <!-- Левая колонка с графикой (скрыта на мобильных) -->
+            <div class="hidden md:flex flex-1 bg-bg-main items-center justify-center p-12">
+                <div class="w-full max-w-sm">
+                    <!-- Вы можете заменить этот SVG на любую свою иллюстрацию -->
+                    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color: var(--color-accent); stop-opacity:1" />
+                                <stop offset="100%" style="stop-color: var(--color-accent-hover); stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <path fill="url(#gradient)" d="M48.1,-63.9C61.8,-53.4,72.2,-37.8,76.5,-20.9C80.8,-4,79,14.1,70.5,28.2C62,42.3,46.8,52.4,31.5,59.3C16.2,66.2,0.8,70,-15.8,68.9C-32.4,67.8,-49.9,61.8,-62,49.9C-74.1,38,-80.7,20.1,-81.4,1.8C-82.1,-16.5,-76.8,-35.1,-65.4,-47.5C-54,-60,-36.4,-66.4,-20.5,-69.3C-4.5,-72.1,-2.3,-71.4,9.1,-74.6C20.5,-77.8,41.1,-84.9,48.1,-63.9Z" transform="translate(100 100)" />
+                        <circle cx="60" cy="60" r="10" fill="rgba(255,255,255,0.8)"/>
+                        <circle cx="150" cy="80" r="7" fill="rgba(255,255,255,0.8)"/>
+                        <circle cx="90" cy="160" r="12" fill="rgba(255,255,255,0.8)"/>
+                    </svg>
+                </div>
+            </div>
+    
+            <!-- Правая колонка с контентом -->
+            <div class="flex flex-col flex-1 p-8 md:p-10">
+                <h2 class="text-3xl font-bold text-text-primary mb-3">Раскройте полный потенциал MBOX</h2>
+                <p class="text-text-secondary mb-8">Войдите, чтобы получить доступ ко всем возможностям и синхронизировать вашу работу.</p>
+    
+                <div class="space-y-5 mb-10">
+                    <div class="flex items-start">
+                        <i data-lucide="save" class="w-6 h-6 text-accent mr-4 flex-shrink-0 mt-1"></i>
+                        <div>
+                            <h3 class="font-semibold text-text-primary">Сохранение и синхронизация</h3>
+                            <p class="text-sm text-text-secondary">Ваши чаты, заметки и диаграммы будут надежно сохранены и доступны с любого устройства.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i data-lucide="notebook-tabs" class="w-6 h-6 text-accent mr-4 flex-shrink-0 mt-1"></i>
+                        <div>
+                            <h3 class="font-semibold text-text-primary">Организация рабочего процесса</h3>
+                            <p class="text-sm text-text-secondary">Используйте папки с заметками и конструктор диаграмм для структурирования идей и проектов.</p>
+                        </div>
+                    </div>
+                     <div class="flex items-start">
+                        <i data-lucide="settings-2" class="w-6 h-6 text-accent mr-4 flex-shrink-0 mt-1"></i>
+                        <div>
+                            <h3 class="font-semibold text-text-primary">Персональные настройки</h3>
+                            <p class="text-sm text-text-secondary">Настраивайте API-провайдеров, системные роли для моделей и внешний вид приложения под себя.</p>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="mt-auto">
+                     <button id="google-signin-btn-modal" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors text-base">
+                        <svg class="w-5 h-5 mr-3" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                        Войти через Google
+                    </button>
+                     <p class="text-xs text-text-secondary text-center mt-3">Быстрый и безопасный вход. Мы никогда не будем отправлять вам спам.</p>
+                </div>
+            </div>
         </div>
     </div>
     <script type="module">

@@ -2173,7 +2173,9 @@
                 const thinkRegex = /<think>([\s\S]*?)<\/think>/;
                 const match = rawContent.match(thinkRegex);
                 if (match) {
-                    return { thought: match.trim(), clean: rawContent.replace(thinkRegex, '').trim() };
+                    // ================== ВОТ ИСПРАВЛЕНИЕ ОШИБКИ ==================
+                    return { thought: match[1].trim(), clean: rawContent.replace(thinkRegex, '').trim() };
+                    // ==========================================================
                 }
                 return { thought: null, clean: rawContent.trim() };
             };
@@ -2183,7 +2185,6 @@
                     pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
                     
-                    // Создаем сообщение-плейсхолдер
                     const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
                     let currentMessages = [...messagesToSubmit, assistantMessage];
                     await updateDoc(sessionRef, { messages: currentMessages });
@@ -2199,13 +2200,12 @@
                         
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
                         
-                        // Временное обновление для индикатора
                         const sessionDocBeforeUpdate = await getDoc(sessionRef);
                         const messagesBeforeUpdate = sessionDocBeforeUpdate.data().messages;
                         const lastMsg = messagesBeforeUpdate[messagesBeforeUpdate.length - 1];
                         
-                        lastMsg.content = ''; // Ответ пока пуст
-                        lastMsg.pipelineTrace = `${pipelineTraceLog}*Выполняется...*`; // В лог пишем статус
+                        lastMsg.content = '';
+                        lastMsg.pipelineTrace = `${pipelineTraceLog}*Выполняется...*`;
                         await updateDoc(sessionRef, { messages: messagesBeforeUpdate, updatedAt: serverTimestamp() });
                         currentMessages = messagesBeforeUpdate;
         

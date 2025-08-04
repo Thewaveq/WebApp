@@ -2167,22 +2167,21 @@
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
             
-            const parseThinkContent = (rawContent) => {
-                if (typeof rawContent !== 'string') return { thought: null, clean: '' };
-                const thinkRegex = /<think>([\s\S]*?)<\/think>/;
-                const match = rawContent.match(thinkRegex);
-                if (match && match[1]) {
-                    return { thought: match[1].trim(), clean: rawContent.replace(thinkRegex, '').trim() };
-                }
-                return { thought: null, clean: rawContent.trim() };
+            // =========================================================================
+            // НОВАЯ, УПРОЩЕННАЯ ФУНКЦИЯ: беспощадно удаляет <think> и все внутри него
+            const getCleanContent = (rawContent) => {
+                if (typeof rawContent !== 'string') return '';
+                // 'g' флаг удалит все вхождения, на всякий случай
+                const thinkRegex = /<think>[\s\S]*?<\/think>/g;
+                return rawContent.replace(thinkRegex, '').trim();
             };
+            // =========================================================================
         
             try {
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
-                    let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
+                    let currentInputContent = getCleanContent(messagesToSubmit.findLast(m => m.role === 'user')?.content || '');
                     
-                    // 1. Создаем и сохраняем сообщение-плейсхолдер
                     const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
                     let currentMessages = [...messagesToSubmit, assistantMessage];
                     await updateDoc(sessionRef, { messages: currentMessages });
@@ -2198,11 +2197,8 @@
                         
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
                         
-                        // 2. ОБНОВЛЕНИЕ В РЕАЛЬНОМ ВРЕМЕНИ (ИСПРАВЛЕНО)
-                        // Модифицируем последний элемент в нашем локальном массиве
                         const lastMessage = currentMessages[currentMessages.length - 1];
                         lastMessage.pipelineTrace = `${pipelineTraceLog}*Выполняется...*`;
-                        // И немедленно отправляем полное обновление в Firestore, что вызовет onSnapshot
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
                         const stepApiMessages = [{ role: 'user', content: currentInputContent }];
@@ -2211,14 +2207,15 @@
                         pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
-                        const parsedStepResponse = parseThinkContent(stepResponse);
                         
-                        currentInputContent = parsedStepResponse.clean;
-                        assistantMessageContent = parsedStepResponse.clean; // Сохраняем чистый контент для финального ответа
+                        // ИСПОЛЬЗУЕМ getCleanContent ДЛЯ ПОЛУЧЕНИЯ ЧИСТОГО ОТВЕТА
+                        const cleanResponse = getCleanContent(stepResponse);
+                        
+                        currentInputContent = cleanResponse;
+                        assistantMessageContent = cleanResponse; // Сохраняем ТОЛЬКО чистый контент для финального ответа
         
-                        // 3. ЗАПИСЬ В ЛОГ (ИСПРАВЛЕНО)
-                        // В лог записываем ТОЛЬКО чистый ответ, без <think>
-                        pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${parsedStepResponse.clean}\n\`\`\`\n\n`;
+                        // В лог записываем ТОЛЬКО чистый ответ
+                        pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
                 } else {
@@ -2227,10 +2224,11 @@
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];
                     if (selectedRole?.content) apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
-                    const cleanedHistory = messagesToSubmit.map(msg => ({ role: msg.role, content: parseThinkContent(msg.content).clean }));
+                    const cleanedHistory = messagesToSubmit.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
                     apiMessagesPayload.push(...cleanedHistory);
                     
-                    assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
+                    // Ответ от одиночной модели тоже очищаем
+                    assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
                     isSuccess = true;
                 }
         
@@ -2243,15 +2241,14 @@
                     lastError = error.message;
                 }
             } finally {
-                // Мы уже не используем getDoc, поэтому работаем с локальной копией
-                // и обновляем ее в конце
-                let finalMessages = currentMessages || messagesToSubmit;
+                const finalSessionDoc = await getDoc(sessionRef);
+                let finalMessages = finalSessionDoc.exists() ? finalSessionDoc.data().messages : messagesToSubmit;
         
                 if (selectedPipeline) {
                     const lastMessage = finalMessages.at(-1);
                     if (lastMessage && lastMessage.role === 'assistant') {
                         if (isSuccess) {
-                            lastMessage.content = assistantMessageContent; // Здесь уже чистый контент
+                            lastMessage.content = assistantMessageContent; // Здесь уже 100% чистый контент
                             lastMessage.pipelineTrace = pipelineTraceLog;
                         } else {
                             lastMessage.content = wasAborted 
@@ -2277,7 +2274,7 @@
         
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const chatTitle = activeSession?.title || 'Новый чат';
-                    const messagePreview = (assistantMessageContent || '').replace(/<[^>]*>/g, '').replace(/[#*`~_]/g, '').substring(0, 100);
+                    const messagePreview = (assistantMessageContent || '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }
             }

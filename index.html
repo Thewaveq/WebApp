@@ -1021,7 +1021,7 @@
             
             const fileRegex = /<file name="([^"]+)">([\s\S]*)<\/file>/;
             const fileMatch = contentAsString.match(fileRegex);
-
+        
             if (isUser && fileMatch) {
                 const fileName = fileMatch[1];
                 messageWrapper.className = 'message-container group relative flex flex-col mb-6 items-end';
@@ -1044,7 +1044,7 @@
                 lucide.createIcons({ nodes: [messageWrapper] });
                 return messageWrapper;
             }
-
+        
             const baseClasses = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl';
             const roleSpecificClasses = isUser ? 'user-message-bg items-end' : 'assistant-message-bg items-start';
             messageWrapper.className = `${baseClasses} ${roleSpecificClasses}`;
@@ -1052,7 +1052,7 @@
             headerDiv.className = `flex items-center space-x-3`;
             const iconDiv = document.createElement('div');
             iconDiv.className = `w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden`;
-
+        
             if (isUser) {
                 const user = auth.currentUser;
                 const userNameSpan = document.createElement('span');
@@ -1076,25 +1076,48 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'prose max-w-none mt-2 w-full';
-            let processedContent = String(msg.content || '')
-                .replace( // Обработка стандартного тега мыслей
+            
+            // ================= НАЧАЛО ИСПРАВЛЕНИЯ =================
+            
+            // Очищаем контейнер перед заполнением
+            contentDiv.innerHTML = '';
+        
+            // ПРОВЕРЯЕМ, ЕСТЬ ЛИ У СООБЩЕНИЯ ЛОГ ПАЙПЛАЙНА
+            if (msg.pipelineTrace) {
+                // 1. Создаем и парсим HTML для лога выполнения
+                const traceContent = marked.parse(msg.pipelineTrace, { breaks: true, gfm: true });
+                const traceDetailsHtml = `
+                    <details>
+                        <summary>Показать ход выполнения пайплайна</summary>
+                        <div>${traceContent}</div>
+                    </details>`;
+                
+                // 2. Создаем и парсим HTML для основного, чистого ответа
+                const mainContent = marked.parse(String(msg.content || ''), { breaks: true, gfm: true });
+            
+                // 3. Соединяем безопасный HTML и вставляем в контейнер
+                const combinedHtml = traceDetailsHtml + mainContent;
+                contentDiv.innerHTML = DOMPurify.sanitize(combinedHtml, { ADD_TAGS: ['details', 'summary'] });
+        
+            } else {
+                // ЕСЛИ ЛОГА НЕТ (обычное сообщение или модель без пайплайна)
+                // Просто обрабатываем `msg.content` как и раньше, но с вырезанием <think>
+                const processedContent = String(msg.content || '').replace(
                     /<think>([\s\S]*?)<\/think>/g,
                     `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
-                )
-                .replace( // Обработка нового тега для лога пайплайна
-                    /<pipeline_trace>([\s\S]*?)<\/pipeline_trace>/g,
-                    `<details><summary>Показать ход выполнения пайплайна</summary><div>$1</div></details>`
                 );
-            const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
-            contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
-
+                const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
+                contentDiv.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
+            }
+            // ================= КОНЕЦ ИСПРАВЛЕНИЯ =================
+            
             const actionsOuterContainer = document.createElement('div');
             actionsOuterContainer.className = 'absolute bottom-1 right-2 flex items-center bg-bg-element p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10';
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'message-actions-container';
             const dropdownMenu = document.createElement('div');
             dropdownMenu.className = 'message-actions-dropdown hidden';
-
+        
             const createMenuItem = (icon, text, customClass = '', dataset = {}) => {
                 const button = document.createElement('button');
                 button.className = `dropdown-menu-item ${customClass}`;
@@ -1103,7 +1126,7 @@
                 Object.keys(dataset).forEach(key => button.dataset[key] = dataset[key]);
                 return button;
             };
-
+        
             if (isUser) {
                 dropdownMenu.appendChild(createMenuItem('refresh-cw', 'Перегенерировать ответ', 'regenerate-user-message-btn', { messageIndex: index }));
                 dropdownMenu.appendChild(createMenuItem('pencil', 'Редактировать и отправить', 'edit-message-btn', { messageIndex: index }));
@@ -1133,12 +1156,12 @@
             dropdownMenu.appendChild(createMenuItem('clipboard', 'Копировать текст'))
                 .addEventListener('click', function() {
                     const buttonElement = this;
-
+        
                     navigator.clipboard.writeText(msg.content).then(() => {
                         const originalHTML = buttonElement.innerHTML;
-
+        
                         buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mx-auto"><polyline points="20 6 9 17 5 12"></polyline></svg>`;
-
+        
                         setTimeout(() => {
                             if (document.body.contains(buttonElement)) {
                                 buttonElement.innerHTML = originalHTML;
@@ -1164,11 +1187,11 @@
                     dropdownMenu.style.bottom = '100%';
                     dropdownMenu.style.marginTop = '';
                     dropdownMenu.style.marginBottom = '8px';
-
+        
                     const menuRect = dropdownMenu.getBoundingClientRect();
                     
                     const topMargin = 10; 
-
+        
                     if (menuRect.top < topMargin) {
                         dropdownMenu.style.top = '100%';
                         dropdownMenu.style.bottom = 'auto';
@@ -1186,7 +1209,7 @@
                     }, 0);
                 }
             });
-
+        
             actionsContainer.appendChild(moreOptionsBtn);
             actionsContainer.appendChild(dropdownMenu);
             actionsOuterContainer.appendChild(actionsContainer);
@@ -1203,7 +1226,7 @@
             messageWrapper.appendChild(contentDiv);
             messageWrapper.appendChild(actionsOuterContainer);
             messageWrapper.appendChild(leftActionsContainer);
-
+        
             if (leftActionsContainer && contentDiv && !isUser) {
                 const isComplex = /<think>|<pipeline_trace>/.test(contentAsString);
             
@@ -1222,7 +1245,7 @@
                     leftActionsContainer.appendChild(speakControlsContainer);
                 }
             }
-
+        
             messageWrapper.querySelectorAll('pre').forEach((preElement) => {
                  const codeBlock = preElement.querySelector('code');
                  if (!codeBlock) return;
@@ -1234,10 +1257,10 @@
                     const codeToShow = preElement.cloneNode(true);
                     const diagramContainer = document.createElement('div');
                     diagramContainer.className = 'mermaid-render-container hidden';
-
+        
                     const buttonsContainer = document.createElement('div');
                     buttonsContainer.className = 'diagram-actions-container';
-
+        
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'code-action-btn';
                     copyBtn.title = 'Копировать код диаграммы';
@@ -1248,7 +1271,7 @@
                          setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>'; lucide.createIcons(); }, 2000);
                          lucide.createIcons();
                     });
-
+        
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'code-action-btn';
                     toggleBtn.title = 'Показать/скрыть диаграмму';
@@ -1262,7 +1285,7 @@
                     diagramWrapper.appendChild(buttonsContainer);
                     
                     preElement.replaceWith(diagramWrapper);
-
+        
                     (async () => {
                         try {
                             await mermaid.parse(codeBlock.innerText);
@@ -1277,10 +1300,10 @@
                             lucide.createIcons({nodes: [toggleBtn]});
                         }
                     })();
-
+        
                     toggleBtn.addEventListener('click', async () => {
                         if (diagramContainer.querySelector('.text-red-400')) return;
-
+        
                         const isDiagramCurrentlyHidden = diagramContainer.classList.contains('hidden');
                         
                         if (isDiagramCurrentlyHidden && diagramContainer.innerHTML === '') {
@@ -1317,7 +1340,7 @@
                  }
                  hljs.highlightElement(codeBlock);
             });
-
+        
             lucide.createIcons({ attrs: { 'stroke-width': 1.5 }, nodes: [messageWrapper] });
             return messageWrapper;
         }
@@ -2153,16 +2176,27 @@
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
+            
+            // Вспомогательная функция для парсинга, будет жить только здесь
+            const parseThinkContent = (rawContent) => {
+                if (typeof rawContent !== 'string') return { thought: null, clean: '' };
+                const thinkRegex = /<think>([\s\S]*?)<\/think>/;
+                const match = rawContent.match(thinkRegex);
+                if (match) {
+                    return { thought: match.trim(), clean: rawContent.replace(thinkRegex, '').trim() };
+                }
+                return { thought: null, clean: rawContent.trim() };
+            };
         
             try {
-                // --- РЕЖИM ПАЙПЛАЙНА ---
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
                     
+                    // Создаем сообщение-плейсхолдер
                     const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
                     let currentMessages = [...messagesToSubmit, assistantMessage];
-                    await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+                    await updateDoc(sessionRef, { messages: currentMessages });
         
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
@@ -2174,51 +2208,36 @@
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
+                        
+                        // Временное обновление для индикатора
+                        const lastMsg = (await getDoc(sessionRef)).data().messages.at(-1);
+                        lastMsg.content = ''; // Ответ пока пуст
+                        lastMsg.pipelineTrace = `${pipelineTraceLog}*Выполняется...*`; // В лог пишем статус
+                        await updateDoc(sessionRef, { messages: arrayRemove(currentMessages.at(-1)), updatedAt: serverTimestamp() });
+                        await updateDoc(sessionRef, { messages: arrayUnion(lastMsg), updatedAt: serverTimestamp() });
+                        currentMessages[currentMessages.length - 1] = lastMsg;
         
-                        assistantMessage.content = `<pipeline_trace>${pipelineTraceLog}*Выполняется...*</pipeline_trace>`;
-                        currentMessages[currentMessages.length - 1] = assistantMessage;
-                        await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+                        const stepApiMessages = [{ role: 'user', content: currentInputContent }];
+                        if (step.roleContent) stepApiMessages.unshift({ role: 'system', content: step.roleContent });
                         
-                        const stepApiMessages = [];
-                        if (step.roleContent) stepApiMessages.push({ role: 'system', content: step.roleContent });
-                        stepApiMessages.push({ role: 'user', content: currentInputContent });
-                        
-                        pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n`;
-                        pipelineTraceLog += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
+                        pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
-        
-                        // ИЗМЕНЕНО: Используем новую надежную функцию-парсер
                         const parsedStepResponse = parseThinkContent(stepResponse);
                         
-                        // ИЗМЕНЕНО: На вход следующей модели передаем ТОЛЬКО чистый контент
                         currentInputContent = parsedStepResponse.clean;
-        
-                        // ИЗМЕНЕНО: Для финальной обработки сохраняем ПОЛНЫЙ ответ этого шага
                         assistantMessageContent = stepResponse; 
-        
                         pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${stepResponse}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
-        
-                // --- РЕЖИМ ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
                 } else {
+                    // Режим одиночной модели
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
-        
                     const apiMessagesPayload = [];
-                    if (selectedRole && selectedRole.content) {
-                        apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
-                    }
-                    const cleanedMessages = messagesToSubmit.map(msg => {
-                        if (msg.role === 'assistant' && typeof msg.content === 'string') {
-                            // ИЗМЕНЕНО: Также используем парсер для очистки истории
-                            const { clean } = parseThinkContent(msg.content);
-                            return { ...msg, content: clean };
-                        }
-                        return msg;
-                    });
-                    apiMessagesPayload.push(...cleanedMessages.map(m => ({ role: m.role, content: m.content })));
+                    if (selectedRole?.content) apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
+                    const cleanedHistory = messagesToSubmit.map(msg => ({ role: msg.role, content: parseThinkContent(msg.content).clean }));
+                    apiMessagesPayload.push(...cleanedHistory);
                     
                     assistantMessageContent = await callApi(provider, modelName, apiMessagesPayload, signal);
                     isSuccess = true;
@@ -2233,49 +2252,38 @@
                     lastError = error.message;
                 }
             } finally {
-                const finalActiveSession = state.sessions.find(s => s.id === sessionId);
-                let finalMessages = finalActiveSession ? [...finalActiveSession.messages] : [...messagesToSubmit];
+                const finalSessionDoc = await getDoc(sessionRef);
+                let finalMessages = finalSessionDoc.exists() ? finalSessionDoc.data().messages : messagesToSubmit;
         
-                // НОВЫЙ КОД: Полностью переписанная, надежная логика сборки финального сообщения
                 if (selectedPipeline) {
-                    // Ищем последнее сообщение ассистента, которое мы обновляем.
-                    const lastMessage = finalMessages.findLast(m => m.role === 'assistant');
-                    if (lastMessage) {
-                        let finalContent = '';
-                        const traceBlock = `<pipeline_trace>${pipelineTraceLog}</pipeline_trace>`;
-        
+                    const lastMessage = finalMessages.at(-1);
+                    if (lastMessage && lastMessage.role === 'assistant') {
                         if (isSuccess) {
-                            // Снова используем наш парсер для финального ответа
                             const parsedFinalResponse = parseThinkContent(assistantMessageContent);
-                            // СБОРКА: СНАЧАЛА идет блок с логом, а ПОТОМ, ПОСЛЕ НЕГО, идет чистый ответ.
-                            // Это гарантирует, что ответ никогда не попадет внутрь лога.
-                            finalContent = `${traceBlock}\n\n${parsedFinalResponse.clean}`;
-                        } else if (wasAborted) {
-                            finalContent = `${traceBlock}\n\n*Генерация была остановлена.*`;
+                            lastMessage.content = parsedFinalResponse.clean; // <-- Чистый ответ в content
+                            lastMessage.pipelineTrace = pipelineTraceLog;   // <-- Весь лог в pipelineTrace
                         } else {
-                            finalContent = `${traceBlock}\n\n**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
+                            lastMessage.content = wasAborted 
+                                ? '*Генерация была остановлена.*' 
+                                : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
+                            lastMessage.pipelineTrace = pipelineTraceLog;
                         }
-                        lastMessage.content = finalContent;
                     }
                 } else {
-                    // Этот блок для одиночной модели остается без изменений
-                    const finalModelName = modelName;
-                    const messageToAdd = wasAborted
-                        ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
-                        : isSuccess
-                            ? { role: 'assistant', content: assistantMessageContent, modelName: finalModelName }
-                            : { role: 'assistant', content: `**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`, modelName: finalModelName };
-                    
+                     // Для одиночной модели добавляем новое сообщение
+                    const messageToAdd = {
+                        role: 'assistant',
+                        modelName: modelName,
+                        content: isSuccess ? assistantMessageContent : (wasAborted ? '*Генерация была остановлена.*' : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`)
+                    };
                     finalMessages.push(messageToAdd);
                 }
                 
                 state.loadingSessionId = null;
                 generationAbortController = null;
         
-                render();
-        
-                // Обновляем ОДИН РАЗ в конце
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
+                render(); // render() вызывается после обновления данных
         
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const chatTitle = activeSession?.title || 'Новый чат';

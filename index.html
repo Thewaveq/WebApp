@@ -2155,24 +2155,22 @@
             const signal = generationAbortController.signal;
         
             state.loadingSessionId = sessionId;
-            render();
+            render(); // Обновляет UI, чтобы показать индикатор загрузки
         
-            let assistantMessageContent = '';
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
-            let pipelineTraceLog = '';
-        
+            
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
+        
+            // Локальная копия сообщений, чтобы избежать гонки состояний с Firestore
+            let currentMessages = [...messagesToSubmit];
         
             const getCleanContent = (rawContent) => {
                 if (typeof rawContent !== 'string') return '';
                 const thinkRegex = /<think>[\s\S]*?<\/think>/g;
                 return rawContent.replace(thinkRegex, '').trim();
             };
-            
-            // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ: Управляем состоянием сообщений локально, чтобы избежать гонки состояний ---
-            let currentMessages = [...messagesToSubmit];
         
             try {
                 const initialActiveSession = state.sessions.find(s => s.id === sessionId);
@@ -2180,14 +2178,19 @@
         
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     // --- ЛОГИКА ПАЙПЛАЙНА ---
-                    pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
+                    let pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
         
-                    // 1. Добавляем сообщение-плейсхолдер в наш локальный массив
-                    const assistantMessage = { role: 'assistant', content: '', modelName: selectedPipeline.name + " (Пайплайн)" };
+                    // 1. Создаем сообщение-плейсхолдер и сразу добавляем его в локальный массив
+                    const assistantMessage = { 
+                        role: 'assistant', 
+                        content: '*Инициализация пайплайна...*', 
+                        modelName: selectedPipeline.name + " (Пайплайн)",
+                        pipelineTrace: pipelineTraceLog
+                    };
                     currentMessages.push(assistantMessage);
         
-                    // 2. Немедленно обновляем Firestore, чтобы в интерфейсе появился пустой "пузырь" сообщения
+                    // 2. Сразу отправляем в Firestore, чтобы в UI появился "пузырь" сообщения
                     await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
@@ -2198,49 +2201,49 @@
                         const stepModelName = step.modelName;
         
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
-                        
-                        if (!currentInputContent && i > 0) {
-                            throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
-                        }
+                        if (!currentInputContent && i > 0) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
         
+                        // Обновляем лог ПЕРЕД вызовом API
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
+                        pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n*Выполняется...*\n`;
                         
-                        // 3. Обновляем `pipelineTrace` в последнем сообщении нашего локального массива
-                        const lastMessage = currentMessages[currentMessages.length - 1];
-                        lastMessage.pipelineTrace = `${pipelineTraceLog}*Выполняется...*`;
+                        // Получаем ссылку на наше сообщение-плейсхолдер
+                        const lastMessage = currentMessages.at(-1);
+                        lastMessage.pipelineTrace = pipelineTraceLog;
+                        lastMessage.content = `*Выполняется шаг ${i + 1}: ${stepModelName}...*`;
                         
-                        // 4. Снова обновляем Firestore, чтобы показать пользователю текущий прогресс
+                        // 3. Обновляем Firestore, чтобы показать пользователю, что шаг начался
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
-                        const stepApiMessages = [{ role: 'user', content: currentInputContent }];
-                        if (step.roleContent) stepApiMessages.unshift({ role: 'system', content: step.roleContent });
-                        
-                        pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
-                        
-                        const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
-                        
+                        const stepResponse = await callApi(stepProvider, stepModelName, [{ role: 'user', content: currentInputContent }], signal);
                         const cleanResponse = getCleanContent(stepResponse);
                         
+                        // Обновляем лог результатом
+                        pipelineTraceLog = pipelineTraceLog.replace('*Выполняется...*\n', `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`);
+                        
+                        // 4. *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+                        // Обновляем и КОНТЕНТ, и ТРЕЙС в локальном сообщении
+                        lastMessage.content = cleanResponse; // В контенте теперь результат ТЕКУЩЕГО шага
+                        lastMessage.pipelineTrace = pipelineTraceLog;
+                        
+                        // 5. Немедленно отправляем в Firestore, чтобы отобразить результат этого шага
+                        await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+                        
+                        // Готовим вход для следующего шага
                         currentInputContent = cleanResponse;
-                        assistantMessageContent = cleanResponse; // Сохраняем результат последнего успешного шага
-        
-                        pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
                 } else {
-                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (без изменений в логике вызова) ---
+                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];
                     if (selectedRole?.content) apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
-        
+                    
                     const cleanedHistory = currentMessages.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
-                    const filteredHistory = cleanedHistory.filter(msg => msg.role === 'system' || msg.content);
-                    apiMessagesPayload.push(...filteredHistory);
+                    apiMessagesPayload.push(...cleanedHistory.filter(msg => msg.role === 'system' || msg.content));
                     
-                    assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
-                    
-                    // Добавляем успешный ответ в наш локальный массив
+                    const assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
                     currentMessages.push({ role: 'assistant', content: assistantMessageContent, modelName: modelName });
                     isSuccess = true;
                 }
@@ -2254,50 +2257,33 @@
                     lastError = error.message;
                 }
             } finally {
-                state.loadingSessionId = null;
                 generationAbortController = null;
+                state.loadingSessionId = null;
         
-                const lastMessage = currentMessages.at(-1);
-        
-                if (isSuccess) {
-                    // Если всё успешно, обновляем последнее сообщение финальным контентом
-                    if (lastMessage && lastMessage.role === 'assistant') {
-                        lastMessage.content = assistantMessageContent;
-                        if (lastMessage.hasOwnProperty('pipelineTrace')) {
-                           lastMessage.pipelineTrace = pipelineTraceLog;
-                        }
-                    }
-                } else {
-                    // Если была ошибка, добавляем новое сообщение об ошибке или обновляем плейсхолдер
+                if (!isSuccess) {
                     const errorMessageContent = wasAborted 
                         ? '*Генерация была остановлена.*' 
                         : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
-
-                    if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content === '') {
-                        // Обновляем плейсхолдер пайплайна
+                    
+                    const lastMessage = currentMessages.at(-1);
+                    // Если у нас уже есть сообщение-плейсхолдер, обновляем его ошибкой
+                    if (lastMessage && lastMessage.role === 'assistant') {
                         lastMessage.content = errorMessageContent;
-                        if (lastMessage.hasOwnProperty('pipelineTrace')) {
-                           lastMessage.pipelineTrace = pipelineTraceLog + `\n**ОШИБКА:** ${lastError}`;
-                        }
-                    } else {
-                        // Добавляем новое сообщение об ошибке
-                        currentMessages.push({
-                            role: 'assistant',
-                            content: errorMessageContent,
-                            modelName: modelName || 'Ошибка'
-                        });
+                    } else { // Иначе добавляем новое сообщение с ошибкой
+                        currentMessages.push({ role: 'assistant', content: errorMessageContent, modelName: 'Ошибка' });
                     }
                 }
-                
-                // 5. Отправляем финальное, полностью сформированное состояние сообщений в Firestore.
-                await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
-                // render() вызывать не нужно, т.к. onSnapshot listener сделает это автоматически.
+                // Отправляем финальное состояние сообщений в Firestore
+                await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
+                
+                // onSnapshot сам обновит UI, но нам нужно вручную убрать индикаторы загрузки
+                render(); 
         
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {
                     const finalSessionForNotif = state.sessions.find(s => s.id === sessionId);
                     const chatTitle = finalSessionForNotif?.title || 'Новый чат';
-                    const messagePreview = (assistantMessageContent || '').substring(0, 100);
+                    const messagePreview = (currentMessages.at(-1)?.content || '').substring(0, 100);
                     showInAppNotification(`Новый ответ в чате "${chatTitle}"`, messagePreview, sessionId);
                 }
             }

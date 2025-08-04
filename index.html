@@ -2185,13 +2185,9 @@
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
                         if (signal.aborted) throw new Error('AbortError');
         
-                        // ================== ИСПРАВЛЕНИЕ REAL-TIME ОБНОВЛЕНИЙ ==================
-                        // На каждой итерации берем САМЫЕ СВЕЖИЕ данные из глобального состояния,
-                        // которое обновляется через onSnapshot.
                         const currentSessionState = state.sessions.find(s => s.id === sessionId);
                         if (!currentSessionState) throw new Error("Сессия была удалена во время генерации.");
                         const currentMessages = currentSessionState.messages;
-                        // =====================================================================
         
                         const step = selectedPipeline.steps[i];
                         const stepProvider = state.providers.find(p => p.id === step.providerId);
@@ -2199,12 +2195,9 @@
         
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         
-                        // ================== ИСПРАВЛЕНИЕ ОШИБКИ 200/502 ==================
-                        // Проверяем, что на вход модели не пойдет пустота.
                         if (!currentInputContent) {
                             throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
                         }
-                        // ================================================================
         
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
                         
@@ -2217,7 +2210,11 @@
                         
                         pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
-                        const stepResponse = await callApi(stepProvider, modelName, stepApiMessages, signal);
+                        // ================== ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ОШИБКИ 502 ==================
+                        // Используем правильную переменную `stepModelName` вместо `modelName`
+                        const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                        // ====================================================================
+        
                         const cleanResponse = getCleanContent(stepResponse);
                         
                         currentInputContent = cleanResponse;

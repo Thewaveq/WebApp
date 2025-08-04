@@ -2114,6 +2114,26 @@
                 activeSession.modelName
             );
         }
+
+        function parseThinkContent(rawContent) {
+            if (typeof rawContent !== 'string') {
+                return { thought: null, clean: '' };
+            }
+        
+            const thinkRegex = /<think>([\s\S]*?)<\/think>/;
+            const match = rawContent.match(thinkRegex);
+        
+            if (match) {
+                // match[0] - это весь тег с содержимым, например, "<think>...</think>"
+                // match[1] - это только содержимое внутри тега
+                const thoughtContent = match[1].trim();
+                const cleanContent = rawContent.replace(thinkRegex, '').trim();
+                return { thought: thoughtContent, clean: cleanContent };
+            } else {
+                // Если тега <think> нет, весь контент считается чистым.
+                return { thought: null, clean: rawContent.trim() };
+            }
+        }
         
         async function generateAssistantResponse(sessionId, messagesToSubmit, provider, selectedRole, modelName) {
             if (state.loadingSessionId) return;
@@ -2135,7 +2155,7 @@
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
         
             try {
-                // --- РЕЖИМ ПАЙПЛАЙНА ---
+                // --- РЕЖИM ПАЙПЛАЙНА ---
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = messagesToSubmit.findLast(m => m.role === 'user')?.content || '';
@@ -2167,10 +2187,16 @@
                         pipelineTraceLog += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
-                        const cleanContentForNextStep = stepResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        
+                        // ИЗМЕНЕНО: Используем новую надежную функцию-парсер
+                        const parsedStepResponse = parseThinkContent(stepResponse);
                         
-                        currentInputContent = cleanContentForNextStep;
-                        assistantMessageContent = stepResponse;
+                        // ИЗМЕНЕНО: На вход следующей модели передаем ТОЛЬКО чистый контент
+                        currentInputContent = parsedStepResponse.clean;
+        
+                        // ИЗМЕНЕНО: Для финальной обработки сохраняем ПОЛНЫЙ ответ этого шага
+                        assistantMessageContent = stepResponse; 
+        
                         pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${stepResponse}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
@@ -2186,8 +2212,9 @@
                     }
                     const cleanedMessages = messagesToSubmit.map(msg => {
                         if (msg.role === 'assistant' && typeof msg.content === 'string') {
-                            const cleanedContent = msg.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-                            return { ...msg, content: cleanedContent };
+                            // ИЗМЕНЕНО: Также используем парсер для очистки истории
+                            const { clean } = parseThinkContent(msg.content);
+                            return { ...msg, content: clean };
                         }
                         return msg;
                     });
@@ -2209,23 +2236,29 @@
                 const finalActiveSession = state.sessions.find(s => s.id === sessionId);
                 let finalMessages = finalActiveSession ? [...finalActiveSession.messages] : [...messagesToSubmit];
         
+                // НОВЫЙ КОД: Полностью переписанная, надежная логика сборки финального сообщения
                 if (selectedPipeline) {
-                    const lastMessage = finalMessages[finalMessages.length - 1];
-                    if (lastMessage?.role === 'assistant') {
+                    // Ищем последнее сообщение ассистента, которое мы обновляем.
+                    const lastMessage = finalMessages.findLast(m => m.role === 'assistant');
+                    if (lastMessage) {
                         let finalContent = '';
                         const traceBlock = `<pipeline_trace>${pipelineTraceLog}</pipeline_trace>`;
         
                         if (isSuccess) {
-                            const finalCleanContent = assistantMessageContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-                            finalContent = `${traceBlock}\n\n${finalCleanContent}`;
+                            // Снова используем наш парсер для финального ответа
+                            const parsedFinalResponse = parseThinkContent(assistantMessageContent);
+                            // СБОРКА: СНАЧАЛА идет блок с логом, а ПОТОМ, ПОСЛЕ НЕГО, идет чистый ответ.
+                            // Это гарантирует, что ответ никогда не попадет внутрь лога.
+                            finalContent = `${traceBlock}\n\n${parsedFinalResponse.clean}`;
                         } else if (wasAborted) {
                             finalContent = `${traceBlock}\n\n*Генерация была остановлена.*`;
                         } else {
-                            finalContent = `${traceBlock}\n\n**Ошибка:** Не удалось получить ответ. \n\n*Детали: ${lastError}*`;
+                            finalContent = `${traceBlock}\n\n**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
                         }
                         lastMessage.content = finalContent;
                     }
                 } else {
+                    // Этот блок для одиночной модели остается без изменений
                     const finalModelName = modelName;
                     const messageToAdd = wasAborted
                         ? { role: 'assistant', content: `*Генерация была остановлена.*`, modelName: finalModelName }
@@ -2241,6 +2274,7 @@
         
                 render();
         
+                // Обновляем ОДИН РАЗ в конце
                 await updateDoc(sessionRef, { messages: finalMessages, updatedAt: serverTimestamp() });
         
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {

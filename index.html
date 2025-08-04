@@ -2294,6 +2294,11 @@
                     
                     const cleanedHistory = currentMessages.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
                     apiMessagesPayload.push(...cleanedHistory.filter(msg => msg.role === 'system' || msg.content));
+
+                    console.log("%cПОДГОТОВКА К ВЫЗОВУ API (Обычный режим):", "color: yellow; font-weight: bold;");
+                    console.log("Провайдер:", provider);
+                    console.log("Имя модели:", modelName);
+                    console.log("Отправляемые сообщения:", JSON.parse(JSON.stringify(apiMessagesPayload))); 
                     
                     const assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
                     currentMessages.push({ role: 'assistant', content: assistantMessageContent, modelName: modelName });

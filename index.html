@@ -43,7 +43,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
     <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
     
-    <!-- Стили вынесены в отдельный файл -->
     <link rel="stylesheet" href="styles.css">
 
 </head>
@@ -206,7 +205,6 @@
         </div>
     </div>
     <div id="auth-prompt-modal" class="modal-overlay hidden">
-    <!-- ИЗМЕНЕНИЕ 1: Добавлен класс max-h-[90vh] для ограничения высоты на мобильных устройствах -->
         <div class="modal-content !max-w-4xl !p-0 flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
     
             <!-- Левая колонка с вашим логотипом (без изменений) -->
@@ -215,7 +213,6 @@
             </div>
     
             <!-- Правая колонка с контентом -->
-            <!-- ИЗМЕНЕНИЕ 2: Добавлен класс overflow-y-auto для включения вертикальной прокрутки -->
             <div class="flex flex-col flex-1 p-8 md:p-10 overflow-y-auto">
                 <h2 class="text-3xl font-bold text-text-primary mb-3">Раскройте полный потенциал MBOX</h2>
                 <p class="text-text-secondary mb-8">Войдите, чтобы получить доступ ко всем возможностям и синхронизировать вашу работу.</p>
@@ -244,12 +241,12 @@
                     </div>
                 </div>
     
-                <div class="mt-auto pt-4"> <!-- Добавлен небольшой отступ сверху для красоты при скролле -->
+                <div class="mt-auto pt-4">
                      <button id="google-signin-btn-modal" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors text-base">
                         <svg class="w-5 h-5 mr-3" viewBox="0 0 48 48" fill="currentColor"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
                         Войти через Google
                     </button>
-                     <p class="text-xs text-text-secondary text-center mt-3">Быстрый и безопасный вход. Мы никогда не будем отправлять вам спам.</p>
+                     <p class="text-xs text-text-secondary text-center mt-3">Быстрый и безопасный вход.</p>
                 </div>
             </div>
         </div>
@@ -333,7 +330,6 @@
         
         // --- СОХРАНЕНИЕ СОСТОЯНИЯ ---
          function loadUserPreferences() {
-            // Загрузка настроек ширины
             const savedCompactMode = localStorage.getItem('chatViewCompact');
             if (savedCompactMode !== null) state.isChatWidthCompact = (savedCompactMode === 'true');
             const savedNotepadCompactMode = localStorage.getItem('notepadViewCompact');
@@ -367,7 +363,6 @@
         // --- ФУНКЦИИ ОЗВУЧКИ ---
         function loadAndSortVoices() {
             try {
-                // Очищаем предыдущий список и останавливаем любое текущее воспроизведение
                 if (synth.speaking) {
                     synth.cancel();
                 }
@@ -396,7 +391,6 @@
         
             if (synth.speaking) {
                 synth.cancel();
-                // Иконка сама вернется в 'volume-2' по событию onend, которое сработает при отмене.
                 return;
             }
         
@@ -489,7 +483,6 @@
             try {
                 while (!signal.aborted) {
                     const currentPhrase = typewriterPhrases[phraseIndex];
-                    // Печать текста
                     for (let charIndex = 0; charIndex < currentPhrase.length; charIndex++) {
                         if (signal.aborted) return;
                         element.textContent = currentPhrase.substring(0, charIndex + 1);
@@ -497,7 +490,6 @@
                     }
                     if (signal.aborted) return;
                     await sleep(newPhraseDelay);
-                    // Стирание текста
                     for (let charIndex = currentPhrase.length; charIndex > 0; charIndex--) {
                         if (signal.aborted) return;
                         element.textContent = currentPhrase.substring(0, charIndex - 1);
@@ -755,13 +747,11 @@
             const list = document.getElementById('pipelines-list');
             if (!list) return;
 
-            // Проверяем, есть ли пайплайны
             if (!state.pipelines || state.pipelines.length === 0) {
                 list.innerHTML = `<p class="text-text-secondary md:col-span-2 xl:col-span-3 text-center py-10">Нет созданных пайплайнов. Нажмите "Создать пайплайн", чтобы начать.</p>`;
                 return;
             }
 
-            // Генерируем HTML для каждого пайплайна
             list.innerHTML = state.pipelines.map(p => {
                 const stepCount = (p.steps && p.steps.length) > 0 ? p.steps.length : 0;
                 const stepSummary = stepCount > 0 
@@ -811,7 +801,6 @@
         }
         
         function getChatViewHTML(activeSession) { 
-            // --- Существующий код для опций ---
             const roleOptions = state.roles.map(r => `<option value="${r.id}" ${r.id === activeSession.roleId ? 'selected' : ''}>${r.name}</option>`).join('');
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === activeSession.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
             
@@ -826,12 +815,8 @@
                 }
             }
 
-            // --- НОВЫЙ КОД: Опции для выбора пайплайна ---
             const pipelineOptions = (state.pipelines || []).map(p => `<option value="${p.id}" ${p.id === activeSession.pipelineId ? 'selected' : ''}>${p.name}</option>`).join('');
-
             const isSettingsPanelVisible = state.isSettingsPanelExpanded;
-
-            // Определяем, активен ли режим пайплайна
             const isPipelineMode = !!activeSession.pipelineId;
         
             return `
@@ -967,7 +952,7 @@
         
             let processedContent = (content || '').replace(
                 /<think>([\s\S]*?)<\/think>/g,
-                `<details><summary>Показать ход мыслей</summary><div>$1</div></details>`
+                `<details><summary>Ход мыслей</summary><div>$1</div></details>`
             );
             const rawHtml = marked.parse(processedContent, { breaks: true, gfm: true });
             proseContainer.innerHTML = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['details', 'summary'] });
@@ -1012,7 +997,7 @@
             return `
                 <div class="flex flex-col h-full relative overflow-hidden" id="notepad-view-container">
                     
-                    <!-- Плавающие кнопки управления (по аналогии с чатом) -->
+                    <!-- Плавающие кнопки управления -->
                     <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
                         <button id="notepad-width-toggle" title="Переключить ширину контента" class="chat-action-btn hidden lg:flex">
                             <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -1022,7 +1007,7 @@
                         </button>
                     </div>
         
-                    <!-- Плавающая панель настроек (по аналогии с чатом) -->
+                    <!-- Плавающая панель настроек -->
                     <div id="notepad-settings-panel" class="absolute top-16 right-3 z-20 w-[calc(100%-1.5rem)] max-w-sm bg-bg-sidebar/90 backdrop-blur-xl border border-border-color rounded-lg shadow-2xl p-4 space-y-4 transition-all duration-300 transform ${isSettingsPanelVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}">
                         <h3 class="font-bold text-lg border-b border-border-color pb-3 mb-4">Настройки папки</h3>
                         <div>
@@ -1132,7 +1117,7 @@
                 const traceContent = marked.parse(msg.pipelineTrace, { breaks: true, gfm: true });
                 const traceDetailsHtml = `
                     <details>
-                        <summary>Показать ход выполнения пайплайна</summary>
+                        <summary>Ход пайплайна</summary>
                         <div>${traceContent}</div>
                     </details>`;
                 
@@ -1577,7 +1562,6 @@
             const dropOverlay = document.getElementById('drop-overlay');
             const attachmentPreviewContainer = document.getElementById('attachment-preview-container');
 
-            // --- Управление высотой поля ввода ---
             const MAX_VIEWPORT_HEIGHT_RATIO = 0.9;
             const adjustLayout = () => {
                 if (!form || !messagesContainer || !input) return;
@@ -1611,7 +1595,6 @@
                 }, 0);
             };
 
-            // --- Управление прикреплением файлов ---
             const renderAttachmentPreview = () => {
                 if (!attachmentPreviewContainer) return;
                 if (attachedFile) {
@@ -1671,8 +1654,8 @@
             const providerSelect = document.getElementById('provider-select');
             const modelSelect = document.getElementById('model-select');
             const roleSelect = document.getElementById('role-select');
-            const pipelineSelect = document.getElementById('pipeline-select'); // НОВЫЙ ЭЛЕМЕНТ
-            const singleModelSettings = document.getElementById('single-model-settings'); // НОВЫЙ ЭЛЕМЕНТ
+            const pipelineSelect = document.getElementById('pipeline-select');
+            const singleModelSettings = document.getElementById('single-model-settings');
             
             if (widthToggleBtn) {
                 const isExpanded = !state.isChatWidthCompact;
@@ -1706,7 +1689,6 @@
                 if (isVisible) { document.addEventListener('click', closeOnOutsideClick, { capture: true, once: true }); }
             });
 
-            // --- Обработка отправки формы и ввода ---
             form?.addEventListener('submit', handleChatSubmit);
             input?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -1724,7 +1706,6 @@
                 setTimeout(adjustLayout, 100);
             }
 
-            // --- Обработка изменений в настройках чата ---
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, state.activeSessionId);
             titleInput?.addEventListener('change', (e) => updateDoc(sessionRef, { title: e.target.value }));
             roleSelect?.addEventListener('change', (e) => updateDoc(sessionRef, { roleId: e.target.value }));
@@ -1747,15 +1728,12 @@
             
             modelSelect?.addEventListener('change', (e) => updateDoc(sessionRef, { modelName: e.target.value }));
 
-            // --- НОВАЯ ЛОГИКА: ОБРАБОТКА ВЫБОРА ПАЙПЛАЙНА ---
             pipelineSelect?.addEventListener('change', (e) => {
                 const newPipelineId = e.target.value;
                 const isPipelineMode = !!newPipelineId;
 
-                // Обновляем состояние в Firestore
                 updateDoc(sessionRef, { pipelineId: newPipelineId || deleteField() });
 
-                // Обновляем интерфейс настроек
                 if (singleModelSettings) {
                     singleModelSettings.classList.toggle('opacity-50', isPipelineMode);
                     singleModelSettings.classList.toggle('pointer-events-none', isPipelineMode);
@@ -1952,7 +1930,7 @@
                 splitInstance = Split(['#diagram-code-panel', '#diagram-preview-panel'], {
                     sizes: initialSizes,
                     minSize: 0,
-                    gutterSize: isMobile ? 20 : 10, // *** ИЗМЕНЕНИЕ: Увеличенная область для мобильных ***
+                    gutterSize: isMobile ? 20 : 10,
                     direction: isMobile ? 'vertical' : 'horizontal',
                     cursor: isMobile ? 'row-resize' : 'col-resize',
                     onDragEnd: function(sizes) {
@@ -1998,10 +1976,8 @@
                 }
         
                 try {
-                    // <-- РЕШЕНИЕ №2: Сначала парсим, чтобы перехватить ошибку ДО рендеринга
                     await mermaid.parse(diagramCode);
         
-                    // Если парсинг прошел успешно, рендерим
                     const { svg, bindFunctions } = await mermaid.render('mermaid-graph-' + Date.now(), diagramCode);
                     output.innerHTML = svg;
                     if (bindFunctions) bindFunctions(output);
@@ -2015,7 +1991,6 @@
                     }
         
                 } catch (error) {
-                    // Теперь мы ловим ошибку от parse() и безопасно выводим ее
                     const errorMessage = (error.str || error.message || 'Неизвестная ошибка синтаксиса').replace(/</g, "<").replace(/>/g, ">");
                     output.innerHTML = `
                         <div class="text-center p-4 flex flex-col items-center justify-center h-full">
@@ -2083,7 +2058,7 @@
             const brightnessSlider = document.getElementById('accent-brightness-slider');
             const brightnessDisplay = document.getElementById('brightness-value-display');
 
-            const DEFAULT_ACCENT_RGB = '0, 0, 0'; // Стандартный синий
+            const DEFAULT_ACCENT_RGB = '0, 0, 0';
             const DEFAULT_BRIGHTNESS = '20';
 
             if (colorPicker) {
@@ -2155,12 +2130,10 @@
             }
             
             input.value = '';
-            // Триггерим событие input, чтобы ваша функция adjustLayout сбросила высоту поля
             input.dispatchEvent(new Event('input', { bubbles: true }));
             
             if (attachedFile) {
                 attachedFile = null;
-                // Удаляем предпросмотр и снова вызываем adjustLayout
                 document.getElementById('attachment-preview-container').innerHTML = '';
                 input.dispatchEvent(new Event('input', { bubbles: true }));
             }
@@ -2186,13 +2159,10 @@
             const match = rawContent.match(thinkRegex);
         
             if (match) {
-                // match[0] - это весь тег с содержимым, например, "<think>...</think>"
-                // match[1] - это только содержимое внутри тега
                 const thoughtContent = match[1].trim();
                 const cleanContent = rawContent.replace(thinkRegex, '').trim();
                 return { thought: thoughtContent, clean: cleanContent };
             } else {
-                // Если тега <think> нет, весь контент считается чистым.
                 return { thought: null, clean: rawContent.trim() };
             }
         }
@@ -2224,7 +2194,6 @@
                 const selectedPipeline = initialActiveSession?.pipelineId ? state.pipelines.find(p => p.id === initialActiveSession.pipelineId) : null;
         
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
-                    // --- ЛОГИКА ПАЙПЛАЙНА ---
                     let pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let lastStepOutput = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
 
@@ -2247,15 +2216,12 @@
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         if (!lastStepOutput) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
 
-                        // *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Собираем ОДИН промпт из роли и данных ***
-                        const stepInstruction = step.roleContent || ''; // Роль/инструкция для этого шага
+                        const stepInstruction = step.roleContent || '';
                         let finalApiContent;
 
                         if (stepInstruction) {
-                            // Если есть инструкция, формируем полный промпт
                             finalApiContent = `${stepInstruction}\n\n---\n\nВот данные, которые нужно обработать:\n\n${lastStepOutput}`;
                         } else {
-                            // Если инструкции нет, просто передаем данные
                             finalApiContent = lastStepOutput;
                         }
                         
@@ -2268,7 +2234,6 @@
                         
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
-                        // *** ВОЗВРАЩАЕМСЯ К СТАРОЙ, РАБОЧЕЙ СТРУКТУРЕ ВЫЗОВА API ***
                         const apiMessages = [{ role: 'user', content: finalApiContent }];
                         
                         const stepResponse = await callApi(stepProvider, stepModelName, apiMessages, signal);
@@ -2281,12 +2246,10 @@
                         
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
-                        // Готовим выход для следующего шага
                         lastStepOutput = cleanResponse;
                     }
                     isSuccess = true;
                 } else {
-                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (не тронута, работает как раньше) ---
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];
@@ -2295,11 +2258,6 @@
                     const cleanedHistory = currentMessages.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
                     apiMessagesPayload.push(...cleanedHistory.filter(msg => msg.role === 'system' || msg.content));
 
-                    console.log("%cПОДГОТОВКА К ВЫЗОВУ API (Обычный режим):", "color: yellow; font-weight: bold;");
-                    console.log("Провайдер:", provider);
-                    console.log("Имя модели:", modelName);
-                    console.log("Отправляемые сообщения:", JSON.parse(JSON.stringify(apiMessagesPayload))); 
-                    
                     const assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
                     currentMessages.push({ role: 'assistant', content: assistantMessageContent, modelName: modelName });
                     isSuccess = true;
@@ -2314,7 +2272,6 @@
                     lastError = error.message;
                 }
             } finally {
-                // ... остальная часть функции без изменений
                 generationAbortController = null;
                 state.loadingSessionId = null;
         
@@ -2362,7 +2319,6 @@
             return '';
         }
         
-        // Вспомогательная функция для вызова API, чтобы избежать дублирования кода
         async function callApi(provider, modelName, messages, signal) {
             const apiKeys = provider.apiKeys || [];
             if (apiKeys.length === 0) throw new Error(`У провайдера "${provider.name}" нет API ключей.`);
@@ -2386,13 +2342,10 @@
         
                 const rawTextResponse = await response.text();
         
-                // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ---
-                // Проверяем, что ответ успешный И что тело ответа НЕ пустое и НЕ равно 'null'.
                 if (!response.ok || !rawTextResponse || rawTextResponse === 'null') {
                     throw new Error(`API вернул некорректный или пустой ответ (Статус: ${response.status}). Возможно, модель временно недоступна или неверно указано ее имя.`);
                 }
                 
-                // Теперь мы уверены, что у нас есть валидный JSON для парсинга.
                 const data = JSON.parse(rawTextResponse);
         
                 if (data.error) {
@@ -2415,23 +2368,18 @@
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
         
-            // Убираем старый индикатор, если он был
             const oldIndicator = document.getElementById('loading-message-placeholder');
             if(oldIndicator) {
                 if (typewriterAbortController) typewriterAbortController.abort();
                 oldIndicator.remove();
             }
         
-            // Запускаем новый контроллер для анимации текста
             typewriterAbortController = new AbortController();
         
-            // СОЗДАЕМ КОНТЕЙНЕР С ПРАВИЛЬНЫМИ КЛАССАМИ, КАК У ОБЫЧНОГО СООБЩЕНИЯ
             const loadingMessageWrapper = document.createElement('div');
             loadingMessageWrapper.id = 'loading-message-placeholder';
-            // ВОТ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: добавлены все классы от обычного сообщения
             loadingMessageWrapper.className = 'message-container group relative flex flex-col mb-6 p-4 rounded-xl assistant-message-bg items-start';
         
-            // Внутренняя структура из вашего примера
             loadingMessageWrapper.innerHTML = `
                 <div class="loader-content">
                     <div class="loading-avatar">
@@ -2491,7 +2439,6 @@
         
             const typingIndicator = document.getElementById('loading-message-placeholder');
             if (typingIndicator) {
-                // Прерываем анимацию текста перед удалением элемента
                 if (typewriterAbortController) {
                     typewriterAbortController.abort();
                     typewriterAbortController = null;
@@ -2519,7 +2466,6 @@
                 const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/providers`), newProviderData);
                 handleOpenEditProviderModal(docRef.id);
             } catch (error) {
-                console.error("Ошибка при добавлении провайдера: ", error);
                 showModalAlert("Не удалось создать провайдера.");
             } finally {
                 state.isLoading = false;
@@ -2538,7 +2484,6 @@
                 const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/roles`), newRoleData);
                 handleOpenEditRoleModal(docRef.id);
             } catch (error) {
-                console.error("Ошибка при добавлении роли: ", error);
                 showModalAlert("Не удалось создать роль.");
             } finally {
                 state.isLoading = false;
@@ -2621,8 +2566,6 @@
             editRoleModal.classList.add('hidden');
         }
     
-        // function copyToClipboard(text) { navigator.clipboard.writeText(text).catch(err => console.error('Не удалось скопировать текст: ', err)); }
-        // function showConfirmModal(message, onConfirm) { confirmModalText.textContent = message; confirmModalCallback = onConfirm; confirmModal.classList.remove('hidden'); }
         function hideConfirmModal() { confirmModal.classList.add('hidden'); confirmModalCallback = null; }
         function showModalAlert(message) { confirmModalText.textContent = message; confirmModalYesBtn.classList.add('hidden'); confirmModalNoBtn.textContent = 'OK'; confirmModal.classList.remove('hidden'); confirmModalCallback = () => { confirmModalYesBtn.classList.remove('hidden'); confirmModalNoBtn.textContent = 'Нет'; }; }
 
@@ -2678,10 +2621,8 @@
         }
 
         function createInlineConfirmation(clickedButton, onConfirm) {
-            // Прячем оригинальную кнопку
             clickedButton.style.display = 'none';
 
-            // Создаем контейнер для подтверждения
             const confirmContainer = document.createElement('div');
             confirmContainer.className = 'inline-confirm-container flex items-center space-x-2';
             confirmContainer.innerHTML = `
@@ -2694,18 +2635,15 @@
                 </button>
             `;
             
-            // Вставляем блок подтверждения сразу после скрытой кнопки
             clickedButton.after(confirmContainer);
             lucide.createIcons({ nodes: [confirmContainer] });
 
-            // Функция для очистки и восстановления
             const cleanupAndRestore = () => {
                 confirmContainer.remove();
-                clickedButton.style.display = ''; // Показываем кнопку обратно
+                clickedButton.style.display = '';
                 document.removeEventListener('click', clickOutsideHandler, { capture: true });
             };
 
-            // Обработчики для кнопок "Да" и "Нет"
             confirmContainer.querySelector('.confirm-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 onConfirm();
@@ -2717,7 +2655,6 @@
                 cleanupAndRestore();
             });
 
-            // Обработчик для клика вне элемента для отмены
             const clickOutsideHandler = (event) => {
                 if (!confirmContainer.contains(event.target)) {
                     cleanupAndRestore();
@@ -2834,7 +2771,6 @@
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp()
                     };
-                // ДОБАВЛЕН БЛОК ДЛЯ ДИАГРАММ
                 } else if (type === 'diagrams') {
                     newSessionData = {
                         type: 'diagrams',
@@ -2859,7 +2795,6 @@
             newNoteBtn.addEventListener('click', () => createNewItem('notepad'));
             newDiagramBtn.addEventListener('click', () => createNewItem('diagrams'));
 
-            // --- УПРАВЛЕНИЕ БОКОВОЙ ПАНЕЛЬЮ ---
             document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
                 if (window.innerWidth < 1024) {
                     sidebar.classList.toggle('open');
@@ -3026,7 +2961,6 @@
                     });
                 }
                 
-                // --- Управление Провайдерами и Ролями из Настроек ---
                 if (e.target.closest('#add-new-provider-btn')) handleAddProvider();
                 if (e.target.closest('#add-new-role-btn')) handleAddRole();
                 if (e.target.closest('#add-new-pipeline-btn')) handleAddPipeline();
@@ -3050,9 +2984,7 @@
                 if (editPipelineBtn) handleOpenEditPipelineModal(editPipelineBtn.dataset.id);
             });
 
-            // --- ЛОГИКА МОДАЛЬНОГО ОКНА РЕДАКТОРА ПАЙПЛАЙНОВ ---
             if (editPipelineModal) {
-                // Обработчик кликов внутри модального окна (добавление/удаление шагов)
                 editPipelineModal.addEventListener('click', (e) => {
                     const stepsContainer = document.getElementById('pipeline-steps-container');
                     if (!stepsContainer) return;
@@ -3084,7 +3016,6 @@
                     }
                 });
 
-                // Обработчик изменения провайдера для динамической смены моделей
                 editPipelineModal.addEventListener('change', (e) => {
                     const providerSelect = e.target;
                     if (providerSelect.matches('.step-provider-select')) {
@@ -3102,12 +3033,10 @@
                     }
                 });
                 
-                // Обработчик кнопки "Отмена" в модальном окне
                 editPipelineCancelBtn.addEventListener('click', () => {
                     editPipelineModal.classList.add('hidden');
                 });
 
-                // ОБРАБОТЧИК СОХРАНЕНИЯ ПАЙПЛАЙНА
                 editPipelineForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const pipelineId = document.getElementById('edit-pipeline-id').value;
@@ -3135,7 +3064,6 @@
                 });
             }
             
-            // --- ОСТАЛЬНЫЕ ОБРАБОТЧИКИ (МОДАЛЬНЫЕ ОКНА, АУТЕНТИФИКАЦИЯ) ---
             confirmModalYesBtn.addEventListener('click', () => { if (confirmModalCallback) confirmModalCallback(); hideConfirmModal(); });
             confirmModalNoBtn.addEventListener('click', () => { if(confirmModalNoBtn.textContent === 'OK' && confirmModalCallback) confirmModalCallback(); hideConfirmModal(); });
 
@@ -3154,17 +3082,14 @@
         }
 
         function renderPipelineStep(step, index) {
-            // Генерируем опции для выбора провайдера
             const providerOptions = state.providers.map(p => `<option value="${p.id}" ${p.id === step.providerId ? 'selected' : ''}>${p.name}</option>`).join('');
 
-            // Генерируем опции для выбора модели на основе выбранного провайдера
             let modelOptions = '<option value="" disabled>Сначала выберите провайдера</option>';
             const selectedProvider = state.providers.find(p => p.id === step.providerId);
             if (selectedProvider && selectedProvider.models) {
                 modelOptions = selectedProvider.models.map(m => `<option value="${m}" ${m === step.modelName ? 'selected' : ''}>${m}</option>`).join('');
             }
 
-            // HTML-структура для одного шага
             const stepHTML = `
                 <div class="pipeline-step bg-bg-main p-3 rounded-lg border border-border-color" data-step-index="${index}">
                     <div class="flex justify-between items-center mb-2">
@@ -3204,29 +3129,22 @@
                 return;
             }
 
-            // Заполняем простые поля
             document.getElementById('edit-pipeline-id').value = pipelineToEdit.id;
             document.getElementById('edit-pipeline-name').value = pipelineToEdit.name;
 
-            // Находим контейнер для шагов
             const stepsContainer = document.getElementById('pipeline-steps-container');
-            stepsContainer.innerHTML = ''; // Очищаем от предыдущих шагов
+            stepsContainer.innerHTML = '';
 
-            // Отрисовываем каждый шаг пайплайна
             if (pipelineToEdit.steps && pipelineToEdit.steps.length > 0) {
                 pipelineToEdit.steps.forEach((step, index) => {
                     const stepHTML = renderPipelineStep(step, index);
                     stepsContainer.insertAdjacentHTML('beforeend', stepHTML);
                 });
             } else {
-                // Если шагов нет, показываем сообщение
                 stepsContainer.innerHTML = '<p id="no-steps-message" class="text-center text-sm text-text-secondary py-4">В этом пайплайне пока нет шагов. Нажмите "Добавить шаг", чтобы начать.</p>';
             }
 
-            // Показываем иконки
             lucide.createIcons();
-
-            // Открываем модальное окно
             editPipelineModal.classList.remove('hidden');
         }
         
@@ -3234,7 +3152,6 @@
             unsubscribeSessions(); unsubscribeProviders(); unsubscribeRoles(); unsubscribePipelines(); // Добавили unsubscribePipelines
             if (!userId) return;
         
-            // --- НОВЫЙ СЛУШАТЕЛЬ ДЛЯ ПАЙПЛАЙНОВ ---
             const pipelinesCol = collection(db, `artifacts/${appId}/users/${userId}/pipelines`);
             unsubscribePipelines = onSnapshot(pipelinesCol, (snapshot) => {
                 state.pipelines = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -3245,8 +3162,6 @@
                 }
             }, error => console.error("Pipeline listener error: ", error));
 
-
-            // --- СУЩЕСТВУЮЩИЕ СЛУШАТЕЛИ (без изменений) ---
             const sessionsCol = collection(db, `artifacts/${appId}/users/${userId}/sessions`);
             unsubscribeSessions = onSnapshot(sessionsCol, (snapshot) => {
                 state.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -3292,17 +3207,14 @@
             if (state.isLoading) return;
             state.isLoading = true;
             try {
-                // Создаем базовую структуру для нового пайплайна
                 const newPipelineData = {
                     name: 'Новый пайплайн',
-                    steps: [], // Начинаем с пустого массива шагов
+                    steps: [],
                     createdAt: serverTimestamp()
                 };
                 
-                // Добавляем документ в коллекцию 'pipelines'
                 const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/pipelines`), newPipelineData);
                 
-                // Сразу же открываем модальное окно для редактирования созданного пайплайна
                 handleOpenEditPipelineModal(docRef.id);
 
             } catch (error) {
@@ -3367,7 +3279,6 @@
                     console.warn("Web Speech API (Text-to-Speech) не поддерживается в этом браузере.");
                 }
                 
-                // НОВЫЙ КОД: Получаем ссылки на элементы нового модального окна
                 const authPromptModal = document.getElementById('auth-prompt-modal');
                 const googleSignInBtnInModal = document.getElementById('google-signin-btn-modal');
 
@@ -3384,7 +3295,6 @@
                         document.getElementById('user-name').textContent = user.displayName || 'Анонимный пользователь';
                         document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'A'}&background=random`;
                         
-                        // НОВЫЙ КОД: Скрываем модальное окно, если пользователь вошел в систему
                         if (authPromptModal) authPromptModal.classList.add('hidden');
 
                         state.isAuthReady = true;
@@ -3394,7 +3304,6 @@
                         googleBtn.classList.remove('hidden');
                         userProfile.classList.add('hidden');
                         
-                        // НОВЫЙ КОД: Показываем модальное окно, если пользователь не авторизован
                         if (authPromptModal) authPromptModal.classList.remove('hidden');
 
                         state.isAuthReady = false; 
@@ -3404,15 +3313,12 @@
                     updateSidebarView();
                 });
 
-                // НОВЫЙ КОД: Добавляем обработчики для кнопок нового модального окна
                 if (googleSignInBtnInModal) {
                     googleSignInBtnInModal.addEventListener('click', async () => {
                         try {
                             await signInWithPopup(auth, new GoogleAuthProvider());
-                            // Модальное окно закроется автоматически, т.к. сработает onAuthStateChanged
                         } catch (error) {
                             console.error("Google sign-in error from modal", error);
-                            // Можно показать кастомное сообщение об ошибке
                             if (authPromptModal) authPromptModal.classList.add('hidden');
                             showModalAlert("Не удалось войти через Google. Ошибка: " + error.message);
                         }

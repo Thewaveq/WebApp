@@ -2338,47 +2338,64 @@
         
         async function callApi(provider, modelName, messages, signal) {
             const apiKeys = provider.apiKeys || [];
-            if (apiKeys.length === 0) throw new Error(`У провайдера "${provider.name}" нет API ключей.`);
-            const currentKey = apiKeys[0];
-        
-            try {
-                const fullUrl = new URL(provider.path, provider.baseUrl).href;
-                
-                const proxyRequestBody = {
-                    targetUrl: fullUrl,
-                    apiKey: currentKey,
-                    payload: { model: modelName, messages: messages }
-                };
-        
-                const response = await fetch('/api/proxy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(proxyRequestBody),
-                    signal: signal
-                });
-        
-                const rawTextResponse = await response.text();
-        
-                if (!response.ok || !rawTextResponse || rawTextResponse === 'null') {
-                    throw new Error(`API вернул некорректный или пустой ответ (Статус: ${response.status}). Возможно, модель временно недоступна или неверно указано ее имя.`);
-                }
-                
-                const data = JSON.parse(rawTextResponse);
-        
-                if (data.error) {
-                    throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
-                }
-                if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
-                    throw new Error('Ответ от API не содержит ожидаемых данных (`choices`).');
-                }
-                
-                return parseApiResponseContent(data.choices[0].message.content);
-        
-            } catch (error) {
-                if (error.name === 'AbortError') throw error;
-                console.error(`Ошибка при вызове API через прокси:`, error);
-                throw new Error(error.message);
+            if (apiKeys.length === 0) {
+                throw new Error(`У провайдера "${provider.name}" нет API ключей.`);
             }
+        
+            const startIndex = provider.currentKeyIndex || 0;
+            let lastError = null;
+        
+            for (let i = 0; i < apiKeys.length; i++) {
+                const keyIndex = (startIndex + i) % apiKeys.length;
+                const currentKey = apiKeys[keyIndex];
+        
+                try {
+                    const fullUrl = new URL(provider.path, provider.baseUrl).href;
+                    const proxyRequestBody = {
+                        targetUrl: fullUrl,
+                        apiKey: currentKey,
+                        payload: { model: modelName, messages: messages }
+                    };
+        
+                    const response = await fetch('/api/proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(proxyRequestBody),
+                        signal: signal
+                    });
+        
+                    if (response.status !== 401 && response.status !== 429) {
+                        const rawTextResponse = await response.text();
+                        if (!response.ok || !rawTextResponse || rawTextResponse === 'null') {
+                             throw new Error(`API вернул некорректный или пустой ответ (Статус: ${response.status}). Возможно, модель временно недоступна или неверно указано ее имя.`);
+                        }
+                        const data = JSON.parse(rawTextResponse);
+                        if (data.error) {
+                            throw new Error(`Ошибка от API: ${data.error.message || JSON.stringify(data.error)}`);
+                        }
+                         if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+                            throw new Error('Ответ от API не содержит ожидаемых данных (`choices`).');
+                        }
+        
+                        if (keyIndex !== startIndex) {
+                            const providerRef = doc(db, `artifacts/${appId}/users/${userId}/providers`, provider.id);
+                            await updateDoc(providerRef, { currentKeyIndex: keyIndex });
+                        }
+        
+                        return parseApiResponseContent(data.choices[0].message.content); // Возвращаем результат
+                    }
+        
+                    lastError = new Error(`Ключ #${keyIndex + 1} не сработал (Статус: ${response.status}). Пробуем следующий.`);
+                    console.warn(lastError.message);
+        
+                } catch (error) {
+                    if (error.name === 'AbortError') throw error;
+                    lastError = error;
+                    console.error(`Ошибка при вызове API с ключом #${keyIndex + 1}:`, error);
+                }
+            }
+        
+            throw new Error(`Все ${apiKeys.length} ключей для провайдера "${provider.name}" не сработали. Последняя ошибка: ${lastError?.message}`);
         }
 
         function showTypingIndicatorInChat() {

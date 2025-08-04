@@ -2181,7 +2181,6 @@
                     let pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
                     let currentInputContent = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
         
-                    // 1. Создаем сообщение-плейсхолдер и сразу добавляем его в локальный массив
                     const assistantMessage = { 
                         role: 'assistant', 
                         content: '*Инициализация пайплайна...*', 
@@ -2190,7 +2189,6 @@
                     };
                     currentMessages.push(assistantMessage);
         
-                    // 2. Сразу отправляем в Firestore, чтобы в UI появился "пузырь" сообщения
                     await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
@@ -2203,38 +2201,31 @@
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
                         if (!currentInputContent && i > 0) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
         
-                        // Обновляем лог ПЕРЕД вызовом API
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
                         pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n*Выполняется...*\n`;
                         
-                        // Получаем ссылку на наше сообщение-плейсхолдер
                         const lastMessage = currentMessages.at(-1);
                         lastMessage.pipelineTrace = pipelineTraceLog;
                         lastMessage.content = `*Выполняется шаг ${i + 1}: ${stepModelName}...*`;
                         
-                        // 3. Обновляем Firestore, чтобы показать пользователю, что шаг начался
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
                         const stepResponse = await callApi(stepProvider, stepModelName, [{ role: 'user', content: currentInputContent }], signal);
                         const cleanResponse = getCleanContent(stepResponse);
                         
-                        // Обновляем лог результатом
                         pipelineTraceLog = pipelineTraceLog.replace('*Выполняется...*\n', `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`);
                         
-                        // 4. *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
-                        // Обновляем и КОНТЕНТ, и ТРЕЙС в локальном сообщении
-                        lastMessage.content = cleanResponse; // В контенте теперь результат ТЕКУЩЕГО шага
+                        lastMessage.content = cleanResponse;
                         lastMessage.pipelineTrace = pipelineTraceLog;
                         
-                        // 5. Немедленно отправляем в Firestore, чтобы отобразить результат этого шага
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
-                        // Готовим вход для следующего шага
+                        // *** ИСПРАВЛЕНИЕ: Готовим входные данные для следующего шага ***
                         currentInputContent = cleanResponse;
                     }
                     isSuccess = true;
                 } else {
-                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
+                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ ---
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];
@@ -2266,18 +2257,15 @@
                         : `**Ошибка:** Не удалось получить ответ.\n*Детали: ${lastError}*`;
                     
                     const lastMessage = currentMessages.at(-1);
-                    // Если у нас уже есть сообщение-плейсхолдер, обновляем его ошибкой
                     if (lastMessage && lastMessage.role === 'assistant') {
                         lastMessage.content = errorMessageContent;
-                    } else { // Иначе добавляем новое сообщение с ошибкой
+                    } else {
                         currentMessages.push({ role: 'assistant', content: errorMessageContent, modelName: 'Ошибка' });
                     }
                 }
         
-                // Отправляем финальное состояние сообщений в Firestore
                 await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                 
-                // onSnapshot сам обновит UI, но нам нужно вручную убрать индикаторы загрузки
                 render(); 
         
                 if (isSuccess && (document.hidden || state.activeSessionId !== sessionId || state.activeTab !== 'chat')) {

@@ -2183,19 +2183,35 @@
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
             let currentMessages = [...messagesToSubmit];
         
-            const getCleanContent = (rawContent) => {
-                if (typeof rawContent !== 'string') return '';
+            const extractTextForApi = (rawContent) => {
+                if (typeof rawContent !== 'string') {
+                    return '';
+                }
+                let content = rawContent;
+            
+                // Извлекаем текст из тега <file>
+                const fileRegex = /<file name="[^"]+">([\s\S]*)<\/file>/;
+                const fileMatch = content.match(fileRegex);
+            
+                if (fileMatch) {
+                    const fileContent = fileMatch[1] || '';
+                    content = content.replace(fileRegex, fileContent);
+                }
+            
+                // Полностью удаляем тег <think>
                 const thinkRegex = /<think>[\s\S]*?<\/think>/g;
-                return rawContent.replace(thinkRegex, '').trim();
+                content = content.replace(thinkRegex, '');
+            
+                return content.trim();
             };
-        
+
             try {
                 const initialActiveSession = state.sessions.find(s => s.id === sessionId);
                 const selectedPipeline = initialActiveSession?.pipelineId ? state.pipelines.find(p => p.id === initialActiveSession.pipelineId) : null;
         
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
                     let pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
-                    let lastStepOutput = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
+                    let lastStepOutput = extractTextForApi(currentMessages.findLast(m => m.role === 'user')?.content || '');
 
                     const assistantMessage = { 
                         role: 'assistant', 
@@ -2203,6 +2219,7 @@
                         modelName: selectedPipeline.name + " (Пайплайн)",
                         pipelineTrace: pipelineTraceLog
                     };
+                    
                     currentMessages.push(assistantMessage);
                     await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
@@ -2255,10 +2272,10 @@
                     const apiMessagesPayload = [];
                     if (selectedRole?.content) apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
                     
-                    const cleanedHistory = currentMessages.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
+                    const cleanedHistory = currentMessages.map(msg => ({ role: msg.role, content: extractTextForApi(msg.content) }));
                     apiMessagesPayload.push(...cleanedHistory.filter(msg => msg.role === 'system' || msg.content));
 
-                    const assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
+                    const assistantMessageContent = extractTextForApi(await callApi(provider, modelName, apiMessagesPayload, signal));
                     currentMessages.push({ role: 'assistant', content: assistantMessageContent, modelName: modelName });
                     isSuccess = true;
                 }

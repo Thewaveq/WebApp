@@ -2155,15 +2155,13 @@
             const signal = generationAbortController.signal;
         
             state.loadingSessionId = sessionId;
-            render(); // Обновляет UI, чтобы показать индикатор загрузки
+            render(); 
         
             let isSuccess = false;
             let wasAborted = false;
             let lastError = 'Неизвестная ошибка.';
             
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-        
-            // Локальная копия сообщений, чтобы избежать гонки состояний с Firestore
             let currentMessages = [...messagesToSubmit];
         
             const getCleanContent = (rawContent) => {
@@ -2177,10 +2175,11 @@
                 const selectedPipeline = initialActiveSession?.pipelineId ? state.pipelines.find(p => p.id === initialActiveSession.pipelineId) : null;
         
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
-                    // --- ЛОГИКА ПАЙПЛАЙНА ---
                     let pipelineTraceLog = `**Начало выполнения пайплайна: "${selectedPipeline.name}"**\n\n`;
+                    // *** ИЗМЕНЕНИЕ 1: Исходный запрос пользователя для первого шага ***
                     let currentInputContent = getCleanContent(currentMessages.findLast(m => m.role === 'user')?.content || '');
-        
+                    let previousStepOutput = ''; // Хранит результат предыдущего шага для последующих
+
                     const assistantMessage = { 
                         role: 'assistant', 
                         content: '*Инициализация пайплайна...*', 
@@ -2188,7 +2187,6 @@
                         pipelineTrace: pipelineTraceLog
                     };
                     currentMessages.push(assistantMessage);
-        
                     await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
         
                     for (let i = 0; i < selectedPipeline.steps.length; i++) {
@@ -2199,33 +2197,54 @@
                         const stepModelName = step.modelName;
         
                         if (!stepProvider || !stepModelName) throw new Error(`Ошибка на шаге ${i + 1}: провайдер или модель не найдены.`);
-                        if (!currentInputContent && i > 0) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные. Пайплайн прерван.`);
-        
+                        
+                        // *** КЛЮЧЕВОЕ ИЗМЕНЕНИЕ 2: Формируем правильный контент для API ***
+                        let apiPayloadContent;
+                        let stepRoleContent = step.roleContent || '';
+                        
+                        if (i === 0) {
+                            // Для первого шага используем оригинальный запрос пользователя
+                            apiPayloadContent = currentInputContent;
+                        } else {
+                            // Для последующих шагов создаем новую инструкцию
+                            if (!previousStepOutput) throw new Error(`Шаг ${i + 1} (${stepModelName}) получил пустые входные данные с предыдущего шага. Пайплайн прерван.`);
+                            apiPayloadContent = `Предыдущий шаг вернул следующий результат:\n\n---\n${previousStepOutput}\n---\n\nОсновываясь на этом, выполни свою задачу.`;
+                        }
+
+                        if (!apiPayloadContent) throw new Error(`На шаге ${i + 1} не удалось сформировать контент для запроса.`);
+
                         pipelineTraceLog += `---  \n**Шаг ${i + 1}/${selectedPipeline.steps.length}:** Модель \`${stepModelName}\`  \n`;
-                        pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n*Выполняется...*\n`;
+                        pipelineTraceLog += `**Роль:** ${stepRoleContent || 'Нет'}\n**Входные данные (для API):**\n\`\`\`\n${apiPayloadContent}\n\`\`\`\n*Выполняется...*\n`;
                         
                         const lastMessage = currentMessages.at(-1);
                         lastMessage.pipelineTrace = pipelineTraceLog;
                         lastMessage.content = `*Выполняется шаг ${i + 1}: ${stepModelName}...*`;
                         
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
-        
-                        const stepResponse = await callApi(stepProvider, stepModelName, [{ role: 'user', content: currentInputContent }], signal);
+                        
+                        // *** ИЗМЕНЕНИЕ 3: Собираем сообщения для API с учетом роли ***
+                        const apiMessages = [];
+                        if (stepRoleContent) {
+                            apiMessages.push({ role: 'system', content: stepRoleContent });
+                        }
+                        apiMessages.push({ role: 'user', content: apiPayloadContent });
+                        
+                        const stepResponse = await callApi(stepProvider, stepModelName, apiMessages, signal);
                         const cleanResponse = getCleanContent(stepResponse);
                         
                         pipelineTraceLog = pipelineTraceLog.replace('*Выполняется...*\n', `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`);
                         
-                        lastMessage.content = cleanResponse;
+                        lastMessage.content = cleanResponse; // Финальный контент сообщения - это результат последнего шага
                         lastMessage.pipelineTrace = pipelineTraceLog;
                         
                         await updateDoc(sessionRef, { messages: currentMessages, updatedAt: serverTimestamp() });
                         
-                        // *** ИСПРАВЛЕНИЕ: Готовим входные данные для следующего шага ***
-                        currentInputContent = cleanResponse;
+                        // Готовим выход для следующего шага
+                        previousStepOutput = cleanResponse;
                     }
                     isSuccess = true;
                 } else {
-                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ ---
+                    // --- ЛОГИКА ОДИНОЧНОЙ МОДЕЛИ (без изменений) ---
                     if (!provider) throw new Error("Провайдер API не найден или не выбран.");
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];
@@ -2248,6 +2267,7 @@
                     lastError = error.message;
                 }
             } finally {
+                // ... остальная часть функции без изменений
                 generationAbortController = null;
                 state.loadingSessionId = null;
         

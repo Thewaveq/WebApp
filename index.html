@@ -2166,16 +2166,12 @@
             const activeSession = state.sessions.find(s => s.id === sessionId);
             const selectedPipeline = activeSession?.pipelineId ? state.pipelines.find(p => p.id === activeSession.pipelineId) : null;
             const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
-            
-            // =========================================================================
-            // НОВАЯ, УПРОЩЕННАЯ ФУНКЦИЯ: беспощадно удаляет <think> и все внутри него
+        
             const getCleanContent = (rawContent) => {
                 if (typeof rawContent !== 'string') return '';
-                // 'g' флаг удалит все вхождения, на всякий случай
                 const thinkRegex = /<think>[\s\S]*?<\/think>/g;
                 return rawContent.replace(thinkRegex, '').trim();
             };
-            // =========================================================================
         
             try {
                 if (selectedPipeline && selectedPipeline.steps && selectedPipeline.steps.length > 0) {
@@ -2206,15 +2202,20 @@
                         
                         pipelineTraceLog += `**Роль:** ${step.roleContent || 'Нет'}\n**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
-                        const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                        const stepResponse = await callApi(provider, modelName, stepApiMessages, signal);
                         
-                        // ИСПОЛЬЗУЕМ getCleanContent ДЛЯ ПОЛУЧЕНИЯ ЧИСТОГО ОТВЕТА
                         const cleanResponse = getCleanContent(stepResponse);
                         
-                        currentInputContent = cleanResponse;
-                        assistantMessageContent = cleanResponse; // Сохраняем ТОЛЬКО чистый контент для финального ответа
+                        // ================== КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ОШИБКИ 502 ==================
+                        // Если шаг (не последний) не вернул никакого контента, прерываем пайплайн
+                        if (!cleanResponse && i < selectedPipeline.steps.length - 1) {
+                            throw new Error(`Шаг ${i + 1} (${stepModelName}) не вернул полезного контента. Пайплайн прерван.`);
+                        }
+                        // ======================================================================
         
-                        // В лог записываем ТОЛЬКО чистый ответ
+                        currentInputContent = cleanResponse;
+                        assistantMessageContent = cleanResponse;
+        
                         pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${cleanResponse}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
@@ -2224,10 +2225,12 @@
                     if (!modelName) throw new Error("Модель не выбрана.");
                     const apiMessagesPayload = [];
                     if (selectedRole?.content) apiMessagesPayload.push({ role: 'system', content: selectedRole.content });
+        
+                    // ИСПРАВЛЕНО: Очищаем историю И фильтруем пустые сообщения
                     const cleanedHistory = messagesToSubmit.map(msg => ({ role: msg.role, content: getCleanContent(msg.content) }));
-                    apiMessagesPayload.push(...cleanedHistory);
+                    const filteredHistory = cleanedHistory.filter(msg => msg.role === 'system' || msg.content); // Сохраняем системные промпты и сообщения с контентом
+                    apiMessagesPayload.push(...filteredHistory);
                     
-                    // Ответ от одиночной модели тоже очищаем
                     assistantMessageContent = getCleanContent(await callApi(provider, modelName, apiMessagesPayload, signal));
                     isSuccess = true;
                 }
@@ -2248,7 +2251,7 @@
                     const lastMessage = finalMessages.at(-1);
                     if (lastMessage && lastMessage.role === 'assistant') {
                         if (isSuccess) {
-                            lastMessage.content = assistantMessageContent; // Здесь уже 100% чистый контент
+                            lastMessage.content = assistantMessageContent;
                             lastMessage.pipelineTrace = pipelineTraceLog;
                         } else {
                             lastMessage.content = wasAborted 

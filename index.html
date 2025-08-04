@@ -2167,10 +2167,11 @@
                         pipelineTraceLog += `**Входные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n`;
         
                         const stepResponse = await callApi(stepProvider, stepModelName, stepApiMessages, signal);
+                        const cleanContentForNextStep = stepResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
                         
-                        currentInputContent = stepResponse;
+                        currentInputContent = cleanContentForNextStep;
                         assistantMessageContent = stepResponse;
-                        pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${currentInputContent}\n\`\`\`\n\n`;
+                        pipelineTraceLog += `**Выходные данные:**\n\`\`\`\n${stepResponse}\n\`\`\`\n\n`;
                     }
                     isSuccess = true;
         
@@ -2215,7 +2216,8 @@
                         const traceBlock = `<pipeline_trace>${pipelineTraceLog}</pipeline_trace>`;
         
                         if (isSuccess) {
-                            finalContent = `${traceBlock}\n\n${assistantMessageContent}`;
+                            const finalCleanContent = assistantMessageContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+                            finalContent = `${traceBlock}\n\n${finalCleanContent}`;
                         } else if (wasAborted) {
                             finalContent = `${traceBlock}\n\n*Генерация была остановлена.*`;
                         } else {

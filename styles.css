@@ -1,34 +1,52 @@
 /* styles.css (refined, fixed) */
 :root {
     /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
-    --user-accent-rgb: 102, 123, 224;   /* было: 64, 158, 255 */
-    --accent-mix-strength: 12%;         /* было: 15%  — чуть меньше наливка в фоны */
-    --accent-brightness-strength: 14%;  /* было: 20%  — меньше отбеливания акцента */
+    --user-accent-rgb: 102, 123, 224;
+    --accent-mix-strength: 12%;
+    --accent-brightness-strength: 14%;
 
-    /* Темные тона (без изменений) */
+    /* Темные тона */
     --base-dark-900: hsl(0, 0%, 12%);
     --base-dark-800: hsl(0, 0%, 15%);
     --base-dark-700: hsl(0, 0%, 20%);
     --base-dark-600: hsl(0, 0%, 25%);
     --base-dark-500: hsl(0, 0%, 28%);
 
-    /* Фоны (формулы без изменений, подхватят новые значения) */
+    /* Фоны (c легкой тонировкой) */
     --bg-main:      color-mix(in srgb, var(--base-dark-900), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-sidebar:   color-mix(in srgb, var(--base-dark-800), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-element:   color-mix(in srgb, var(--base-dark-700), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --bg-input:     color-mix(in srgb, var(--base-dark-600), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
     --border-color: color-mix(in srgb, var(--base-dark-500), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
 
-    /* Акцент (пересчитается автоматически) */
+    /* Акцент */
     --accent:       color-mix(in srgb, rgb(var(--user-accent-rgb)), white var(--accent-brightness-strength));
     --accent-hover: color-mix(in srgb, var(--accent), white 10%);
     --accent-contrast: #ffffff;
 
     /* Текст и статичные */
     --text-primary:   #f5f5f5;
-    --text-secondary: #A6ABB8; /* было: #8b8b8b — мягче, холоднее */
+    --text-secondary: #A6ABB8;
     --danger:         #e53e3e;
     --danger-hover:   #c53030;
+
+    /* UI-токены */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --shadow-sm: 0 4px 10px rgba(0,0,0,0.25);
+    --shadow-md: 0 8px 20px rgba(0,0,0,0.35);
+    --shadow-lg: 0 12px 28px rgba(0,0,0,0.45);
+
+    --duration-fast: 120ms;
+    --duration:      200ms;
+    --duration-slow: 300ms;
+    --ease:          cubic-bezier(.22,.61,.36,1);
+
+    --focus-ring: 0 0 0 2px rgba(var(--user-accent-rgb), 0.55);
 }
 
 html, body { height: 100%; }

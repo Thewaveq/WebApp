@@ -1,1109 +1,123 @@
-/* styles.css */
 :root {
-    /* === ПУЛЬТ УПРАВЛЕНИЯ ТЕМОЙ === */
-
-    /* 1. АКЦЕНТНЫЙ ЦВЕТ ПОЛЬЗОВАТЕЛЯ (в формате R, G, B) */
-    --user-accent-rgb: 64, 158, 255; 
-
-    /* 2. СИЛА ОКРАШИВАНИЯ ФОНА (в процентах) */
-    --accent-mix-strength: 15%;
-
-    /* 3. НОВОЕ: ЯРКОСТЬ КНОПОК И ЭЛЕМЕНТОВ (в процентах) */
-    /* Насколько сильно осветлять акцентный цвет для кнопок. 
-       0% - цвет как есть, 30% - заметно ярче. */
-    --accent-brightness-strength: 20%;
-
-
-    /* === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ (генерируются автоматически) === */
-    --base-dark-900: hsl(0, 0%, 12%);
-    --base-dark-800: hsl(0, 0%, 15%);
-    --base-dark-700: hsl(0, 0%, 20%);
-    --base-dark-600: hsl(0, 0%, 25%);
-    --base-dark-500: hsl(0, 0%, 28%);
-
-    /* Фоны, как и раньше, слегка окрашиваются */
-    --bg-main:      color-mix(in srgb, var(--base-dark-900), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
-    --bg-sidebar:   color-mix(in srgb, var(--base-dark-800), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
-    --bg-element:   color-mix(in srgb, var(--base-dark-700), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
-    --bg-input:     color-mix(in srgb, var(--base-dark-600), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
-    --border-color: color-mix(in srgb, var(--base-dark-500), rgb(var(--user-accent-rgb)) var(--accent-mix-strength));
-
-    /* ИЗМЕНЕНО: Акцентный цвет теперь тоже результат смешивания для контроля яркости */
-    --accent:       color-mix(in srgb, rgb(var(--user-accent-rgb)), white var(--accent-brightness-strength));
-    --accent-hover: color-mix(in srgb, var(--accent), white 10%); /* При наведении делаем его еще на 10% светлее */
-
-    /* Статичные цвета */
-    --text-primary: #f5f5f5;
-    --text-secondary: #888888;
-    --danger: #e53e3e;
-    --danger-hover: #c53030;
-}
-html, body {
-    height: 100%;
-}
-body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    font-weight: 100;
-    font-size: 18px;
-}
-@media (max-width: 1023px) {
-    body {
-        font-size: 15px;
-    }
+  /* Доп. системные переменные, не переопределяют существующие переменные в original styles.css */
+  --space-unit: 0.75rem;            /* базовый отступ */
+  --card-radius: 0.75rem;           /* радиус у карточек и панелей */
+  --soft-elevation: 0 8px 24px rgba(0,0,0,0.45); /* мягкая тень */
+  --glass-surface: rgba(255,255,255,0.03);
 }
 
-.bg-panel {
-    background-color: var(--bg-sidebar);
+/* Мелкие общие улучшения */
+html, body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { font-weight: 300; letter-spacing: -0.01em; }
+
+/* Улучшаем вид панели навигации */
+nav.h-12 { height: 3rem; }
+.main-nav-item {
+  padding: 0.45rem 0.65rem; /* чуть компактнее, аккуратные пиллы */
+  border-radius: 0.5rem;
+  transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
 }
+.main-nav-item:hover { transform: translateY(-2px); box-shadow: var(--soft-elevation); }
+.main-nav-item.active { box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
 
-input, textarea, select {
-    color: var(--text-primary);
-}
-input::placeholder, textarea::placeholder {
-    color: var(--text-secondary);
-}
-.bg-input {
-    background-color: var(--bg-input);
-}
-.bg-bg-sidebar {
-    background-color: var(--bg-sidebar);
-}
-.text-text-secondary {
-    color: var(--text-secondary);
-}
-
-/* КНОПКА ЧАТА, ЗАМЕТОК, СХЕМ */
-#new-chat-btn,
-#new-note-btn,
-#new-diagram-btn {
-    white-space: nowrap;  /* Запрещаем перенос текста на новую строку */
-    overflow: hidden;     /* Скрываем текст, который не помещается в узкую кнопку */
-}
-
-/* САЙДБАР */
-.sidebar-item {
-    background-color: var(--bg-element);
-    border: 1px solid var(--border-color);
-    margin-bottom: 2px;
-    font-weight: normal;
-    color: var(--text-primary);
-    transition: background-color 0.2s, border-color 0.2s, font-weight 0.2s;
-}
-
-/* НОВЫЙ СТИЛЬ: Стиль для ВЫБРАННОГО чата (теперь выглядит как старый ховер) */
-.sidebar-item.active {
-    background-color: var(--bg-input);      /* Более светлый фон */
-    border-color: var(--text-secondary);  /* Более заметная серая рамка */
-    font-weight: bold;                    /* Жирный шрифт для выделения */
-}
-
-/* НОВЫЙ СТИЛЬ: Стиль при НАВЕДЕНИИ на неактивный чат (теперь еще более легкий эффект) */
-.sidebar-item:not(.active):hover {
-    background-color: var(--bg-input); /* Просто делаем фон чуть светлее, без изменения рамки */
-}
-
-.main-nav-item.active { background-color: var(--accent); color: white; }
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-sidebar); }
-::-webkit-scrollbar-thumb { background: var(--base-dark-500); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--base-dark-600); }
-.typing-indicator span { 
-    height: 8px; 
-    width: 8px; 
-    background-color: var(--accent); /* Используем переменную акцентного цвета */
-    border-radius: 50%; 
-    display: inline-block; 
-    animation: bounce 1.4s infinite ease-in-out both; 
-}
-.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-
-/* --- СТИЛИ ДЛЯ НОВОГО ИНДИКАТОРА ПЕЧАТИ --- */
-/* Контейнер теперь стилизуется классами из JS, а этому правилу нужен только блик */
-#loading-message-placeholder {
-    position: relative; 
-    overflow: hidden; /* Обязательно для эффекта блика */
-}
-
-/* Сам блик */
-#loading-message-placeholder::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.1),
-        transparent
-    );
-    transform: translateX(-150%);
-    animation: scanning-sheen 3.5s infinite linear;
-}
-
-@keyframes scanning-sheen {
-    0% { transform: translateX(-150%); }
-    100% { transform: translateX(250%); }
-}
-
-/* Содержимое индикатора */
-.loader-content {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    z-index: 2; /* Быть поверх блика */
-}
-
-/* Аватар-иконка */
-.loading-avatar {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 1rem;
-    background-color: transparent;
-    border: none;
-}
-
-.loading-avatar svg {
-    width: 16px;
-    height: 16px;
-    color: #FFFFFF;
-}
-
-/* Текст и курсор */
-#typewriter-text {
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-size: 0.9em;
-}
-
-#typewriter-text::after {
-    content: '|';
-    margin-left: 2px;
-    font-weight: 600;
-    color: var(--accent);
-    animation: blinking-cursor 1.1s infinite;
-}
-
-/* Эта анимация уже есть, но пусть будет для полноты */
-@keyframes blinking-cursor {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-}
-
-/* --- СТИЛЬ ДЛЯ ЭФФЕКТА ЗАТУХАНИЯ ПРИ ПРОКРУТКЕ (УВЕЛИЧЕННЫЙ) --- */
-#notepad-scroll-container {
-    -webkit-mask-image: linear-gradient(to bottom, 
-        transparent, 
-        black 50px, 
-        black calc(100% - 30px), 
-        transparent
-    );
-    mask-image: linear-gradient(to bottom, 
-        transparent, 
-        black 50px, 
-        black calc(100% - 30px), 
-        transparent
-    );
-}
-
-#chat-messages {
-    /* --- НАСТРОЙКИ (меняйте эти значения) --- */
-    --top-fade: 50px;       /* <-- Длина верхнего затухания */
-    --bottom-fade: 40px;    /* <-- Длина нижнего затухания */
-    --form-height: 70px;    /* <-- Высота формы внизу (пустое пространство) */
-
-    /* --- МАСКА (этот код можно не трогать) --- */
-    -webkit-mask-image: linear-gradient(to bottom,
-        /* 1. Верхнее затухание */
-        transparent,
-        black var(--top-fade),
-
-        /* 2. Сплошная область до начала нижнего затухания */
-        black calc(100% - var(--form-height) - var(--bottom-fade)),
-
-        /* 3. Нижнее затухание (заканчивается ровно над формой) */
-        transparent calc(100% - var(--form-height))
-    );
-    mask-image: linear-gradient(to bottom,
-        transparent,
-        black var(--top-fade),
-        black calc(100% - var(--form-height) - var(--bottom-fade)),
-        transparent calc(100% - var(--form-height))
-    );
-}
-
-/* --- СТИЛИ ДЛЯ ОЗВУЧИВАНИЯ СООБЩЕНИЙ --- */
-.speak-controls-container {
-    position: relative;
-    display: flex;
-}
-
-.voice-selection-dropdown {
-    position: absolute;
-    bottom: 100%; /* Появляется над кнопкой */
-    left: 0;
-    margin-bottom: 8px; /* Небольшой отступ от кнопки */
-    
-    /* Размеры и внешний вид */
-    width: 240px; /* Фиксированная ширина для аккуратного вида */
-    max-height: 250px; /* Ограничение высоты с прокруткой, если голосов много */
-    overflow-y: auto;
-    
-    /* Эффект "стекла" */
-    background-color: rgba(37, 37, 38, 0.85);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-
-    /* Рамка, скругление и тень */
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-
-    /* Внутренние отступы */
-    padding: 0.5rem;
-    z-index: 20;
-
-    /* Плавное появление (опционально, можно добавить) */
-    transition: opacity 0.2s, transform 0.2s;
-}
-
-.voice-option-btn {
-    display: block;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: none;
-    color: var(--text-primary);
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-size: 14px;
-    text-align: left;
-    white-space: nowrap; /* Чтобы имя голоса не переносилось */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Добавляет "..." если имя не влезает */
-    transition: background-color 0.2s;
-}
-
-/* Эффект при наведении на голос в списке */
-.voice-option-btn:hover {
-    background-color: var(--bg-element);
-}
-
-/* Скрываем список по умолчанию (JS будет убирать/добавлять этот класс) */
-.voice-selection-dropdown.hidden {
-    display: none;
-    opacity: 0;
-    transform: translateY(10px);
-}
-
-/* ДОБАВЛЕНО: Стили для плавающих кнопок управления чатом */
-.chat-action-btn {
-    background-color: rgba(37, 37, 38, 0.5); /* Полупрозрачный фон */
-    -webkit-backdrop-filter: blur(8px); /* Эффект "матового стекла" */
-    backdrop-filter: blur(8px); /* Эффект "матового стекла" */
-    color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1); /* Тонкая светлая рамка */
-    border-radius: 0.375rem; /* rounded-md */
-    padding: 0.5rem; /* p-2 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-}
-.chat-action-btn:hover {
-    background-color: rgba(51, 51, 51, 0.75); /* Фон чуть светлее при наведении */
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-.chat-action-btn.active {
-    background-color: var(--accent);
-    border-color: var(--accent-hover);
-    color: white;
-}
-
-/* --- СТИЛИ ДЛЯ АККОРДЕОНА В НАСТРОЙКАХ --- */
-details > summary {
-    list-style: none;
-    cursor: pointer;
-}
-details > summary::-webkit-details-marker {
-    display: none;
-}
-
-details .details-arrow {
-    transition: transform 0.3s ease-out;
-}
-
-details[open] > summary .details-arrow {
-    transform: rotate(180deg);
-}
-
-/* --- СТИЛИ ДЛЯ Markdown-контента --- */
-.prose { 
-    color: var(--text-primary);
-    white-space: pre-wrap;
-    word-wrap: break-word;
-}
-
-.prose h1, .prose h2, .prose h3 { color: white; border-bottom: 1px solid var(--border-color); }
-.prose a { color: var(--accent-hover); }
-
-/* --- СТИЛИ ДЛЯ БЛОКА КОДА --- */
-.prose pre {
-    background-color: rgba(0, 0, 0, 0.4); 
-    /*background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)); */
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-
-    border: 1px solid rgba(255, 255, 255, 0.08);
-
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5),
-                inset 0 0 30px rgba(0, 0, 0, 0.25);
-    
-    padding: 0.5rem; 
-
-    border-radius: 0.75rem; 
-    position: relative;
-    margin-top: 1.25em;
-    margin-bottom: 1.25em;
-    white-space: pre;
-    overflow-x: auto;
-    font-size: 0.9em;
-    line-height: 1.6;
-}
-
-.prose code { 
-    background-color: rgba(14, 99, 156, 0.15);
-    color: var(--accent-hover);
-    border: 1px solid rgba(14, 99, 156, 0.3);
-    padding: 0.1rem 0.8rem; 
-    border-radius: 0.3rem;     
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.85em;
-}
-
-.prose pre code { 
-    background-color: transparent; 
-    padding: 0; 
-    border-radius: 0; 
-    border: none;
-    color: inherit;
-    font-size: inherit;
-}
-
-.prose blockquote { border-left-color: var(--accent); }
-
-.diagram-wrapper {
-    position: relative;
-    margin: 1.25em 0;
-}
-
-/* Контейнер для кнопок в ОБЫЧНОМ блоке кода */
-.code-block-actions {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    z-index: 10;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-/* Показываем кнопки при наведении на <pre> */
-.prose pre:hover .code-block-actions {
-    opacity: 1;
-}
-
-/* Контейнер для кнопок в блоке с ДИАГРАММОЙ */
-.diagram-actions-container {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    z-index: 15;
-    display: flex;
-    gap: 0.25rem; /* Расстояние между кнопками */
-}
-
-/* Общий стиль для всех кнопок в блоках кода */
-.code-action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--bg-element);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 0.3rem;
-    padding: 0.25rem;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.code-action-btn:hover {
-    background-color: var(--bg-input);
-    color: var(--text-primary);
-}
-
-.code-action-btn:disabled,
-.code-action-btn:disabled:hover {
-    background-color: var(--bg-element); 
-    opacity: 0.5;                        
-    cursor: not-allowed;                 
-}
-
-/* Контейнер для отрендеренной диаграммы */
-.mermaid-render-container {
-    background-color: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
-    padding: 1rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100px;
-}
-
-.mermaid-render-container.hidden,
-.diagram-wrapper > pre.hidden {
-    display: none;
-}
-
-.mermaid-render-container svg {
-    max-width: 100%;
-    height: auto;
-}
-
-
-/* --- СТИЛИ ДЛЯ БЛОКА <think> --- */
-.prose details {
-    display: flow-root;
-    background-color: var(--bg-element);
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    margin: 1.25em 0;
-    padding: 0.5rem 1rem;
-}
-.prose details summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--text-secondary);
-    outline: none;
-    transition: color 0.2s;
-}
-.prose details summary:hover {
-    color: var(--text-primary);
-}
-.prose details > div {
-    padding-top: 0.75rem;
-    margin-top: 0.5rem;
-    border-top: 1px solid var(--border-color);
-    opacity: 0.8;
-}
-
-/* --- СТИЛЬ ДЛЯ СООБЩЕНИЙ ПОЛЬЗОВАТЕЛЯ --- */
-.user-message-bg {
-    background-color: var(--bg-element);
-}
-.assistant-message-bg {
-    background-color: var(--bg-sidebar);
-}
-
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-}
-
-.modal-content {
-    /* "Стеклянные" стили, теперь унифицированные с полем ввода */
-    background-color: rgba(20, 20, 20, 0.65); /* Используем более темный и прозрачный фон */
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-
-    /* Стили для макета и размера */
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh;
-    padding: 1rem; /* Оставляем уменьшенный отступ */
-    border-radius: 0.5rem;
-    width: 90%;
-    max-width: 400px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-
-/* --- СТИЛИ ДЛЯ КОНТЕНТА В САЙДБАРЕ --- */
+/* SIDEBAR — более «плоский», но с глубиной */
 #sidebar {
-    transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, padding 0.3s ease-in-out, border-width 0.1s ease-in-out;
-    width: 280px;
-    flex-shrink: 0;
-}
-
-@media (max-width: 1023px) {
-    #sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        height: 100%;
-        z-index: 40;
-        transform: translateX(-100%);
-    }
-    #sidebar.open {
-        transform: translateX(0);
-    }
-}
-
-@media (min-width: 1024px) {
-    #sidebar.collapsed {
-        width: 0;
-        padding-left: 0;
-        padding-right: 0;
-        overflow: hidden;
-        border-right-width: 0;
-    }
-}
-
-/* --- СТИЛИ ДЛЯ ПЛАВНОГО ИСЧЕЗНОВЕНИЯ КОНТЕНТА В САЙДБАРЕ --- */
-#sidebar > * {
-    opacity: 1;
-    /* Контент будет появляться плавно за 0.2 секунды... */
-    transition: opacity 0.2s ease-in-out; 
-    /* ...НО С ЗАДЕРЖКОЙ в 0.1 секунды. Он подождет, пока сайдбар немного развернется. */
-    transition-delay: 0.1s; 
-}
-
-@media (min-width: 1024px) {
-    #sidebar.collapsed > * {
-        opacity: 0;
-        pointer-events: none; /* Добавим, чтобы нельзя было кликнуть на невидимые элементы */
-        /* Контент будет исчезать БЫСТРЕЕ, за 0.15 секунды... */
-        transition: opacity 0.15s ease-in-out;
-        /* ...И БЕЗ ЗАДЕРЖКИ. Исчезновение начнется сразу. */
-        transition-delay: 0s; 
-    }
-}
-
-/* --- СТИЛИ ДЛЯ АНИМАЦИИ ФОНА САЙДБАРА --- */
-#sidebar-backdrop {
-
-    transition: opacity 0.3s ease-in-out;
-}
-
-#sidebar-backdrop:not(.active) {
-    opacity: 0;
-    pointer-events: none;
-}
-
-#sidebar-backdrop.active {
-    opacity: 1;
-}
-
-/* --- СТИЛИ ДЛЯ СВОРАЧИВАЕМОЙ ПАНЕЛИ --- */
-.collapsible-panel {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.3s ease-out;
-}
-.collapsible-panel.expanded {
-    grid-template-rows: 1fr;
-}
-.collapsible-panel > div {
-    overflow: hidden;
-}
-#chat-settings-icon.expanded {
-    transform: rotate(180deg);
-}
-/* --- СТИЛЬ ДЛЯ ЗАПОЛНИТЕЛЯ СООБЩЕНИЯ --- */
-.message-placeholder {
-    min-height: 70px;
-    width: 100%;
-}
-
-/* --- СТИЛИ ДЛЯ КОМПАКТНОГО РЕЖИМА ЧАТА --- */
-.message-container {
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    transition: max-width 0.4s ease-in-out;
-}
-
-.chat-view-compact .message-container {
-    max-width: 896px;
-}
-
-#chat-width-toggle {
-    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-}
-
-#chat-width-toggle.active {
-    background-color: var(--accent);
-    color: white;
-}
-
-/* --- СТИЛИ ДЛЯ КАРТОЧЕК ЗАМЕТОК --- */
-.note-card {
-    background-color: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    transition: box-shadow 0.2s, border-color 0.2s;
-}
-.note-card:hover {
-    border-color: var(--accent-hover);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-.note-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-}
-.note-card-title {
-    background-color: transparent;
-    border: none;
-    font-weight: bold;
-    font-size: 1.125rem;
-    padding: 0.25rem 0.5rem;
-    margin-left: -0.5rem;
-    border-radius: 0.25rem;
-    width: 100%;
-    color: var(--text-primary);
-}
-.note-card-title:focus {
-    outline: none;
-    background-color: var(--bg-input);
-    box-shadow: 0 0 0 2px var(--accent);
-}
-.note-card-content {
-    background-color: var(--bg-element);
-    border-radius: 0.3rem;
-    padding: 0.75rem;
-    width: 100%;
-    min-height: 100px;
-    resize: vertical;
-    flex-grow: 1;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-}
-.note-card-content:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--accent);
-    color: var(--text-primary);
-}
-.note-card-delete-btn {
-    color: var(--text-secondary);
-    transition: color 0.2s;
-    padding: 0.25rem;
-    border-radius: 9999px;
-}
-.note-card-delete-btn:hover {
-    color: var(--danger);
-    background-color: rgba(229, 62, 62, 0.1);
-}
-#add-new-card-btn {
-    border-style: dashed;
-    border-width: 2px;
-    border-color: var(--border-color);
-    color: var(--text-secondary);
-    transition: all 0.2s;
-}
-#add-new-card-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background-color: var(--bg-element);
-}
-
-#note-cards-grid {
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    transition: max-width 0.4s ease-in-out; 
-}
-
-#notepad-scroll-container.notepad-view-compact #note-cards-grid {
-    max-width: 896px;
-}
-
-#notepad-width-toggle.active {
-    background-color: var(--accent);
-    color: white;
-}
-
-/* --- Стили для In-App Уведомления с эффектом свечения --- */
-@keyframes pulse-glow {
-    0% {
-        box-shadow: 0 0 5px 0px rgba(var(--user-accent-rgb), 0.7), 0 0 0 0px rgba(var(--user-accent-rgb), 0.7);
-    }
-    50% {
-        box-shadow: 0 0 10px 3px var(--accent), 0 0 7px 2px var(--accent);
-    }
-    100% {
-        box-shadow: 0 0 5px 0px rgba(var(--user-accent-rgb), 0.7), 0 0 0 0px rgba(var(--user-accent-rgb), 0.7);
-    }
-}
-
-
-#in-app-notification > div {
-
-    position: relative; 
-    
-    background-color: var(--bg-sidebar);
-    
-
-    border: none;
-    
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-    
-    border-radius: 0.75rem;
-    margin: 1rem;
-    padding: 1rem;
-    
-    animation: pulse-glow 2.5s infinite ease-in-out;
-}
-
-#in-app-notification-title {
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-#in-app-notification-body {
-    color: var(--text-secondary);
-}
-
-#in-app-notification-close {
-    color: var(--text-secondary);
-    transition: color 0.2s, background-color 0.2s;
-    border-radius: 9999px;
-    padding: 0.25rem;
-    
-    position: relative;
-    z-index: 2;
-}
-
-#in-app-notification-close:hover {
-    color: var(--text-primary);
-    background-color: var(--bg-element);
-}
-
-/* FIX: Ensure custom border color class applies correctly */
-.border-border-color {
-    border-color: var(--border-color);
-}
-
-/* --- Стили для кнопок редактирования сообщения --- */
-.cancel-edit-btn,
-.save-edit-btn {
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-}
-
-.cancel-edit-btn {
-    background-color: var(--bg-input);
-    color: var(--text-primary);
-}
-
-.cancel-edit-btn:hover {
-    background-color: var(--bg-element);
-}
-
-.save-edit-btn {
-    background-color: var(--accent);
-    color: white;
-}
-
-.save-edit-btn:hover {
-    background-color: var(--accent-hover);
-}
-
-/* --- НОВЫЕ СТИЛИ ДЛЯ ПОЛЯ ВВОДА ЧАТА С ЭФФЕКТОМ СТЕКЛА --- */
-#chat-input {
-    /* 1. Устанавливаем более темный и полупрозрачный фон */
-    /* Используем почти черный цвет (20, 20, 20) с 60% непрозрачности */
-    background-color: rgba(20, 20, 20, 0.6);
-
-    /* 2. Добавляем эффект размытия фона (блюр) */
-    /* Это создаст эффект "матового стекла" на элементах позади поля ввода */
-    -webkit-backdrop-filter: blur(12px); /* Префикс для поддержки Safari */
-    backdrop-filter: blur(12px);
-
-    /* 3. Настраиваем рамку, чтобы она лучше сочеталась с новым стилем */
-    /* Тонкая, полупрозрачная белая рамка для выделения краев */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-
-    /* 4. Убираем стандартное кольцо фокуса и тень от Tailwind */
-    box-shadow: none;
-    outline: none;
-    
-    /* 5. Добавляем плавный переход для рамки и тени при фокусе */
-    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-/* 6. Стиль при фокусе на поле ввода */
-#chat-input:focus {
-    /* При выделении поля рамка будет становиться ярче, используя ваш акцентный цвет */
-    border-color: rgba(var(--user-accent-rgb), 0.8); /* Используем --accent цвет с прозрачностью */
-    /* Добавляем внешнюю тень для эффекта "кольца" */
-    box-shadow: 0 0 0 1px rgba(var(--user-accent-rgb), 0.5);
-}
-
-/* 7. Стиль для текста-подсказки (placeholder) */
-#chat-input::placeholder {
-    /* Делаем его немного светлее для лучшей читаемости на темном фоне */
-    color: var(--text-secondary);
-    opacity: 0.9;
-}
-
-/* --- СТИЛИ ДЛЯ ПОЛНОЭКРАННОГО ОКНА ПРОСМОТРА СООБЩЕНИЯ --- */
-#fullscreen-modal {
-    background-color: rgba(30, 30, 30, 0.7);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-}
-
-#fullscreen-modal-content {
-    width: 100vw;
-    height: 100vh;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0; 
-}
-
-/* Контейнер для прокрутки, всегда на всю ширину */
-#fullscreen-modal-body {
-    padding: 2rem 4rem;
-    height: 100%;
-    max-width: 100%;
-}
-
-@media (max-width: 768px) {
-    #fullscreen-modal-body {
-        padding: 1.5rem 1rem;
-    }
-}
-
-#fullscreen-modal-body .prose {
-    max-width: 100%;
-    
-    transition: max-width 0.4s ease-in-out;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-#fullscreen-modal-body.fullscreen-view-compact .prose {
-    max-width: 896px; 
-}
-
-/* Стили для кнопки закрытия */
-#fullscreen-modal-close {
-    position: fixed;
-    top: 2rem;
-    right: 2rem;
-    z-index: 60;
-    background-color: rgba(0, 0, 0, 0.25);
-    color: var(--text-primary);
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease-in-out;
-}
-
-#fullscreen-modal-close:hover {
-    background-color: rgba(0, 0, 0, 0.4);
-    transform: scale(1.1) rotate(90deg);
-}
-
-#fullscreen-modal-close > i {
-    width: 28px;
-    height: 28px;
-}
-
-/* Стили для НОВОЙ кнопки переключения ширины */
-#fullscreen-width-toggle {
-    position: fixed;
-    top: 2rem;
-    right: 5.5rem; 
-    z-index: 60;
-    background-color: rgba(0, 0, 0, 0.25);
-    color: var(--text-primary);
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease-in-out;
-    border: none;
-    cursor: pointer;
-}
-
-#fullscreen-width-toggle:hover {
-    background-color: rgba(0, 0, 0, 0.4);
-    transform: scale(1.1);
-}
-
-#fullscreen-width-toggle.active {
-    background-color: var(--accent);
-    color: white;
-}
-
-/* --- СТИЛИ ДЛЯ ВЫПАДАЮЩЕГО МЕНЮ В СООБЩЕНИЯХ --- */
-.message-actions-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.message-actions-dropdown {
-    position: absolute;
-    bottom: 100%;
-    right: 0;
-    margin-bottom: 8px;
-    width: max-content;
-    min-width: 230px;
-    background-color: rgba(37, 37, 38, 0.85);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-    padding: 0.5rem;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-/* Класс для скрытия меню */
-.message-actions-dropdown.hidden {
-    display: none;
-}
-
-.dropdown-menu-item {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: none;
-    color: var(--text-primary);
-    border-radius: 0.375rem; 
-    cursor: pointer;
-    font-size: 14px;
-    text-align: left;
-    transition: background-color 0.2s;
-}
-
-.dropdown-menu-item:hover {
-    background-color: var(--bg-element);
-}
-
-.dropdown-menu-item > i {
-    width: 16px;
-    height: 16px;
-    margin-right: 12px;
-    flex-shrink: 0;
-    color: var(--text-secondary);
-}
-
-/* Стиль для "опасных" действий, как удаление */
-.dropdown-menu-item.danger {
-    color: var(--danger);
-}
-.dropdown-menu-item.danger:hover {
-    background-color: rgba(229, 62, 62, 0.15); 
-    color: white;
-}
-.dropdown-menu-item.danger:hover > i {
-    color: white;
-}
-
-.dropdown-menu-separator {
-    height: 1px;
-    background-color: var(--border-color);
-    margin: 0.5rem 0;
-    border: none;
-}
-
-/* СТИЛИ ДЛЯ РАЗДЕЛИТЕЛЯ Split.js */
-.gutter {
-    background-color: #37373d;
-    background-repeat: no-repeat;
-    background-position: 50%;
-}
-.gutter.gutter-horizontal {
-    cursor: col-resize;
-}
-
-.gutter.gutter-vertical {
-    cursor: row-resize;
-    position: relative; 
-}
-
-@media (max-width: 1023px) {
-    .gutter.gutter-vertical::after {
-        content: '';
-        position: absolute;
-        width: 100%;
-        height: 40px;
-        top: 50%;
-        left: 0;
-        transform: translateY(-50%);
-        background: transparent;
-    }
-}
-@media (min-width: 1024px) {
-    #diagram-input {
-        font-size: 18px; /* Вы можете изменить это значение, если 16px покажется мало или много */
-    }
-}
-
-/* --- УЛУЧШЕННЫЙ СТИЛЬ ДЛЯ ВЫБОРА ЦВЕТА --- */
-#accent-color-picker {
-    -webkit-appearance: none; /* для Safari/Chrome */
-    -moz-appearance: none;    /* для Firefox */
-    appearance: none;         /* Стандартное свойство */
-
-    background-color: transparent; /* Фон делаем прозрачным, чтобы видеть внутренний квадрат с цветом */
-    padding: 4px;                  /* Небольшой внутренний отступ, чтобы цвет не прилипал к рамке */
-    border: 1px solid var(--border-color); /* Применяем ВАШУ стандартную серую рамку */
-    
-    box-shadow: none;
-    outline: none;
-}
-
-#accent-color-picker::-webkit-color-swatch {
-    border-radius: 0.25rem; /* Слегка скругляем углы у самого цвета */
-    border: none;           /* Убираем любую рамку у внутреннего квадратика */
-}
-
-#accent-color-picker::-moz-color-swatch { /* То же самое для Firefox */
-    border-radius: 0.25rem;
-    border: none;
-}
+  padding: calc(var(--space-unit) * 0.6) 0.5rem 0.75rem 0.5rem; /* немного воздуха */
+  border-right: 1px solid rgba(255,255,255,0.04);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+#sidebar .h-12 { padding-left: 1rem; padding-right: 0.75rem; }
+#sidebar .text-xl { font-weight: 600; letter-spacing: -0.02em; }
+
+/* Элементы списка в сайдбаре */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  transition: background-color 180ms ease, transform 180ms ease, box-shadow 220ms ease;
+}
+.sidebar-item:not(.active):hover { transform: translateX(4px); box-shadow: 0 6px 18px rgba(0,0,0,0.32); }
+.sidebar-item.active {
+  border-left: 3px solid rgba(var(--user-accent-rgb), 0.95);
+  box-shadow: 0 8px 28px rgba(var(--user-accent-rgb), 0.035);
+  background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent);
+}
+
+/* Кнопки "Новый чат" и др — делаем более аккуратные пиллы */
+#new-chat-btn, #new-note-btn, #new-diagram-btn {
+  border-radius: 0.65rem;
+  padding: 0.5rem 0.875rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  transition: transform 140ms ease, box-shadow 200ms ease;
+}
+#new-chat-btn:active { transform: scale(0.995); }
+
+/* Плавающие кнопки управления чатом — плавный современный стиль */
+.chat-action-btn {
+  border-radius: 0.6rem;
+  padding: 0.45rem;
+  min-width: 40px;
+  min-height: 40px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+  transition: transform 150ms ease, box-shadow 200ms ease, background-color 160ms ease;
+}
+.chat-action-btn:hover { transform: translateY(-4px); }
+.chat-action-btn.active { transform: translateY(-1px) scale(1.02); }
+
+/* Панели настроек — немного более выразительный glass-эффект */
+#chat-settings-panel, #notepad-settings-panel {
+  border-radius: var(--card-radius);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Плавные появление/исчезновение — избегаем pointer-events:none при анимации */
+#chat-settings-panel[style], #notepad-settings-panel[style] { will-change: opacity, transform; }
+
+/* Индикаторы и типографика внутри сообщений */
+.prose { line-height: 1.6; font-size: 0.98rem; }
+.prose h1, .prose h2, .prose h3 { letter-spacing: -0.02em; margin-top: 1rem; margin-bottom: 0.6rem; }
+.prose pre { border-radius: 0.6rem; padding: 0.85rem; }
+.prose code { font-size: 0.9em; }
+
+/* Карточки заметок */
+.note-card { border-radius: var(--card-radius); padding: 1rem; }
+.note-card:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(0,0,0,0.45); }
+
+/* Форма ввода — виднее и аккуратнее */
+#chat-form { padding: 0.75rem; }
+#chat-input { border-radius: 0.6rem; padding: 0.7rem; min-height: 48px; max-height: 240px; }
+
+/* Модалки — центр и фокус */
+.modal-content { border-radius: 1rem; }
+.modal-overlay { background-color: rgba(0,0,0,0.6); }
+
+/* Уведомление in-app — деликатное свечение */
+#in-app-notification > div { animation: none; box-shadow: 0 12px 30px rgba(0,0,0,0.55); }
+
+/* Скроллбар — добавим совместимость для firefox */
+* { scrollbar-color: var(--base-dark-500) var(--bg-sidebar); }
+
+/* Фокус-видимый для доступности */
+:focus { outline: none; }
+:focus-visible { outline: 3px solid rgba(var(--user-accent-rgb),0.95); outline-offset: 3px; border-radius: 0.35rem; }
+
+/* Мобильные корректировки */
+@media (max-width: 640px) {
+  .sidebar-item { padding: 0.5rem; }
+  .chat-action-btn { min-width: 36px; min-height: 36px; }
+}
+
+/* Неинвазивные утилитарные классы (без изменения существ. логики) */
+.u-elevate { box-shadow: var(--soft-elevation); border-radius: var(--card-radius); }
+.u-pill { border-radius: 999px; padding: 0.35rem 0.75rem; }
+
+/* Безопасные правила переопределения для известных селекторов — гарантия совместимости: */
+#sidebar.open { transform: translateX(0); }
+#sidebar.collapsed { width: 56px; }
+
+/* Маленькие полировки: иконки Lucide наследуют цвет */
+[i[data-lucide]] svg { color: inherit; }
